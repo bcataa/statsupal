@@ -105,7 +105,7 @@ export async function runServerMonitoringCycle({
     }
   }
 
-  for (const service of services) {
+  const checkTasks = services.map(async (service) => {
     const result = await runHttpCheck(service.url);
     const previousStatus = service.status;
     logger.info("[monitor-worker] raw-result", {
@@ -135,7 +135,7 @@ export async function runServerMonitoringCycle({
         serviceId: service.id,
         error: getErrorMessage(updateResult.error),
       });
-      continue;
+      return;
     }
     logger.info("[monitor-worker] service status persisted", {
       serviceId: service.id,
@@ -171,7 +171,7 @@ export async function runServerMonitoringCycle({
         logger.info("[monitor-worker] incident created", { serviceId: service.id });
       }
 
-      continue;
+      return;
     }
 
     if (
@@ -203,5 +203,7 @@ export async function runServerMonitoringCycle({
         });
       }
     }
-  }
+  });
+
+  await Promise.allSettled(checkTasks);
 }

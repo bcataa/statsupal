@@ -501,6 +501,46 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const runMonitoringAndReload = useCallback(
+    async (userId: string) => {
+      if (!supabase) {
+        return;
+      }
+
+      try {
+        console.log("[monitor-trigger] calling /api/monitor");
+        const response = await fetch("/api/monitor", {
+          method: "GET",
+          cache: "no-store",
+        });
+        const body = await response.json();
+        if (!response.ok || !body?.success) {
+          throw new Error(body?.message || "Monitoring API call failed.");
+        }
+        console.log("[monitor-trigger] /api/monitor success", body);
+
+        const appData = await loadUserAppData(supabase, userId);
+        dispatch({
+          type: "SET_HYDRATED_DATA",
+          payload: {
+            authUserId: userId,
+            workspace: appData.workspace,
+            currentProjectId: appData.currentProjectId,
+            services: appData.services,
+            incidents: appData.incidents,
+          },
+        });
+        console.log("[monitor-trigger] reloaded state from Supabase", {
+          services: appData.services.length,
+          incidents: appData.incidents.length,
+        });
+      } catch (error) {
+        console.error("[monitor-trigger] cycle failed", error);
+      }
+    },
+    [supabase],
+  );
+
   const addService = useCallback(
     async (input: AddServiceInput) => {
       console.log("[AddService] submit start", {
@@ -558,6 +598,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           type: "ADD_SERVICE",
           payload: service,
         });
+        void runMonitoringAndReload(userId);
       } catch (error) {
         const details = getSupabaseErrorDetails(error);
         console.error("[AddService] insert failure", {
@@ -579,7 +620,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         );
       }
     },
-    [state.authUserId, state.workspace.id, supabase],
+    [runMonitoringAndReload, state.authUserId, state.workspace.id, supabase],
   );
 
   const updateService = useCallback(
@@ -686,6 +727,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }),
     [],
   );
+
 
   useEffect(() => {
     const hydrateForUser = async () => {
@@ -957,46 +999,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const userId = state.authUserId;
 
-    const triggerServerMonitoring = async () => {
-      console.log("[monitor-trigger] calling /api/monitor");
-      const response = await fetch("/api/monitor", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const body = await response.json();
-      if (!response.ok || !body?.success) {
-        throw new Error(body?.message || "Monitoring API call failed.");
-      }
-      console.log("[monitor-trigger] /api/monitor success", body);
-    };
-
-    const reloadFromSupabase = async () => {
-      const appData = await loadUserAppData(supabase, userId);
+    const runCycle = async () => {
+      await runMonitoringAndReload(userId);
       if (cancelled) {
         return;
-      }
-      dispatch({
-        type: "SET_HYDRATED_DATA",
-        payload: {
-          authUserId: userId,
-          workspace: appData.workspace,
-          currentProjectId: appData.currentProjectId,
-          services: appData.services,
-          incidents: appData.incidents,
-        },
-      });
-      console.log("[monitor-trigger] reloaded state from Supabase", {
-        services: appData.services.length,
-        incidents: appData.incidents.length,
-      });
-    };
-
-    const runCycle = async () => {
-      try {
-        await triggerServerMonitoring();
-        await reloadFromSupabase();
-      } catch (error) {
-        console.error("[monitor-trigger] cycle failed", error);
       }
     };
 
@@ -1009,7 +1015,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [supabase, state.authUserId, state.dataError, state.isHydrated]);
+  }, [
+    runMonitoringAndReload,
+    supabase,
+    state.authUserId,
+    state.dataError,
+    state.isHydrated,
+  ]);
 
   const value = useMemo<AppDataContextValue>(
     () => ({
