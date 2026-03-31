@@ -113,8 +113,11 @@ export async function runServerMonitoringCycle({
       url: service.url,
       previousStatus,
       mappedStatus: result.status,
+      httpStatus: result.httpStatus,
+      errorReason: result.errorReason,
       responseTimeMs: result.responseTimeMs,
       lastChecked: result.lastChecked,
+      responseHeaders: result.responseHeaders,
     });
 
     const updateResult = await db
