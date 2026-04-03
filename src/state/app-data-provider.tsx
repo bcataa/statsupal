@@ -482,9 +482,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isCreateIncidentModalOpen, setIsCreateIncidentModalOpen] =
     useState(false);
   const supabase = useMemo(() => createClient(), []);
-  const browserMonitoringFallbackEnabled =
-    process.env.NEXT_PUBLIC_ENABLE_BROWSER_MONITORING === "true" &&
-    process.env.NODE_ENV !== "production";
 
   const setCurrentProject = useCallback(
     (projectId: string) =>
@@ -983,11 +980,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
+    const devBrowserFallback =
+      process.env.NEXT_PUBLIC_ENABLE_BROWSER_MONITORING === "true" &&
+      process.env.NODE_ENV !== "production";
+
     console.log("[monitoring] mode", {
-      source: browserMonitoringFallbackEnabled ? "browser-dev-fallback" : "server-only",
+      source: devBrowserFallback ? "browser-dev-fallback (manual only)" : "server-only",
       nodeEnv: process.env.NODE_ENV,
     });
-  }, [browserMonitoringFallbackEnabled]);
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !state.isHydrated || !state.authUserId || state.dataError) {
+      return;
+    }
+
+    void reloadFromSupabase(state.authUserId);
+  }, [reloadFromSupabase, supabase, state.authUserId, state.dataError, state.isHydrated]);
 
   useEffect(() => {
     if (!supabase || !state.isHydrated || !state.authUserId || state.dataError) {
@@ -995,86 +1004,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
 
     const userId = state.authUserId;
-    let cancelled = false;
-
-    const runCycle = async () => {
-      await reloadFromSupabase(userId);
-      if (cancelled) {
-        return;
+    const reloadOnFocus = () => {
+      void reloadFromSupabase(userId);
+    };
+    const reloadOnVisible = () => {
+      if (document.visibilityState === "visible") {
+        void reloadFromSupabase(userId);
       }
     };
 
-    void runCycle();
-    const intervalId = setInterval(() => {
-      void runCycle();
-    }, 30_000);
+    window.addEventListener("focus", reloadOnFocus);
+    document.addEventListener("visibilitychange", reloadOnVisible);
 
     return () => {
-      cancelled = true;
-      clearInterval(intervalId);
+      window.removeEventListener("focus", reloadOnFocus);
+      document.removeEventListener("visibilitychange", reloadOnVisible);
     };
-  }, [
-    reloadFromSupabase,
-    supabase,
-    state.authUserId,
-    state.dataError,
-    state.isHydrated,
-  ]);
-
-  useEffect(() => {
-    if (
-      !browserMonitoringFallbackEnabled ||
-      !supabase ||
-      !state.isHydrated ||
-      !state.authUserId ||
-      state.dataError
-    ) {
-      return;
-    }
-
-    const userId = state.authUserId;
-    console.log("[monitoring] dev fallback enabled: triggering /api/monitor from browser");
-    let cancelled = false;
-
-    const runDevFallbackCycle = async () => {
-      try {
-        const response = await fetch("/api/monitor", {
-          method: "GET",
-          cache: "no-store",
-          headers: { "x-monitor-source": "browser-dev-fallback" },
-        });
-        const body = await response.json();
-        if (!response.ok || !body?.success) {
-          throw new Error(body?.message || "Monitoring API call failed.");
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        await reloadFromSupabase(userId);
-      } catch (error) {
-        console.error("[monitoring] browser dev fallback cycle failed", error);
-      }
-    };
-
-    void runDevFallbackCycle();
-    const intervalId = setInterval(() => {
-      void runDevFallbackCycle();
-    }, 60_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(intervalId);
-    };
-  }, [
-    browserMonitoringFallbackEnabled,
-    reloadFromSupabase,
-    supabase,
-    state.authUserId,
-    state.dataError,
-    state.isHydrated,
-  ]);
+  }, [reloadFromSupabase, supabase, state.authUserId, state.dataError, state.isHydrated]);
 
   const value = useMemo<AppDataContextValue>(
     () => ({

@@ -4,6 +4,7 @@ import { createAdminClient, getMonitoringEnv } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Manual debug endpoint only. Production scheduling is handled by monitor-loop.ts.
 export async function GET(request: Request) {
   try {
     const source =
