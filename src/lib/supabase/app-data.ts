@@ -144,12 +144,16 @@ async function validateUserScopedTables(db: DbClient, userId: string): Promise<v
   const checks = [
     db
       .from(workspaceTable)
-      .select("id,user_id,name,project_name,project_slug")
+      .select(
+        "id,user_id,name,project_name,project_slug,incident_alerts_enabled,maintenance_alerts_enabled,discord_webhook_url,custom_domain,custom_domain_status",
+      )
       .eq("user_id", userId)
       .limit(1),
     db
       .from("services")
-      .select("id,user_id,workspace_id,name,url,status,check_type,check_interval")
+      .select(
+        "id,user_id,workspace_id,name,url,status,check_type,check_interval,consecutive_failures",
+      )
       .eq("user_id", userId)
       .limit(1),
     db
@@ -219,6 +223,11 @@ type WorkspaceRow = {
   name: string;
   project_name: string;
   project_slug: string;
+  incident_alerts_enabled: boolean | null;
+  maintenance_alerts_enabled: boolean | null;
+  discord_webhook_url: string | null;
+  custom_domain: string | null;
+  custom_domain_status: "unconfigured" | "pending_verification" | "verified" | "failed" | null;
   created_at: string;
 };
 
@@ -290,6 +299,16 @@ function toWorkspaceModel(row: WorkspaceRow): Workspace {
         createdAt: row.created_at,
       },
     ],
+    notificationSettings: {
+      incidentAlertsEnabled: row.incident_alerts_enabled ?? true,
+      maintenanceAlertsEnabled: row.maintenance_alerts_enabled ?? true,
+      discordWebhookUrl: row.discord_webhook_url || undefined,
+    },
+    domainSettings: {
+      statusPageSlug: row.project_slug,
+      customDomain: row.custom_domain || undefined,
+      customDomainStatus: row.custom_domain_status ?? "unconfigured",
+    },
   };
 }
 
@@ -351,6 +370,11 @@ export async function ensureWorkspace(
       name: "My Workspace",
       project_name: "Main Status Page",
       project_slug: "main-status-page",
+      incident_alerts_enabled: true,
+      maintenance_alerts_enabled: true,
+      discord_webhook_url: null,
+      custom_domain: null,
+      custom_domain_status: "unconfigured",
     })
     .select("*")
     .single();
@@ -409,7 +433,16 @@ export async function loadUserAppData(client: SupabaseClientLike, userId: string
 export async function persistWorkspaceInfo(
   client: SupabaseClientLike,
   userId: string,
-  payload: { workspaceName?: string; projectName?: string; projectSlug?: string },
+  payload: {
+    workspaceName?: string;
+    projectName?: string;
+    projectSlug?: string;
+    incidentAlertsEnabled?: boolean;
+    maintenanceAlertsEnabled?: boolean;
+    discordWebhookUrl?: string;
+    customDomain?: string;
+    customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+  },
 ) {
   const db = getDb(client);
   const workspace = await ensureWorkspace(db, userId);
@@ -424,6 +457,22 @@ export async function persistWorkspaceInfo(
       name: payload.workspaceName || workspace.name,
       project_name: nextProjectName,
       project_slug: nextProjectSlug,
+      incident_alerts_enabled:
+        payload.incidentAlertsEnabled ?? workspace.incident_alerts_enabled ?? true,
+      maintenance_alerts_enabled:
+        payload.maintenanceAlertsEnabled ?? workspace.maintenance_alerts_enabled ?? true,
+      discord_webhook_url:
+        payload.discordWebhookUrl !== undefined
+          ? payload.discordWebhookUrl || null
+          : (workspace.discord_webhook_url ?? null),
+      custom_domain:
+        payload.customDomain !== undefined
+          ? payload.customDomain || null
+          : (workspace.custom_domain ?? null),
+      custom_domain_status:
+        payload.customDomainStatus ??
+        workspace.custom_domain_status ??
+        (payload.customDomain ? "pending_verification" : "unconfigured"),
     })
     .eq("id", workspace.id)
     .eq("user_id", userId);
@@ -509,6 +558,23 @@ export async function deleteService(
     .from("services")
     .delete()
     .eq("id", serviceId)
+    .eq("user_id", userId);
+
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+export async function deleteIncident(
+  client: SupabaseClientLike,
+  userId: string,
+  incidentId: string,
+) {
+  const db = getDb(client);
+  const result = await db
+    .from("incidents")
+    .delete()
+    .eq("id", incidentId)
     .eq("user_id", userId);
 
   if (result.error) {

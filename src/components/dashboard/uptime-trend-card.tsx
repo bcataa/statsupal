@@ -1,22 +1,22 @@
 type UptimeTrendItem = {
   day: string;
-  value: number;
+  uptimePercentage: number;
 };
 
 type UptimeTrendCardProps = {
   points: UptimeTrendItem[];
 };
 
-function barHeightClass(value: number): string {
-  if (value >= 99.98) {
+function barHeightClass(uptimePercentage: number): string {
+  if (uptimePercentage >= 99.98) {
     return "h-20";
   }
 
-  if (value >= 99.95) {
+  if (uptimePercentage >= 99.95) {
     return "h-16";
   }
 
-  if (value >= 99.9) {
+  if (uptimePercentage >= 99.9) {
     return "h-12";
   }
 
@@ -25,7 +25,7 @@ function barHeightClass(value: number): string {
 
 export function UptimeTrendCard({ points }: UptimeTrendCardProps) {
   const avgUptime =
-    points.reduce((sum, point) => sum + point.value, 0) / Math.max(points.length, 1);
+    points.reduce((sum, point) => sum + point.uptimePercentage, 0) / Math.max(points.length, 1);
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -38,8 +38,8 @@ export function UptimeTrendCard({ points }: UptimeTrendCardProps) {
         {points.map((point) => (
           <div key={point.day} className="flex flex-1 flex-col items-center justify-end gap-2">
             <span
-              className={`w-full rounded-md bg-emerald-500/85 ${barHeightClass(point.value)}`}
-              title={`${point.day}: ${point.value}%`}
+              className={`w-full rounded-md bg-emerald-500/85 ${barHeightClass(point.uptimePercentage)}`}
+              title={`${point.day}: ${point.uptimePercentage}%`}
             />
             <span className="text-[11px] font-medium text-zinc-500">{point.day}</span>
           </div>

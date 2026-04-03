@@ -6,12 +6,11 @@ import { MetricsGrid } from "@/components/dashboard/metrics-grid";
 import { PerformanceSummaryCard } from "@/components/dashboard/performance-summary-card";
 import { ServicesHealthSection } from "@/components/dashboard/services-health-section";
 import { UptimeTrendCard } from "@/components/dashboard/uptime-trend-card";
-import { weeklyUptime } from "@/lib/mock/dashboard-data";
 import type { DashboardMetric } from "@/lib/models/monitoring";
 import { useAppData } from "@/state/app-data-provider";
 
 export default function OverviewPage() {
-  const { services, incidents, workspace, currentProject } = useAppData();
+  const { services, incidents, workspace, currentProject, uptimeSummary } = useAppData();
   const operationalCount = services.filter((service) => service.status === "operational").length;
   const degradedCount = services.filter((service) => service.status === "degraded").length;
   const activeIncidentCount = incidents.filter(
@@ -66,10 +65,12 @@ export default function OverviewPage() {
           <IncidentsSummarySection incidents={incidents} services={services} />
         </div>
         <div className="space-y-6">
-          <UptimeTrendCard points={weeklyUptime} />
+          <UptimeTrendCard points={uptimeSummary.points} />
           <PerformanceSummaryCard
             services={services}
             resolvedIncidents={resolvedIncidentCount}
+            averageResponseTimeMs={uptimeSummary.averageResponseTimeMs}
+            averageUptimePercentage={uptimeSummary.averageUptimePercentage}
           />
         </div>
       </section>

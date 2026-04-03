@@ -8,6 +8,8 @@ type IncidentCardProps = {
   serviceName: string;
   onUpdateStatus: (incidentId: string, status: IncidentStatus) => void;
   onResolve: (incidentId: string, resolutionSummary?: string) => void;
+  onDelete: (incidentId: string) => Promise<void>;
+  isDeleting: boolean;
 };
 
 function getNextStatus(status: IncidentStatus): IncidentStatus | null {
@@ -27,6 +29,8 @@ export function IncidentCard({
   serviceName,
   onUpdateStatus,
   onResolve,
+  onDelete,
+  isDeleting,
 }: IncidentCardProps) {
   const nextStatus = getNextStatus(incident.status);
   const isResolved = incident.status === "resolved";
@@ -91,6 +95,13 @@ export function IncidentCard({
           )}
           <button
             type="button"
+            onClick={() => onUpdateStatus(incident.id, "investigating")}
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Mark as investigating
+          </button>
+          <button
+            type="button"
             onClick={() => onUpdateStatus(incident.id, "monitoring")}
             className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
           >
@@ -110,18 +121,52 @@ export function IncidentCard({
           >
             {showDetails ? "Hide details" : "View details"}
           </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const confirmed = window.confirm(
+                "Delete this incident permanently? This action cannot be undone.",
+              );
+              if (!confirmed) {
+                return;
+              }
+              await onDelete(incident.id);
+            }}
+            disabled={isDeleting}
+            className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDeleting ? "Deleting..." : "Delete incident"}
+          </button>
         </div>
       )}
 
       {isResolved && (
         <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => setShowDetails((prev) => !prev)}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
-          >
-            {showDetails ? "Hide details" : "View details"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowDetails((prev) => !prev)}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              {showDetails ? "Hide details" : "View details"}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const confirmed = window.confirm(
+                  "Delete this incident permanently? This action cannot be undone.",
+                );
+                if (!confirmed) {
+                  return;
+                }
+                await onDelete(incident.id);
+              }}
+              disabled={isDeleting}
+              className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isDeleting ? "Deleting..." : "Delete incident"}
+            </button>
+          </div>
         </div>
       )}
 

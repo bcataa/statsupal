@@ -3,11 +3,15 @@ import type { Service } from "@/lib/models/monitoring";
 type PerformanceSummaryCardProps = {
   services: Service[];
   resolvedIncidents: number;
+  averageResponseTimeMs: number;
+  averageUptimePercentage: number;
 };
 
 export function PerformanceSummaryCard({
   services,
   resolvedIncidents,
+  averageResponseTimeMs,
+  averageUptimePercentage,
 }: PerformanceSummaryCardProps) {
   const measuredServices = services.filter((service) => service.responseTimeMs > 0);
   const avgResponse =
@@ -29,7 +33,15 @@ export function PerformanceSummaryCard({
 
       <div className="mt-4 space-y-2 text-sm text-zinc-700">
         <p className="rounded-lg bg-zinc-50 px-3 py-2">
-          Average response time: {avgResponse > 0 ? `${avgResponse} ms` : "No data yet"}
+          Average response time:{" "}
+          {averageResponseTimeMs > 0
+            ? `${averageResponseTimeMs} ms`
+            : avgResponse > 0
+              ? `${avgResponse} ms`
+              : "No data yet"}
+        </p>
+        <p className="rounded-lg bg-zinc-50 px-3 py-2">
+          7-day uptime: {averageUptimePercentage.toFixed(2)}%
         </p>
         <p className="rounded-lg bg-zinc-50 px-3 py-2">Slow services (&gt;=800 ms): {slowServices}</p>
         <p className="rounded-lg bg-zinc-50 px-3 py-2">Resolved incidents: {resolvedIncidents}</p>

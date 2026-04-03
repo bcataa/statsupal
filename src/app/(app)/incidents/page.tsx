@@ -1,11 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { CreateIncidentButton } from "@/components/incidents/create-incident-button";
 import { IncidentsList } from "@/components/incidents/incidents-list";
 import { useAppData } from "@/state/app-data-provider";
 
 export default function IncidentsPage() {
-  const { incidents, services, updateIncidentStatus, resolveIncident } = useAppData();
+  const { incidents, services, updateIncidentStatus, resolveIncident, deleteIncident } = useAppData();
+  const [deletingIncidentId, setDeletingIncidentId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const activeIncidents = incidents
     .filter((incident) => incident.status !== "resolved")
@@ -54,6 +57,12 @@ export default function IncidentsPage() {
         </article>
       </section>
 
+      {actionError ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {actionError}
+        </div>
+      ) : null}
+
       {incidents.length === 0 ? (
         <section className="rounded-2xl border border-dashed border-zinc-300 bg-white p-10 text-center shadow-sm">
           <h3 className="text-lg font-semibold text-zinc-900">No incidents yet</h3>
@@ -78,6 +87,22 @@ export default function IncidentsPage() {
               services={services}
               onUpdateStatus={updateIncidentStatus}
               onResolve={resolveIncident}
+              onDelete={async (incidentId) => {
+                setActionError(null);
+                setDeletingIncidentId(incidentId);
+                try {
+                  await deleteIncident(incidentId);
+                } catch (error) {
+                  setActionError(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not delete incident. Please try again.",
+                  );
+                } finally {
+                  setDeletingIncidentId(null);
+                }
+              }}
+              deletingIncidentId={deletingIncidentId}
             />
           </section>
 
@@ -93,6 +118,22 @@ export default function IncidentsPage() {
               services={services}
               onUpdateStatus={updateIncidentStatus}
               onResolve={resolveIncident}
+              onDelete={async (incidentId) => {
+                setActionError(null);
+                setDeletingIncidentId(incidentId);
+                try {
+                  await deleteIncident(incidentId);
+                } catch (error) {
+                  setActionError(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not delete incident. Please try again.",
+                  );
+                } finally {
+                  setDeletingIncidentId(null);
+                }
+              }}
+              deletingIncidentId={deletingIncidentId}
             />
           </section>
         </div>

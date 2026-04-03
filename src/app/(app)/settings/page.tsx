@@ -14,17 +14,28 @@ export default function SettingsPage() {
   const {
     workspace,
     currentProject,
-    onboarding,
     isHydrated,
     updateWorkspaceInfo,
     setOnboardingState,
   } = useAppData();
   const [workspaceName, setWorkspaceName] = useState(workspace.name);
   const [projectName, setProjectName] = useState(currentProject?.name ?? "");
-  const [incidentAlerts, setIncidentAlerts] = useState(onboarding.alertsConfigured);
-  const [maintenanceAlerts, setMaintenanceAlerts] = useState(true);
+  const [statusPageSlug, setStatusPageSlug] = useState(
+    currentProject?.slug ?? workspace.domainSettings.statusPageSlug,
+  );
+  const [incidentAlerts, setIncidentAlerts] = useState(
+    workspace.notificationSettings.incidentAlertsEnabled,
+  );
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState(
+    workspace.notificationSettings.maintenanceAlertsEnabled,
+  );
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState(
+    workspace.notificationSettings.discordWebhookUrl ?? "",
+  );
+  const [customDomain, setCustomDomain] = useState(workspace.domainSettings.customDomain ?? "");
   const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const [notificationSaving, setNotificationSaving] = useState(false);
+  const [domainSaving, setDomainSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountEmail, setAccountEmail] = useState<string>("Not available");
@@ -34,11 +45,21 @@ export default function SettingsPage() {
   useEffect(() => {
     setWorkspaceName(workspace.name);
     setProjectName(currentProject?.name ?? "");
-  }, [currentProject?.name, workspace.name]);
+    setStatusPageSlug(currentProject?.slug ?? workspace.domainSettings.statusPageSlug);
+    setCustomDomain(workspace.domainSettings.customDomain ?? "");
+  }, [
+    currentProject?.name,
+    currentProject?.slug,
+    workspace.domainSettings.customDomain,
+    workspace.domainSettings.statusPageSlug,
+    workspace.name,
+  ]);
 
   useEffect(() => {
-    setIncidentAlerts(onboarding.alertsConfigured);
-  }, [onboarding.alertsConfigured]);
+    setIncidentAlerts(workspace.notificationSettings.incidentAlertsEnabled);
+    setMaintenanceAlerts(workspace.notificationSettings.maintenanceAlertsEnabled);
+    setDiscordWebhookUrl(workspace.notificationSettings.discordWebhookUrl ?? "");
+  }, [workspace.notificationSettings]);
 
   useEffect(() => {
     const loadAccountInfo = async () => {
@@ -90,7 +111,7 @@ export default function SettingsPage() {
       updateWorkspaceInfo({
         workspaceName: trimmedWorkspace,
         projectName: trimmedProject,
-        projectSlug: toSlug(trimmedProject),
+        projectSlug: statusPageSlug.trim() ? toSlug(statusPageSlug.trim()) : toSlug(trimmedProject),
       });
       setSaveState({
         tone: "success",
@@ -113,10 +134,15 @@ export default function SettingsPage() {
 
     try {
       setNotificationSaving(true);
+      updateWorkspaceInfo({
+        incidentAlertsEnabled: incidentAlerts,
+        maintenanceAlertsEnabled: maintenanceAlerts,
+        discordWebhookUrl: discordWebhookUrl.trim(),
+      });
       setOnboardingState({ alertsConfigured: incidentAlerts });
       setSaveState({
         tone: "success",
-        message: "Notification preferences saved.",
+        message: "Notification preferences saved, including Discord webhook settings.",
       });
     } catch (error) {
       console.error("[Settings] notification save failed", error);
@@ -126,6 +152,35 @@ export default function SettingsPage() {
       });
     } finally {
       setNotificationSaving(false);
+    }
+  };
+
+  const onDomainSave = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaveState(null);
+
+    try {
+      setDomainSaving(true);
+      updateWorkspaceInfo({
+        projectSlug: statusPageSlug.trim() ? toSlug(statusPageSlug.trim()) : undefined,
+        customDomain: customDomain.trim(),
+        customDomainStatus: customDomain.trim() ? "pending_verification" : "unconfigured",
+      });
+      setSaveState({
+        tone: "success",
+        message:
+          customDomain.trim().length > 0
+            ? "Custom domain saved. Verification support is coming soon."
+            : "Status page domain settings saved.",
+      });
+    } catch (error) {
+      console.error("[Settings] domain save failed", error);
+      setSaveState({
+        tone: "error",
+        message: "Could not save domain settings. Please try again.",
+      });
+    } finally {
+      setDomainSaving(false);
     }
   };
 
@@ -242,6 +297,24 @@ export default function SettingsPage() {
               </p>
             </span>
           </label>
+          <div>
+            <label
+              htmlFor="discord-webhook"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Discord webhook URL
+            </label>
+            <input
+              id="discord-webhook"
+              value={discordWebhookUrl}
+              onChange={(event) => setDiscordWebhookUrl(event.target.value)}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+              placeholder="https://discord.com/api/webhooks/..."
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Used for automated incident and recovery notifications.
+            </p>
+          </div>
           <div className="flex justify-end">
             <button
               type="submit"
@@ -249,6 +322,58 @@ export default function SettingsPage() {
               className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {notificationSaving ? "Saving..." : "Save notification preferences"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-zinc-900">Custom domain</h3>
+        <p className="mt-1 text-sm text-zinc-500">
+          Prepare your public status page branding with domain settings. Verification rollout is
+          coming soon.
+        </p>
+        <form className="mt-5 space-y-4" onSubmit={onDomainSave}>
+          <div>
+            <label
+              htmlFor="status-page-slug"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Status page slug
+            </label>
+            <input
+              id="status-page-slug"
+              value={statusPageSlug}
+              onChange={(event) => setStatusPageSlug(event.target.value)}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+              placeholder="main-status-page"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="custom-domain"
+              className="mb-1 block text-sm font-medium text-zinc-700"
+            >
+              Custom domain
+            </label>
+            <input
+              id="custom-domain"
+              value={customDomain}
+              onChange={(event) => setCustomDomain(event.target.value)}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+              placeholder="status.yourcompany.com"
+            />
+            <p className="mt-1 text-xs text-zinc-500">
+              Current verification status: {workspace.domainSettings.customDomainStatus}.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={domainSaving}
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {domainSaving ? "Saving..." : "Save domain settings"}
             </button>
           </div>
         </form>

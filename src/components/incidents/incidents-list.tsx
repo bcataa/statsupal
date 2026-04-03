@@ -6,6 +6,8 @@ type IncidentsListProps = {
   services: Service[];
   onUpdateStatus: (incidentId: string, status: IncidentStatus) => void;
   onResolve: (incidentId: string, resolutionSummary?: string) => void;
+  onDelete: (incidentId: string) => Promise<void>;
+  deletingIncidentId?: string | null;
 };
 
 export function IncidentsList({
@@ -13,6 +15,8 @@ export function IncidentsList({
   services,
   onUpdateStatus,
   onResolve,
+  onDelete,
+  deletingIncidentId = null,
 }: IncidentsListProps) {
   const serviceNameById = new Map(services.map((service) => [service.id, service.name]));
 
@@ -33,6 +37,8 @@ export function IncidentsList({
           serviceName={serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
           onUpdateStatus={onUpdateStatus}
           onResolve={onResolve}
+          onDelete={onDelete}
+          isDeleting={deletingIncidentId === incident.id}
         />
       ))}
     </div>

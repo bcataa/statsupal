@@ -10,6 +10,12 @@ create table if not exists public.workspaces (
   name text not null,
   project_name text not null default 'Main Status Page',
   project_slug text not null default 'main-status-page',
+  incident_alerts_enabled boolean not null default true,
+  maintenance_alerts_enabled boolean not null default true,
+  discord_webhook_url text,
+  custom_domain text,
+  custom_domain_status text not null default 'unconfigured'
+    check (custom_domain_status in ('unconfigured', 'pending_verification', 'verified', 'failed')),
   created_at timestamptz not null default now(),
   unique (user_id)
 );
@@ -28,11 +34,25 @@ create table if not exists public.services (
   check_interval text not null,
   last_checked text not null,
   response_time_ms integer not null default 0,
+  consecutive_failures integer not null default 0,
   description text,
   created_at timestamptz not null default now()
 );
 
 create index if not exists services_user_id_idx on public.services(user_id);
+
+create table if not exists public.service_check_history (
+  id text primary key,
+  service_id text not null references public.services(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  status text not null check (status in ('pending', 'operational', 'degraded', 'down')),
+  response_time_ms integer not null default 0,
+  checked_at timestamptz not null
+);
+
+create index if not exists service_check_history_user_id_idx
+  on public.service_check_history(user_id, checked_at desc);
 
 create table if not exists public.incidents (
   id text primary key,
@@ -57,7 +77,13 @@ create unique index if not exists incidents_one_active_per_service_idx
 
 -- Safety net for existing databases that were created manually.
 alter table public.workspaces add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.workspaces add column if not exists incident_alerts_enabled boolean not null default true;
+alter table public.workspaces add column if not exists maintenance_alerts_enabled boolean not null default true;
+alter table public.workspaces add column if not exists discord_webhook_url text;
+alter table public.workspaces add column if not exists custom_domain text;
+alter table public.workspaces add column if not exists custom_domain_status text not null default 'unconfigured';
 alter table public.services add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.services add column if not exists consecutive_failures integer not null default 0;
 alter table public.incidents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 
 alter table public.services drop constraint if exists services_status_check;
@@ -68,6 +94,7 @@ alter table public.services
 alter table public.workspaces enable row level security;
 alter table public.services enable row level security;
 alter table public.incidents enable row level security;
+alter table public.service_check_history enable row level security;
 
 drop policy if exists "Users can read own workspaces" on public.workspaces;
 create policy "Users can read own workspaces"
@@ -141,6 +168,31 @@ create policy "Users can update own incidents"
 drop policy if exists "Users can delete own incidents" on public.incidents;
 create policy "Users can delete own incidents"
   on public.incidents
+  for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can read own service history" on public.service_check_history;
+create policy "Users can read own service history"
+  on public.service_check_history
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own service history" on public.service_check_history;
+create policy "Users can insert own service history"
+  on public.service_check_history
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own service history" on public.service_check_history;
+create policy "Users can update own service history"
+  on public.service_check_history
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own service history" on public.service_check_history;
+create policy "Users can delete own service history"
+  on public.service_check_history
   for delete
   using (auth.uid() = user_id);
 

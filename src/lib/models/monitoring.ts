@@ -41,3 +41,14 @@ export type DashboardMetric = {
   detail: string;
   tone: "neutral" | "success" | "warning" | "danger";
 };
+
+export type UptimeDayPoint = {
+  day: string;
+  uptimePercentage: number;
+};
+
+export type UptimeSummary = {
+  points: UptimeDayPoint[];
+  averageUptimePercentage: number;
+  averageResponseTimeMs: number;
+};

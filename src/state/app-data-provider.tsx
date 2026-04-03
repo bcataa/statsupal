@@ -17,10 +17,12 @@ import type {
   IncidentSeverity,
   IncidentStatus,
   Service,
+  UptimeSummary,
 } from "@/lib/models/monitoring";
 import type { Project, Workspace } from "@/lib/models/workspace";
 import { createClient } from "@/lib/supabase/client";
 import {
+  deleteIncident as deleteIncidentRow,
   deleteService as deleteServiceRow,
   getSupabaseErrorDetails,
   getOrCreateWorkspaceId,
@@ -29,6 +31,10 @@ import {
   persistService,
   persistWorkspaceInfo,
 } from "@/lib/supabase/app-data";
+import {
+  buildFallbackUptimeSummary,
+  loadSevenDayUptimeSummary,
+} from "@/lib/supabase/uptime-history";
 import { toSlug } from "@/lib/utils/slug";
 
 type AddServiceInput = {
@@ -71,6 +77,7 @@ type AppDataState = {
   };
   services: Service[];
   incidents: Incident[];
+  uptimeSummary: UptimeSummary;
 };
 
 type AppDataAction =
@@ -84,6 +91,7 @@ type AppDataAction =
         currentProjectId: string;
         services: Service[];
         incidents: Incident[];
+        uptimeSummary: UptimeSummary;
       };
     }
   | { type: "HYDRATION_NO_USER" }
@@ -95,7 +103,16 @@ type AppDataAction =
     }
   | {
       type: "UPDATE_WORKSPACE_INFO";
-      payload: { workspaceName?: string; projectName?: string; projectSlug?: string };
+      payload: {
+        workspaceName?: string;
+        projectName?: string;
+        projectSlug?: string;
+        incidentAlertsEnabled?: boolean;
+        maintenanceAlertsEnabled?: boolean;
+        discordWebhookUrl?: string;
+        customDomain?: string;
+        customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+      };
     }
   | {
       type: "SET_ONBOARDING_STATE";
@@ -123,6 +140,7 @@ type AppDataAction =
       type: "RESOLVE_INCIDENT";
       payload: { incidentId: string; resolutionSummary?: string };
     }
+  | { type: "DELETE_INCIDENT"; payload: { incidentId: string } }
   | {
       type: "UPDATE_SERVICE_STATUS";
       payload: {
@@ -142,6 +160,7 @@ type AppDataContextValue = {
   onboarding: AppDataState["onboarding"];
   services: Service[];
   incidents: Incident[];
+  uptimeSummary: UptimeSummary;
   isAddServiceModalOpen: boolean;
   isCreateIncidentModalOpen: boolean;
   setCurrentProject: (projectId: string) => void;
@@ -149,6 +168,11 @@ type AppDataContextValue = {
     workspaceName?: string;
     projectName?: string;
     projectSlug?: string;
+    incidentAlertsEnabled?: boolean;
+    maintenanceAlertsEnabled?: boolean;
+    discordWebhookUrl?: string;
+    customDomain?: string;
+    customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
   }) => void;
   setOnboardingState: (payload: Partial<AppDataState["onboarding"]>) => void;
   openAddServiceModal: () => void;
@@ -161,6 +185,7 @@ type AppDataContextValue = {
   createIncident: (input: CreateIncidentInput) => void;
   updateIncidentStatus: (incidentId: string, status: IncidentStatus) => void;
   resolveIncident: (incidentId: string, resolutionSummary?: string) => void;
+  deleteIncident: (incidentId: string) => Promise<void>;
   updateServiceStatus: (
     serviceId: string,
     payload: {
@@ -211,6 +236,7 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       currentProjectId: action.payload.currentProjectId,
       services: action.payload.services,
       incidents: action.payload.incidents,
+      uptimeSummary: action.payload.uptimeSummary,
     };
   }
 
@@ -223,6 +249,7 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       dataError: null,
       services: [],
       incidents: [],
+      uptimeSummary: buildFallbackUptimeSummary([]),
       workspace: defaultWorkspace,
       currentProjectId: defaultWorkspace.projects[0]?.id ?? "",
     };
@@ -282,6 +309,28 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
               ...state.workspace.projects.slice(1),
             ]
           : state.workspace.projects,
+        notificationSettings: {
+          incidentAlertsEnabled:
+            action.payload.incidentAlertsEnabled ??
+            state.workspace.notificationSettings.incidentAlertsEnabled,
+          maintenanceAlertsEnabled:
+            action.payload.maintenanceAlertsEnabled ??
+            state.workspace.notificationSettings.maintenanceAlertsEnabled,
+          discordWebhookUrl:
+            action.payload.discordWebhookUrl !== undefined
+              ? action.payload.discordWebhookUrl || undefined
+              : state.workspace.notificationSettings.discordWebhookUrl,
+        },
+        domainSettings: {
+          statusPageSlug: nextProjectSlug,
+          customDomain:
+            action.payload.customDomain !== undefined
+              ? action.payload.customDomain || undefined
+              : state.workspace.domainSettings.customDomain,
+          customDomainStatus:
+            action.payload.customDomainStatus ??
+            state.workspace.domainSettings.customDomainStatus,
+        },
       },
     };
   }
@@ -457,6 +506,13 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
     };
   }
 
+  if (action.type === "DELETE_INCIDENT") {
+    return {
+      ...state,
+      incidents: state.incidents.filter((incident) => incident.id !== action.payload.incidentId),
+    };
+  }
+
   return state;
 }
 
@@ -474,6 +530,7 @@ const initialState: AppDataState = {
   },
   services: [],
   incidents: [],
+  uptimeSummary: buildFallbackUptimeSummary([]),
 };
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -490,7 +547,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   );
 
   const updateWorkspaceInfo = useCallback(
-    (payload: { workspaceName?: string; projectName?: string; projectSlug?: string }) =>
+    (payload: {
+      workspaceName?: string;
+      projectName?: string;
+      projectSlug?: string;
+      incidentAlertsEnabled?: boolean;
+      maintenanceAlertsEnabled?: boolean;
+      discordWebhookUrl?: string;
+      customDomain?: string;
+      customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+    }) =>
       dispatch({ type: "UPDATE_WORKSPACE_INFO", payload }),
     [],
   );
@@ -509,6 +575,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       try {
         const appData = await loadUserAppData(supabase, userId);
+        const uptimeSummary = await loadSevenDayUptimeSummary(
+          supabase,
+          userId,
+          appData.services,
+        );
         dispatch({
           type: "SET_HYDRATED_DATA",
           payload: {
@@ -517,6 +588,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             currentProjectId: appData.currentProjectId,
             services: appData.services,
             incidents: appData.incidents,
+            uptimeSummary,
           },
         });
         console.log("[app-data] reloaded persisted state from Supabase", {
@@ -716,6 +788,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const deleteIncident = useCallback(
+    async (incidentId: string) => {
+      if (!supabase || !state.authUserId) {
+        throw new Error("Supabase is not ready yet. Please try again.");
+      }
+
+      try {
+        await deleteIncidentRow(supabase, state.authUserId, incidentId);
+        dispatch({ type: "DELETE_INCIDENT", payload: { incidentId } });
+      } catch (error) {
+        console.error("[AppData] incident delete failed", { incidentId, error });
+        throw error;
+      }
+    },
+    [state.authUserId, supabase],
+  );
+
 
   useEffect(() => {
     const hydrateForUser = async () => {
@@ -761,6 +850,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
 
         const appData = await loadUserAppData(supabase, user.id);
+        const uptimeSummary = await loadSevenDayUptimeSummary(
+          supabase,
+          user.id,
+          appData.services,
+        );
         console.info("[AppData] workspace loaded", {
           workspaceId: appData.workspace.id,
           workspaceName: appData.workspace.name,
@@ -792,6 +886,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             currentProjectId: appData.currentProjectId,
             services: appData.services,
             incidents: appData.incidents,
+            uptimeSummary,
           },
         });
 
@@ -874,6 +969,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           workspaceName: state.workspace.name,
           projectName: state.workspace.projects[0]?.name,
           projectSlug: state.workspace.projects[0]?.slug,
+          incidentAlertsEnabled: state.workspace.notificationSettings.incidentAlertsEnabled,
+          maintenanceAlertsEnabled: state.workspace.notificationSettings.maintenanceAlertsEnabled,
+          discordWebhookUrl: state.workspace.notificationSettings.discordWebhookUrl,
+          customDomain: state.workspace.domainSettings.customDomain,
+          customDomainStatus: state.workspace.domainSettings.customDomainStatus,
         });
         console.log("[AppData] workspace persisted", {
           workspaceId: state.workspace.id,
@@ -1035,6 +1135,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       onboarding: state.onboarding,
       services: state.services,
       incidents: state.incidents,
+      uptimeSummary: state.uptimeSummary,
       isAddServiceModalOpen,
       isCreateIncidentModalOpen,
       setCurrentProject,
@@ -1050,6 +1151,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       createIncident,
       updateIncidentStatus,
       resolveIncident,
+      deleteIncident,
       updateServiceStatus,
     }),
     [
@@ -1062,9 +1164,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       createIncident,
       updateIncidentStatus,
       resolveIncident,
+      deleteIncident,
       updateServiceStatus,
       state.services,
       state.incidents,
+      state.uptimeSummary,
       state.isHydrated,
       state.isHydrating,
       state.dataError,
