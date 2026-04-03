@@ -58,8 +58,29 @@ export function startMonitoringLoop() {
 
   globalThis.__statsupalMonitorLoop = state;
 
+  const scheduleNextRun = () => {
+    if (state.stopped) {
+      return;
+    }
+    console.log("[monitor-loop] scheduling next run");
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    state.timer = setTimeout(() => {
+      void runCycle();
+    }, MONITOR_INTERVAL_MS);
+    console.log("[monitor-loop] next run scheduled", {
+      intervalMs: MONITOR_INTERVAL_MS,
+    });
+  };
+
   const runCycle = async () => {
-    if (state.stopped || state.running) {
+    if (state.stopped) {
+      return;
+    }
+    if (state.running) {
+      console.warn("[monitor-loop] cycle already running; skipping overlap");
       return;
     }
 
@@ -73,11 +94,7 @@ export function startMonitoringLoop() {
       console.error("[monitor-loop] cycle failed", error);
     } finally {
       state.running = false;
-      if (!state.stopped) {
-        state.timer = setTimeout(() => {
-          void runCycle();
-        }, MONITOR_INTERVAL_MS);
-      }
+      scheduleNextRun();
     }
   };
 
