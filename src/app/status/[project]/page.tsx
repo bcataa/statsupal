@@ -1,7 +1,7 @@
 "use client";
 
 import { StatusBadge } from "@/components/ui/status-badge";
-import type { Incident, Service } from "@/lib/models/monitoring";
+import type { Service } from "@/lib/models/monitoring";
 import { formatDateTime, formatTimestampOrText } from "@/lib/utils/date-time";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 import { useAppData } from "@/state/app-data-provider";
@@ -76,10 +76,9 @@ function getStatusTone(status: OverallStatus): {
   };
 }
 
-function getLastUpdated(services: Service[], incidents: Incident[]): string {
+function getLastUpdated(services: Service[]): string {
   const timestamps = [
     ...services.map((service) => service.lastChecked || service.createdAt),
-    ...incidents.map((incident) => incident.updatedAt),
   ].filter(Boolean);
 
   if (timestamps.length === 0) {
@@ -90,14 +89,11 @@ function getLastUpdated(services: Service[], incidents: Incident[]): string {
 }
 
 export default function StatusPage({ params }: StatusPageProps) {
-  const { services, incidents, workspace } = useAppData();
+  const { services, workspace } = useAppData();
   const projectName = formatProjectName(params.project || "demo");
   const overallStatus = getOverallStatus(services);
   const tone = getStatusTone(overallStatus);
-  const lastUpdated = getLastUpdated(services, incidents);
-  const activeIncidents = incidents.filter((incident) => incident.status !== "resolved");
-  const resolvedIncidents = incidents.filter((incident) => incident.status === "resolved");
-  const serviceNameById = new Map(services.map((service) => [service.id, service.name]));
+  const lastUpdated = getLastUpdated(services);
   const operationalCount = services.filter((service) => service.status === "operational").length;
   const degradedCount = services.filter((service) => service.status === "degraded").length;
   const downCount = services.filter((service) => service.status === "down").length;
@@ -197,84 +193,6 @@ export default function StatusPage({ params }: StatusPageProps) {
                   </div>
                 </article>
               ))}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-zinc-900">Incidents</h2>
-            <p className="text-sm text-zinc-500">
-              When issues happen, updates appear here so you always know what is going on.
-            </p>
-          </div>
-
-          {incidents.length === 0 ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center text-emerald-800">
-              <p className="text-base font-semibold">No active incidents</p>
-              <p className="mt-1 text-sm">Everything is operating normally.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {activeIncidents.length > 0 ? (
-                activeIncidents.map((incident) => (
-                  <article
-                    key={incident.id}
-                    className="rounded-xl border border-rose-200 bg-rose-50/50 p-4"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-base font-semibold text-zinc-900">{incident.title}</p>
-                      <StatusBadge value={incident.status} />
-                      <StatusBadge value={incident.severity} />
-                    </div>
-                    <p className="mt-2 text-sm text-zinc-700">
-                      Affected: {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-600">
-                      Started {formatDateTime(incident.startedAt)} • Updated {formatDateTime(incident.updatedAt)}
-                    </p>
-                    {incident.description ? (
-                      <p className="mt-2 text-sm text-zinc-700">{incident.description}</p>
-                    ) : null}
-                  </article>
-                ))
-              ) : (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-6 text-center text-emerald-800">
-                  <p className="text-base font-semibold">No active incidents</p>
-                  <p className="mt-1 text-sm">Everything is operating normally right now.</p>
-                </div>
-              )}
-
-              {resolvedIncidents.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Recently resolved
-                  </p>
-                  {resolvedIncidents.slice(0, 5).map((incident) => (
-                    <article
-                      key={incident.id}
-                      className="rounded-xl border border-zinc-200 bg-zinc-50 p-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-zinc-800">{incident.title}</p>
-                        <StatusBadge value={incident.status} />
-                        <StatusBadge value={incident.severity} />
-                      </div>
-                      <p className="mt-1 text-xs text-zinc-600">
-                        Affected: {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-600">
-                        Resolved {formatDateTime(incident.resolvedAt || incident.updatedAt)}
-                      </p>
-                      {incident.resolutionSummary ? (
-                        <p className="mt-2 text-sm text-zinc-700">
-                          Resolution: {incident.resolutionSummary}
-                        </p>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </section>

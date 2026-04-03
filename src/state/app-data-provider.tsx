@@ -482,6 +482,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isCreateIncidentModalOpen, setIsCreateIncidentModalOpen] =
     useState(false);
   const supabase = useMemo(() => createClient(), []);
+  const browserMonitoringFallbackEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_BROWSER_MONITORING === "true" &&
+    process.env.NODE_ENV !== "production";
 
   const setCurrentProject = useCallback(
     (projectId: string) =>
@@ -501,24 +504,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const runMonitoringAndReload = useCallback(
+  const reloadFromSupabase = useCallback(
     async (userId: string) => {
       if (!supabase) {
         return;
       }
 
       try {
-        console.log("[monitor-trigger] calling /api/monitor");
-        const response = await fetch("/api/monitor", {
-          method: "GET",
-          cache: "no-store",
-        });
-        const body = await response.json();
-        if (!response.ok || !body?.success) {
-          throw new Error(body?.message || "Monitoring API call failed.");
-        }
-        console.log("[monitor-trigger] /api/monitor success", body);
-
         const appData = await loadUserAppData(supabase, userId);
         dispatch({
           type: "SET_HYDRATED_DATA",
@@ -530,12 +522,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             incidents: appData.incidents,
           },
         });
-        console.log("[monitor-trigger] reloaded state from Supabase", {
+        console.log("[app-data] reloaded persisted state from Supabase", {
           services: appData.services.length,
           incidents: appData.incidents.length,
         });
       } catch (error) {
-        console.error("[monitor-trigger] cycle failed", error);
+        console.error("[app-data] reload from Supabase failed", error);
       }
     },
     [supabase],
@@ -598,7 +590,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           type: "ADD_SERVICE",
           payload: service,
         });
-        void runMonitoringAndReload(userId);
       } catch (error) {
         const details = getSupabaseErrorDetails(error);
         console.error("[AddService] insert failure", {
@@ -620,7 +611,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         );
       }
     },
-    [runMonitoringAndReload, state.authUserId, state.workspace.id, supabase],
+    [state.authUserId, state.workspace.id, supabase],
   );
 
   const updateService = useCallback(
@@ -992,15 +983,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
+    console.log("[monitoring] mode", {
+      source: browserMonitoringFallbackEnabled ? "browser-dev-fallback" : "server-only",
+      nodeEnv: process.env.NODE_ENV,
+    });
+  }, [browserMonitoringFallbackEnabled]);
+
+  useEffect(() => {
     if (!supabase || !state.isHydrated || !state.authUserId || state.dataError) {
       return;
     }
 
-    let cancelled = false;
     const userId = state.authUserId;
+    let cancelled = false;
 
     const runCycle = async () => {
-      await runMonitoringAndReload(userId);
+      await reloadFromSupabase(userId);
       if (cancelled) {
         return;
       }
@@ -1009,6 +1007,60 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     void runCycle();
     const intervalId = setInterval(() => {
       void runCycle();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [
+    reloadFromSupabase,
+    supabase,
+    state.authUserId,
+    state.dataError,
+    state.isHydrated,
+  ]);
+
+  useEffect(() => {
+    if (
+      !browserMonitoringFallbackEnabled ||
+      !supabase ||
+      !state.isHydrated ||
+      !state.authUserId ||
+      state.dataError
+    ) {
+      return;
+    }
+
+    const userId = state.authUserId;
+    console.log("[monitoring] dev fallback enabled: triggering /api/monitor from browser");
+    let cancelled = false;
+
+    const runDevFallbackCycle = async () => {
+      try {
+        const response = await fetch("/api/monitor", {
+          method: "GET",
+          cache: "no-store",
+          headers: { "x-monitor-source": "browser-dev-fallback" },
+        });
+        const body = await response.json();
+        if (!response.ok || !body?.success) {
+          throw new Error(body?.message || "Monitoring API call failed.");
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        await reloadFromSupabase(userId);
+      } catch (error) {
+        console.error("[monitoring] browser dev fallback cycle failed", error);
+      }
+    };
+
+    void runDevFallbackCycle();
+    const intervalId = setInterval(() => {
+      void runDevFallbackCycle();
     }, 60_000);
 
     return () => {
@@ -1016,7 +1068,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       clearInterval(intervalId);
     };
   }, [
-    runMonitoringAndReload,
+    browserMonitoringFallbackEnabled,
+    reloadFromSupabase,
     supabase,
     state.authUserId,
     state.dataError,
