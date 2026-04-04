@@ -12,22 +12,29 @@ import {
 } from "react";
 import { defaultWorkspace } from "@/lib/mock/workspace-data";
 import type {
+  AlertSubscriber,
   CheckType,
   Incident,
+  IncidentEvent,
   IncidentSeverity,
   IncidentStatus,
+  MaintenanceWindow,
   Service,
   UptimeSummary,
 } from "@/lib/models/monitoring";
 import type { Project, Workspace } from "@/lib/models/workspace";
 import { createClient } from "@/lib/supabase/client";
 import {
+  deleteMaintenanceWindow as deleteMaintenanceWindowRow,
   deleteIncident as deleteIncidentRow,
   deleteService as deleteServiceRow,
   getSupabaseErrorDetails,
   getOrCreateWorkspaceId,
   loadUserAppData,
   persistIncident,
+  persistIncidentEvent,
+  persistMaintenanceWindow,
+  persistAlertSubscriber,
   persistService,
   persistWorkspaceInfo,
 } from "@/lib/supabase/app-data";
@@ -43,6 +50,9 @@ type AddServiceInput = {
   checkType: CheckType;
   checkInterval: string;
   description?: string;
+  timeoutMs?: number;
+  failureThreshold?: number;
+  retryCount?: number;
 };
 
 type UpdateServiceInput = {
@@ -53,6 +63,17 @@ type UpdateServiceInput = {
   checkInterval: string;
   description?: string;
   isPublished?: boolean;
+  timeoutMs?: number;
+  failureThreshold?: number;
+  retryCount?: number;
+};
+
+type CreateMaintenanceInput = {
+  title: string;
+  description?: string;
+  startsAt: string;
+  endsAt: string;
+  affectedServiceIds: string[];
 };
 
 type CreateIncidentInput = {
@@ -78,6 +99,9 @@ type AppDataState = {
   };
   services: Service[];
   incidents: Incident[];
+  maintenanceWindows: MaintenanceWindow[];
+  incidentEvents: IncidentEvent[];
+  alertSubscribers: AlertSubscriber[];
   uptimeSummary: UptimeSummary;
 };
 
@@ -92,6 +116,9 @@ type AppDataAction =
         currentProjectId: string;
         services: Service[];
         incidents: Incident[];
+        maintenanceWindows: MaintenanceWindow[];
+        incidentEvents: IncidentEvent[];
+        alertSubscribers: AlertSubscriber[];
         uptimeSummary: UptimeSummary;
       };
     }
@@ -108,9 +135,14 @@ type AppDataAction =
         workspaceName?: string;
         projectName?: string;
         projectSlug?: string;
+        publicDescription?: string;
         incidentAlertsEnabled?: boolean;
         maintenanceAlertsEnabled?: boolean;
+        incidentEmailAlertsEnabled?: boolean;
+        maintenanceEmailAlertsEnabled?: boolean;
         discordWebhookUrl?: string;
+        alertEmail?: string;
+        supportEmail?: string;
         customDomain?: string;
         customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
       };
@@ -142,6 +174,10 @@ type AppDataAction =
       payload: { incidentId: string; resolutionSummary?: string };
     }
   | { type: "DELETE_INCIDENT"; payload: { incidentId: string } }
+  | { type: "CREATE_MAINTENANCE_WINDOW"; payload: CreateMaintenanceInput }
+  | { type: "DELETE_MAINTENANCE_WINDOW"; payload: { maintenanceId: string } }
+  | { type: "APPEND_INCIDENT_EVENT"; payload: IncidentEvent }
+  | { type: "ADD_ALERT_SUBSCRIBER"; payload: AlertSubscriber }
   | {
       type: "UPDATE_SERVICE_STATUS";
       payload: {
@@ -161,6 +197,9 @@ type AppDataContextValue = {
   onboarding: AppDataState["onboarding"];
   services: Service[];
   incidents: Incident[];
+  maintenanceWindows: MaintenanceWindow[];
+  incidentEvents: IncidentEvent[];
+  alertSubscribers: AlertSubscriber[];
   uptimeSummary: UptimeSummary;
   isAddServiceModalOpen: boolean;
   isCreateIncidentModalOpen: boolean;
@@ -169,9 +208,14 @@ type AppDataContextValue = {
     workspaceName?: string;
     projectName?: string;
     projectSlug?: string;
+    publicDescription?: string;
     incidentAlertsEnabled?: boolean;
     maintenanceAlertsEnabled?: boolean;
+    incidentEmailAlertsEnabled?: boolean;
+    maintenanceEmailAlertsEnabled?: boolean;
     discordWebhookUrl?: string;
+    alertEmail?: string;
+    supportEmail?: string;
     customDomain?: string;
     customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
   }) => void;
@@ -187,6 +231,8 @@ type AppDataContextValue = {
   updateIncidentStatus: (incidentId: string, status: IncidentStatus) => void;
   resolveIncident: (incidentId: string, resolutionSummary?: string) => void;
   deleteIncident: (incidentId: string) => Promise<void>;
+  createMaintenanceWindow: (input: CreateMaintenanceInput) => Promise<void>;
+  deleteMaintenanceWindow: (maintenanceId: string) => Promise<void>;
   updateServiceStatus: (
     serviceId: string,
     payload: {
@@ -195,6 +241,7 @@ type AppDataContextValue = {
       lastChecked: string;
     },
   ) => void;
+  addAlertSubscriber: (subscriber: AlertSubscriber) => void;
 };
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
@@ -207,6 +254,16 @@ function createServiceId(): string {
 function createIncidentId(): string {
   const random = crypto.randomUUID().split("-")[0];
   return `inc_${random}`;
+}
+
+function createMaintenanceId(): string {
+  const random = crypto.randomUUID().split("-")[0];
+  return `mnt_${random}`;
+}
+
+function createIncidentEventId(): string {
+  const random = crypto.randomUUID().split("-")[0];
+  return `evt_${random}`;
 }
 
 function reducer(state: AppDataState, action: AppDataAction): AppDataState {
@@ -237,6 +294,9 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       currentProjectId: action.payload.currentProjectId,
       services: action.payload.services,
       incidents: action.payload.incidents,
+      maintenanceWindows: action.payload.maintenanceWindows,
+      incidentEvents: action.payload.incidentEvents,
+      alertSubscribers: action.payload.alertSubscribers,
       uptimeSummary: action.payload.uptimeSummary,
     };
   }
@@ -250,6 +310,9 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       dataError: null,
       services: [],
       incidents: [],
+      maintenanceWindows: [],
+      incidentEvents: [],
+      alertSubscribers: [],
       uptimeSummary: buildFallbackUptimeSummary([]),
       workspace: defaultWorkspace,
       currentProjectId: defaultWorkspace.projects[0]?.id ?? "",
@@ -300,6 +363,10 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       workspace: {
         ...state.workspace,
         name: action.payload.workspaceName || state.workspace.name,
+        publicDescription:
+          action.payload.publicDescription !== undefined
+            ? action.payload.publicDescription
+            : state.workspace.publicDescription,
         projects: firstProject
           ? [
               {
@@ -317,10 +384,24 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
           maintenanceAlertsEnabled:
             action.payload.maintenanceAlertsEnabled ??
             state.workspace.notificationSettings.maintenanceAlertsEnabled,
+          incidentEmailAlertsEnabled:
+            action.payload.incidentEmailAlertsEnabled ??
+            state.workspace.notificationSettings.incidentEmailAlertsEnabled,
+          maintenanceEmailAlertsEnabled:
+            action.payload.maintenanceEmailAlertsEnabled ??
+            state.workspace.notificationSettings.maintenanceEmailAlertsEnabled,
           discordWebhookUrl:
             action.payload.discordWebhookUrl !== undefined
               ? action.payload.discordWebhookUrl || undefined
               : state.workspace.notificationSettings.discordWebhookUrl,
+          alertEmail:
+            action.payload.alertEmail !== undefined
+              ? action.payload.alertEmail || undefined
+              : state.workspace.notificationSettings.alertEmail,
+          supportEmail:
+            action.payload.supportEmail !== undefined
+              ? action.payload.supportEmail || undefined
+              : state.workspace.notificationSettings.supportEmail,
         },
         domainSettings: {
           statusPageSlug: nextProjectSlug,
@@ -414,6 +495,18 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
             action.payload.isPublished !== undefined
               ? action.payload.isPublished
               : service.isPublished,
+          timeoutMs:
+            action.payload.timeoutMs !== undefined
+              ? action.payload.timeoutMs
+              : service.timeoutMs,
+          failureThreshold:
+            action.payload.failureThreshold !== undefined
+              ? action.payload.failureThreshold
+              : service.failureThreshold,
+          retryCount:
+            action.payload.retryCount !== undefined
+              ? action.payload.retryCount
+              : service.retryCount,
         };
       }),
     };
@@ -461,6 +554,17 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
     return {
       ...state,
       incidents: [incident, ...state.incidents],
+      incidentEvents: [
+        {
+          id: createIncidentEventId(),
+          incidentId: incident.id,
+          eventType: "created",
+          source: "manual",
+          message: "Incident created manually.",
+          createdAt: now,
+        },
+        ...state.incidentEvents,
+      ],
     };
   }
 
@@ -485,6 +589,17 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
               : incident.resolutionSummary,
         };
       }),
+      incidentEvents: [
+        {
+          id: createIncidentEventId(),
+          incidentId: action.payload.incidentId,
+          eventType: "status_changed",
+          source: "manual",
+          message: `Status changed to ${action.payload.status}.`,
+          createdAt: now,
+        },
+        ...state.incidentEvents,
+      ],
     };
   }
 
@@ -508,6 +623,17 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
             "Incident resolved by operations team.",
         };
       }),
+      incidentEvents: [
+        {
+          id: createIncidentEventId(),
+          incidentId: action.payload.incidentId,
+          eventType: "resolved",
+          source: "manual",
+          message: action.payload.resolutionSummary || "Incident resolved manually.",
+          createdAt: now,
+        },
+        ...state.incidentEvents,
+      ],
     };
   }
 
@@ -515,6 +641,54 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
     return {
       ...state,
       incidents: state.incidents.filter((incident) => incident.id !== action.payload.incidentId),
+      incidentEvents: state.incidentEvents.filter(
+        (event) => event.incidentId !== action.payload.incidentId,
+      ),
+    };
+  }
+
+  if (action.type === "CREATE_MAINTENANCE_WINDOW") {
+    const now = new Date().toISOString();
+    const maintenance: MaintenanceWindow = {
+      id: createMaintenanceId(),
+      title: action.payload.title.trim(),
+      description: action.payload.description?.trim() || undefined,
+      startsAt: action.payload.startsAt,
+      endsAt: action.payload.endsAt,
+      affectedServiceIds: action.payload.affectedServiceIds,
+      status: "scheduled",
+      createdAt: now,
+    };
+
+    return {
+      ...state,
+      maintenanceWindows: [maintenance, ...state.maintenanceWindows],
+    };
+  }
+
+  if (action.type === "DELETE_MAINTENANCE_WINDOW") {
+    return {
+      ...state,
+      maintenanceWindows: state.maintenanceWindows.filter(
+        (window) => window.id !== action.payload.maintenanceId,
+      ),
+    };
+  }
+
+  if (action.type === "APPEND_INCIDENT_EVENT") {
+    return {
+      ...state,
+      incidentEvents: [action.payload, ...state.incidentEvents],
+    };
+  }
+
+  if (action.type === "ADD_ALERT_SUBSCRIBER") {
+    const withoutSameEmail = state.alertSubscribers.filter(
+      (subscriber) => subscriber.email.toLowerCase() !== action.payload.email.toLowerCase(),
+    );
+    return {
+      ...state,
+      alertSubscribers: [action.payload, ...withoutSameEmail],
     };
   }
 
@@ -535,6 +709,9 @@ const initialState: AppDataState = {
   },
   services: [],
   incidents: [],
+  maintenanceWindows: [],
+  incidentEvents: [],
+  alertSubscribers: [],
   uptimeSummary: buildFallbackUptimeSummary([]),
 };
 
@@ -556,9 +733,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       workspaceName?: string;
       projectName?: string;
       projectSlug?: string;
+      publicDescription?: string;
       incidentAlertsEnabled?: boolean;
       maintenanceAlertsEnabled?: boolean;
+      incidentEmailAlertsEnabled?: boolean;
+      maintenanceEmailAlertsEnabled?: boolean;
       discordWebhookUrl?: string;
+      alertEmail?: string;
+      supportEmail?: string;
       customDomain?: string;
       customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
     }) =>
@@ -593,6 +775,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             currentProjectId: appData.currentProjectId,
             services: appData.services,
             incidents: appData.incidents,
+            maintenanceWindows: appData.maintenanceWindows,
+            incidentEvents: appData.incidentEvents,
+            alertSubscribers: appData.alertSubscribers,
             uptimeSummary,
           },
         });
@@ -618,6 +803,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         name: input.name.trim(),
         url: input.url.trim(),
         isPublished: true,
+        timeoutMs: input.timeoutMs ?? 10000,
+        failureThreshold: input.failureThreshold ?? 3,
+        retryCount: input.retryCount ?? 0,
         checkType: input.checkType,
         checkInterval: input.checkInterval.trim(),
         description: input.description?.trim() || undefined,
@@ -646,6 +834,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           name: service.name,
           url: service.url,
           is_published: service.isPublished,
+          timeout_ms: service.timeoutMs,
+          failure_threshold: service.failureThreshold,
+          retry_count: service.retryCount,
           status: service.status,
           check_type: service.checkType,
           check_interval: service.checkInterval,
@@ -707,6 +898,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         url: input.url.trim(),
         isPublished:
           input.isPublished !== undefined ? input.isPublished : existing.isPublished,
+        timeoutMs: input.timeoutMs ?? existing.timeoutMs,
+        failureThreshold: input.failureThreshold ?? existing.failureThreshold,
+        retryCount: input.retryCount ?? existing.retryCount,
         checkType: input.checkType,
         checkInterval: input.checkInterval.trim(),
         description: input.description?.trim() || undefined,
@@ -733,6 +927,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           checkInterval: updatedService.checkInterval,
           description: updatedService.description,
           isPublished: updatedService.isPublished,
+          timeoutMs: updatedService.timeoutMs,
+          failureThreshold: updatedService.failureThreshold,
+          retryCount: updatedService.retryCount,
         },
       });
     },
@@ -815,6 +1012,31 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [state.authUserId, supabase],
   );
 
+  const createMaintenanceWindow = useCallback(
+    async (input: CreateMaintenanceInput) => {
+      if (!supabase || !state.authUserId || !state.workspace.id) {
+        throw new Error("Supabase is not ready yet. Please try again.");
+      }
+      dispatch({ type: "CREATE_MAINTENANCE_WINDOW", payload: input });
+    },
+    [state.authUserId, state.workspace.id, supabase],
+  );
+
+  const deleteMaintenanceWindow = useCallback(
+    async (maintenanceId: string) => {
+      if (!supabase || !state.authUserId) {
+        throw new Error("Supabase is not ready yet. Please try again.");
+      }
+      await deleteMaintenanceWindowRow(supabase, state.authUserId, maintenanceId);
+      dispatch({ type: "DELETE_MAINTENANCE_WINDOW", payload: { maintenanceId } });
+    },
+    [state.authUserId, supabase],
+  );
+
+  const addAlertSubscriber = useCallback((subscriber: AlertSubscriber) => {
+    dispatch({ type: "ADD_ALERT_SUBSCRIBER", payload: subscriber });
+  }, []);
+
 
   useEffect(() => {
     const hydrateForUser = async () => {
@@ -896,6 +1118,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             currentProjectId: appData.currentProjectId,
             services: appData.services,
             incidents: appData.incidents,
+            maintenanceWindows: appData.maintenanceWindows,
+            incidentEvents: appData.incidentEvents,
+            alertSubscribers: appData.alertSubscribers,
             uptimeSummary,
           },
         });
@@ -979,9 +1204,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           workspaceName: state.workspace.name,
           projectName: state.workspace.projects[0]?.name,
           projectSlug: state.workspace.projects[0]?.slug,
+          publicDescription: state.workspace.publicDescription,
           incidentAlertsEnabled: state.workspace.notificationSettings.incidentAlertsEnabled,
           maintenanceAlertsEnabled: state.workspace.notificationSettings.maintenanceAlertsEnabled,
+          incidentEmailAlertsEnabled:
+            state.workspace.notificationSettings.incidentEmailAlertsEnabled,
+          maintenanceEmailAlertsEnabled:
+            state.workspace.notificationSettings.maintenanceEmailAlertsEnabled,
           discordWebhookUrl: state.workspace.notificationSettings.discordWebhookUrl,
+          alertEmail: state.workspace.notificationSettings.alertEmail,
+          supportEmail: state.workspace.notificationSettings.supportEmail,
           customDomain: state.workspace.domainSettings.customDomain,
           customDomainStatus: state.workspace.domainSettings.customDomainStatus,
         });
@@ -1090,6 +1322,114 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
+    if (
+      !supabase ||
+      !state.authUserId ||
+      !state.workspace.id ||
+      !state.isHydrated ||
+      state.dataError
+    ) {
+      return;
+    }
+
+    const userId = state.authUserId;
+    const workspaceId = state.workspace.id;
+    if (!userId || !workspaceId) {
+      return;
+    }
+
+    const syncMaintenance = async () => {
+      for (const maintenance of state.maintenanceWindows) {
+        try {
+          await persistMaintenanceWindow(supabase, userId, workspaceId, maintenance);
+        } catch (error) {
+          console.error("[AppData] maintenance persist failed", {
+            maintenanceId: maintenance.id,
+            error,
+          });
+        }
+      }
+    };
+
+    void syncMaintenance();
+  }, [
+    supabase,
+    state.authUserId,
+    state.workspace.id,
+    state.maintenanceWindows,
+    state.isHydrated,
+    state.dataError,
+  ]);
+
+  useEffect(() => {
+    if (
+      !supabase ||
+      !state.authUserId ||
+      !state.workspace.id ||
+      !state.isHydrated ||
+      state.dataError
+    ) {
+      return;
+    }
+
+    const userId = state.authUserId;
+    const workspaceId = state.workspace.id;
+    if (!userId || !workspaceId) {
+      return;
+    }
+
+    const syncIncidentEvents = async () => {
+      for (const event of state.incidentEvents) {
+        try {
+          await persistIncidentEvent(supabase, userId, workspaceId, event);
+        } catch (error) {
+          console.error("[AppData] incident event persist failed", {
+            incidentEventId: event.id,
+            error,
+          });
+        }
+      }
+    };
+
+    void syncIncidentEvents();
+  }, [
+    supabase,
+    state.authUserId,
+    state.workspace.id,
+    state.incidentEvents,
+    state.isHydrated,
+    state.dataError,
+  ]);
+
+  useEffect(() => {
+    if (!supabase || !state.workspace.id || !state.isHydrated || state.dataError) {
+      return;
+    }
+
+    const workspaceId = state.workspace.id;
+    const syncSubscribers = async () => {
+      for (const subscriber of state.alertSubscribers) {
+        try {
+          await persistAlertSubscriber(supabase, workspaceId, subscriber);
+        } catch (error) {
+          console.error("[AppData] subscriber persist failed", {
+            subscriberId: subscriber.id,
+            error,
+          });
+        }
+      }
+    };
+
+    void syncSubscribers();
+  }, [
+    supabase,
+    state.workspace.id,
+    state.alertSubscribers,
+    state.isHydrated,
+    state.dataError,
+  ]);
+
+  useEffect(() => {
     const devBrowserFallback =
       process.env.NEXT_PUBLIC_ENABLE_BROWSER_MONITORING === "true" &&
       process.env.NODE_ENV !== "production";
@@ -1145,6 +1485,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       onboarding: state.onboarding,
       services: state.services,
       incidents: state.incidents,
+      maintenanceWindows: state.maintenanceWindows,
+      incidentEvents: state.incidentEvents,
+      alertSubscribers: state.alertSubscribers,
       uptimeSummary: state.uptimeSummary,
       isAddServiceModalOpen,
       isCreateIncidentModalOpen,
@@ -1162,7 +1505,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateIncidentStatus,
       resolveIncident,
       deleteIncident,
+      createMaintenanceWindow,
+      deleteMaintenanceWindow,
       updateServiceStatus,
+      addAlertSubscriber,
     }),
     [
       setCurrentProject,
@@ -1175,9 +1521,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateIncidentStatus,
       resolveIncident,
       deleteIncident,
+      createMaintenanceWindow,
+      deleteMaintenanceWindow,
       updateServiceStatus,
+      addAlertSubscriber,
       state.services,
       state.incidents,
+      state.maintenanceWindows,
+      state.incidentEvents,
+      state.alertSubscribers,
       state.uptimeSummary,
       state.isHydrated,
       state.isHydrating,

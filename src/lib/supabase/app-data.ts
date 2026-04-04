@@ -1,4 +1,10 @@
-import type { Incident, Service } from "@/lib/models/monitoring";
+import type {
+  AlertSubscriber,
+  Incident,
+  IncidentEvent,
+  MaintenanceWindow,
+  Service,
+} from "@/lib/models/monitoring";
 import type { Workspace } from "@/lib/models/workspace";
 import { toSlug } from "@/lib/utils/slug";
 
@@ -225,7 +231,12 @@ type WorkspaceRow = {
   project_slug: string;
   incident_alerts_enabled: boolean | null;
   maintenance_alerts_enabled: boolean | null;
+  incident_email_alerts_enabled: boolean | null;
+  maintenance_email_alerts_enabled: boolean | null;
   discord_webhook_url: string | null;
+  alert_email: string | null;
+  support_email: string | null;
+  public_description: string | null;
   custom_domain: string | null;
   custom_domain_status: "unconfigured" | "pending_verification" | "verified" | "failed" | null;
   created_at: string;
@@ -238,12 +249,51 @@ type ServiceRow = {
   name: string;
   url: string;
   is_published: boolean | null;
+  timeout_ms: number | null;
+  failure_threshold: number | null;
+  retry_count: number | null;
   status: Service["status"];
   check_type: Service["checkType"];
   check_interval: string;
   last_checked: string;
   response_time_ms: number;
   description: string | null;
+  created_at: string;
+};
+
+type MaintenanceWindowRow = {
+  id: string;
+  user_id: string;
+  workspace_id: string;
+  title: string;
+  description: string | null;
+  starts_at: string;
+  ends_at: string;
+  affected_service_ids: string[] | null;
+  status: MaintenanceWindow["status"];
+  created_at: string;
+};
+
+type IncidentEventRow = {
+  id: string;
+  user_id: string;
+  workspace_id: string;
+  incident_id: string;
+  event_type: IncidentEvent["eventType"];
+  source: IncidentEvent["source"];
+  message: string;
+  created_at: string;
+};
+
+type AlertSubscriberRow = {
+  id: string;
+  workspace_id: string;
+  email: string;
+  incident_created: boolean | null;
+  incident_resolved: boolean | null;
+  maintenance_alerts: boolean | null;
+  token: string;
+  active: boolean | null;
   created_at: string;
 };
 
@@ -292,6 +342,7 @@ function toWorkspaceModel(row: WorkspaceRow): Workspace {
   return {
     id: row.id,
     name: row.name,
+    publicDescription: row.public_description || undefined,
     projects: [
       {
         id: `${row.id}_project`,
@@ -303,7 +354,11 @@ function toWorkspaceModel(row: WorkspaceRow): Workspace {
     notificationSettings: {
       incidentAlertsEnabled: row.incident_alerts_enabled ?? true,
       maintenanceAlertsEnabled: row.maintenance_alerts_enabled ?? true,
+      incidentEmailAlertsEnabled: row.incident_email_alerts_enabled ?? false,
+      maintenanceEmailAlertsEnabled: row.maintenance_email_alerts_enabled ?? false,
       discordWebhookUrl: row.discord_webhook_url || undefined,
+      alertEmail: row.alert_email || undefined,
+      supportEmail: row.support_email || undefined,
     },
     domainSettings: {
       statusPageSlug: row.project_slug,
@@ -319,12 +374,52 @@ function toServiceModel(row: ServiceRow): Service {
     name: row.name,
     url: row.url,
     isPublished: row.is_published ?? true,
+    timeoutMs: row.timeout_ms ?? 10000,
+    failureThreshold: row.failure_threshold ?? 3,
+    retryCount: row.retry_count ?? 0,
     status: row.status,
     checkType: row.check_type,
     checkInterval: row.check_interval,
     lastChecked: row.last_checked,
     responseTimeMs: row.response_time_ms,
     description: row.description || undefined,
+    createdAt: row.created_at,
+  };
+}
+
+function toMaintenanceWindowModel(row: MaintenanceWindowRow): MaintenanceWindow {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || undefined,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    affectedServiceIds: row.affected_service_ids ?? [],
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+function toIncidentEventModel(row: IncidentEventRow): IncidentEvent {
+  return {
+    id: row.id,
+    incidentId: row.incident_id,
+    eventType: row.event_type,
+    source: row.source,
+    message: row.message,
+    createdAt: row.created_at,
+  };
+}
+
+function toAlertSubscriberModel(row: AlertSubscriberRow): AlertSubscriber {
+  return {
+    id: row.id,
+    email: row.email,
+    incidentCreated: row.incident_created ?? true,
+    incidentResolved: row.incident_resolved ?? true,
+    maintenanceAlerts: row.maintenance_alerts ?? true,
+    token: row.token,
+    active: row.active ?? true,
     createdAt: row.created_at,
   };
 }
@@ -374,7 +469,12 @@ export async function ensureWorkspace(
       project_slug: "main-status-page",
       incident_alerts_enabled: true,
       maintenance_alerts_enabled: true,
+      incident_email_alerts_enabled: false,
+      maintenance_email_alerts_enabled: false,
       discord_webhook_url: null,
+      alert_email: null,
+      support_email: null,
+      public_description: "Real-time system status and incident updates.",
       custom_domain: null,
       custom_domain_status: "unconfigured",
     })
@@ -412,12 +512,16 @@ export async function loadUserAppData(client: SupabaseClientLike, userId: string
   currentProjectId: string;
   services: Service[];
   incidents: Incident[];
+  maintenanceWindows: MaintenanceWindow[];
+  incidentEvents: IncidentEvent[];
+  alertSubscribers: AlertSubscriber[];
 }> {
   const db = getDb(client);
   await validateUserScopedTables(db, userId);
   const workspaceRow = await ensureWorkspace(db, userId);
 
-  const [servicesResult, incidentsResult] = await Promise.all([
+  const [servicesResult, incidentsResult, maintenanceResult, incidentEventsResult, subscribersResult] =
+    await Promise.all([
     db
       .from("services")
       .select("*")
@@ -428,6 +532,21 @@ export async function loadUserAppData(client: SupabaseClientLike, userId: string
       .select("*")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false }),
+    db
+      .from("maintenance_windows")
+      .select("*")
+      .eq("user_id", userId)
+      .order("starts_at", { ascending: false }),
+    db
+      .from("incident_events")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
+    db
+      .from("alert_subscribers")
+      .select("*")
+      .eq("workspace_id", workspaceRow.id)
+      .order("created_at", { ascending: false }),
   ]);
 
   if (servicesResult.error) {
@@ -436,6 +555,19 @@ export async function loadUserAppData(client: SupabaseClientLike, userId: string
 
   if (incidentsResult.error) {
     throw incidentsResult.error;
+  }
+  const maintenanceTableMissing = hasErrorCode(maintenanceResult.error, "42P01");
+  const incidentEventsTableMissing = hasErrorCode(incidentEventsResult.error, "42P01");
+  const subscribersTableMissing = hasErrorCode(subscribersResult.error, "42P01");
+
+  if (maintenanceResult.error && !maintenanceTableMissing) {
+    throw maintenanceResult.error;
+  }
+  if (incidentEventsResult.error && !incidentEventsTableMissing) {
+    throw incidentEventsResult.error;
+  }
+  if (subscribersResult.error && !subscribersTableMissing) {
+    throw subscribersResult.error;
   }
 
   const workspace = toWorkspaceModel(workspaceRow);
@@ -448,6 +580,19 @@ export async function loadUserAppData(client: SupabaseClientLike, userId: string
       .map(toServiceModel)
       .map(normalizeLoadedService),
     incidents: ((incidentsResult.data ?? []) as IncidentRow[]).map(toIncidentModel),
+    maintenanceWindows: maintenanceTableMissing
+      ? []
+      : ((maintenanceResult.data ?? []) as MaintenanceWindowRow[]).map(
+          toMaintenanceWindowModel,
+        ),
+    incidentEvents: incidentEventsTableMissing
+      ? []
+      : ((incidentEventsResult.data ?? []) as IncidentEventRow[]).map(
+          toIncidentEventModel,
+        ),
+    alertSubscribers: subscribersTableMissing
+      ? []
+      : ((subscribersResult.data ?? []) as AlertSubscriberRow[]).map(toAlertSubscriberModel),
   };
 }
 
@@ -458,9 +603,14 @@ export async function persistWorkspaceInfo(
     workspaceName?: string;
     projectName?: string;
     projectSlug?: string;
+    publicDescription?: string;
     incidentAlertsEnabled?: boolean;
     maintenanceAlertsEnabled?: boolean;
+    incidentEmailAlertsEnabled?: boolean;
+    maintenanceEmailAlertsEnabled?: boolean;
     discordWebhookUrl?: string;
+    alertEmail?: string;
+    supportEmail?: string;
     customDomain?: string;
     customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
   },
@@ -478,14 +628,30 @@ export async function persistWorkspaceInfo(
       name: payload.workspaceName || workspace.name,
       project_name: nextProjectName,
       project_slug: nextProjectSlug,
+      public_description:
+        payload.publicDescription !== undefined
+          ? payload.publicDescription || null
+          : (workspace.public_description ?? null),
       incident_alerts_enabled:
         payload.incidentAlertsEnabled ?? workspace.incident_alerts_enabled ?? true,
       maintenance_alerts_enabled:
         payload.maintenanceAlertsEnabled ?? workspace.maintenance_alerts_enabled ?? true,
+      incident_email_alerts_enabled:
+        payload.incidentEmailAlertsEnabled ?? workspace.incident_email_alerts_enabled ?? false,
+      maintenance_email_alerts_enabled:
+        payload.maintenanceEmailAlertsEnabled ?? workspace.maintenance_email_alerts_enabled ?? false,
       discord_webhook_url:
         payload.discordWebhookUrl !== undefined
           ? payload.discordWebhookUrl || null
           : (workspace.discord_webhook_url ?? null),
+      alert_email:
+        payload.alertEmail !== undefined
+          ? payload.alertEmail || null
+          : (workspace.alert_email ?? null),
+      support_email:
+        payload.supportEmail !== undefined
+          ? payload.supportEmail || null
+          : (workspace.support_email ?? null),
       custom_domain:
         payload.customDomain !== undefined
           ? payload.customDomain || null
@@ -535,6 +701,9 @@ export async function persistService(
     name: service.name,
     url: service.url,
     is_published: service.isPublished,
+    timeout_ms: service.timeoutMs,
+    failure_threshold: service.failureThreshold,
+    retry_count: service.retryCount,
     status: service.status,
     check_type: service.checkType,
     check_interval: service.checkInterval,
@@ -564,6 +733,9 @@ export async function persistService(
         ...basePayload,
       };
       delete (legacyPayload as { is_published?: boolean }).is_published;
+      delete (legacyPayload as { timeout_ms?: number }).timeout_ms;
+      delete (legacyPayload as { failure_threshold?: number }).failure_threshold;
+      delete (legacyPayload as { retry_count?: number }).retry_count;
       result = await db.from("services").upsert(legacyPayload, { onConflict: "id" });
       if (!result.error) {
         return;
@@ -661,6 +833,115 @@ export async function persistIncident(
     { onConflict: "id" },
   );
 
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+export async function persistMaintenanceWindow(
+  client: SupabaseClientLike,
+  userId: string,
+  workspaceId: string,
+  maintenance: MaintenanceWindow,
+) {
+  const db = getDb(client);
+  const result = await db.from("maintenance_windows").upsert(
+    {
+      id: maintenance.id,
+      user_id: userId,
+      workspace_id: workspaceId,
+      title: maintenance.title,
+      description: maintenance.description || null,
+      starts_at: maintenance.startsAt,
+      ends_at: maintenance.endsAt,
+      affected_service_ids: maintenance.affectedServiceIds,
+      status: maintenance.status,
+      created_at: maintenance.createdAt,
+    },
+    { onConflict: "id" },
+  );
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+export async function deleteMaintenanceWindow(
+  client: SupabaseClientLike,
+  userId: string,
+  maintenanceId: string,
+) {
+  const db = getDb(client);
+  const result = await db
+    .from("maintenance_windows")
+    .delete()
+    .eq("id", maintenanceId)
+    .eq("user_id", userId);
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+export async function persistIncidentEvent(
+  client: SupabaseClientLike,
+  userId: string,
+  workspaceId: string,
+  event: IncidentEvent,
+) {
+  const db = getDb(client);
+  const result = await db.from("incident_events").upsert(
+    {
+      id: event.id,
+      user_id: userId,
+      workspace_id: workspaceId,
+      incident_id: event.incidentId,
+      event_type: event.eventType,
+      source: event.source,
+      message: event.message,
+      created_at: event.createdAt,
+    },
+    { onConflict: "id" },
+  );
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+export async function persistAlertSubscriber(
+  client: SupabaseClientLike,
+  workspaceId: string,
+  subscriber: AlertSubscriber,
+) {
+  const db = getDb(client);
+  const result = await db.from("alert_subscribers").upsert(
+    {
+      id: subscriber.id,
+      workspace_id: workspaceId,
+      email: subscriber.email,
+      incident_created: subscriber.incidentCreated,
+      incident_resolved: subscriber.incidentResolved,
+      maintenance_alerts: subscriber.maintenanceAlerts,
+      token: subscriber.token,
+      active: subscriber.active,
+      created_at: subscriber.createdAt,
+    },
+    { onConflict: "workspace_id,email" },
+  );
+  if (result.error) {
+    throw result.error;
+  }
+}
+
+export async function deactivateAlertSubscriber(
+  client: SupabaseClientLike,
+  workspaceId: string,
+  token: string,
+) {
+  const db = getDb(client);
+  const result = await db
+    .from("alert_subscribers")
+    .update({ active: false })
+    .eq("workspace_id", workspaceId)
+    .eq("token", token);
   if (result.error) {
     throw result.error;
   }

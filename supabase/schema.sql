@@ -12,7 +12,12 @@ create table if not exists public.workspaces (
   project_slug text not null default 'main-status-page',
   incident_alerts_enabled boolean not null default true,
   maintenance_alerts_enabled boolean not null default true,
+  incident_email_alerts_enabled boolean not null default false,
+  maintenance_email_alerts_enabled boolean not null default false,
   discord_webhook_url text,
+  alert_email text,
+  support_email text,
+  public_description text,
   custom_domain text,
   custom_domain_status text not null default 'unconfigured'
     check (custom_domain_status in ('unconfigured', 'pending_verification', 'verified', 'failed')),
@@ -30,6 +35,9 @@ create table if not exists public.services (
   name text not null,
   url text not null,
   is_published boolean not null default true,
+  timeout_ms integer not null default 10000,
+  failure_threshold integer not null default 3,
+  retry_count integer not null default 0,
   status text not null check (status in ('pending', 'operational', 'degraded', 'down')),
   check_type text not null check (check_type in ('http', 'ping', 'api')),
   check_interval text not null,
@@ -55,6 +63,22 @@ create table if not exists public.service_check_history (
 create index if not exists service_check_history_user_id_idx
   on public.service_check_history(user_id, checked_at desc);
 
+create table if not exists public.maintenance_windows (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  title text not null,
+  description text,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  affected_service_ids text[] not null default '{}',
+  status text not null check (status in ('scheduled', 'active', 'completed', 'cancelled')),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists maintenance_windows_user_id_idx
+  on public.maintenance_windows(user_id, starts_at desc);
+
 create table if not exists public.incidents (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -71,6 +95,34 @@ create table if not exists public.incidents (
   resolution_summary text
 );
 
+create table if not exists public.incident_events (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  incident_id text not null references public.incidents(id) on delete cascade,
+  event_type text not null
+    check (event_type in ('created', 'status_changed', 'monitoring', 'resolved', 'manual_update', 'maintenance_linked')),
+  source text not null check (source in ('monitoring', 'manual', 'system')),
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists incident_events_user_id_idx
+  on public.incident_events(user_id, created_at desc);
+
+create table if not exists public.alert_subscribers (
+  id text primary key,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  email text not null,
+  incident_created boolean not null default true,
+  incident_resolved boolean not null default true,
+  maintenance_alerts boolean not null default true,
+  token text not null unique,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  unique (workspace_id, email)
+);
+
 create index if not exists incidents_user_id_idx on public.incidents(user_id);
 create unique index if not exists incidents_one_active_per_service_idx
   on public.incidents(user_id, affected_service_id)
@@ -80,11 +132,19 @@ create unique index if not exists incidents_one_active_per_service_idx
 alter table public.workspaces add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.workspaces add column if not exists incident_alerts_enabled boolean not null default true;
 alter table public.workspaces add column if not exists maintenance_alerts_enabled boolean not null default true;
+alter table public.workspaces add column if not exists incident_email_alerts_enabled boolean not null default false;
+alter table public.workspaces add column if not exists maintenance_email_alerts_enabled boolean not null default false;
 alter table public.workspaces add column if not exists discord_webhook_url text;
+alter table public.workspaces add column if not exists alert_email text;
+alter table public.workspaces add column if not exists support_email text;
+alter table public.workspaces add column if not exists public_description text;
 alter table public.workspaces add column if not exists custom_domain text;
 alter table public.workspaces add column if not exists custom_domain_status text not null default 'unconfigured';
 alter table public.services add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.services add column if not exists is_published boolean not null default true;
+alter table public.services add column if not exists timeout_ms integer not null default 10000;
+alter table public.services add column if not exists failure_threshold integer not null default 3;
+alter table public.services add column if not exists retry_count integer not null default 0;
 alter table public.services add column if not exists consecutive_failures integer not null default 0;
 alter table public.incidents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 
@@ -97,6 +157,9 @@ alter table public.workspaces enable row level security;
 alter table public.services enable row level security;
 alter table public.incidents enable row level security;
 alter table public.service_check_history enable row level security;
+alter table public.maintenance_windows enable row level security;
+alter table public.incident_events enable row level security;
+alter table public.alert_subscribers enable row level security;
 
 drop policy if exists "Users can read own workspaces" on public.workspaces;
 create policy "Users can read own workspaces"
@@ -197,6 +260,80 @@ create policy "Users can delete own service history"
   on public.service_check_history
   for delete
   using (auth.uid() = user_id);
+
+drop policy if exists "Users can read own maintenance windows" on public.maintenance_windows;
+create policy "Users can read own maintenance windows"
+  on public.maintenance_windows
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own maintenance windows" on public.maintenance_windows;
+create policy "Users can insert own maintenance windows"
+  on public.maintenance_windows
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own maintenance windows" on public.maintenance_windows;
+create policy "Users can update own maintenance windows"
+  on public.maintenance_windows
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own maintenance windows" on public.maintenance_windows;
+create policy "Users can delete own maintenance windows"
+  on public.maintenance_windows
+  for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can read own incident events" on public.incident_events;
+create policy "Users can read own incident events"
+  on public.incident_events
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own incident events" on public.incident_events;
+create policy "Users can insert own incident events"
+  on public.incident_events
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own incident events" on public.incident_events;
+create policy "Users can update own incident events"
+  on public.incident_events
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own incident events" on public.incident_events;
+create policy "Users can delete own incident events"
+  on public.incident_events
+  for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "Public can subscribe alerts" on public.alert_subscribers;
+create policy "Public can subscribe alerts"
+  on public.alert_subscribers
+  for insert
+  with check (true);
+
+drop policy if exists "Public can update own token alerts" on public.alert_subscribers;
+create policy "Public can update own token alerts"
+  on public.alert_subscribers
+  for update
+  using (true)
+  with check (true);
+
+drop policy if exists "Users can read own workspace subscribers" on public.alert_subscribers;
+create policy "Users can read own workspace subscribers"
+  on public.alert_subscribers
+  for select
+  using (
+    exists (
+      select 1 from public.workspaces w
+      where w.id = alert_subscribers.workspace_id and w.user_id = auth.uid()
+    )
+  );
 
 -- Quick validation checks (run manually in SQL Editor)
 -- select id, user_id from public.workspaces limit 1;

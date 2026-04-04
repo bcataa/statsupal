@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { Service } from "@/lib/models/monitoring";
 import { formatDateTime, formatTimestampOrText } from "@/lib/utils/date-time";
@@ -89,7 +90,7 @@ function getLastUpdated(services: Service[]): string {
 }
 
 export default function StatusPage({ params }: StatusPageProps) {
-  const { services, incidents, workspace } = useAppData();
+  const { services, incidents, maintenanceWindows, workspace } = useAppData();
   const publishedServices = services.filter((service) => service.isPublished);
   const projectSlug = decodeURIComponent(params.project || "").trim();
   const fallbackSlug = workspace.domainSettings.statusPageSlug || "status";
@@ -111,6 +112,55 @@ export default function StatusPage({ params }: StatusPageProps) {
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 8);
   const serviceNameById = new Map(services.map((service) => [service.id, service.name]));
+  const workspaceIntro =
+    workspace.publicDescription || "Real-time system status and incident updates.";
+  const supportEmail = workspace.notificationSettings.supportEmail;
+  const initials = workspace.name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+  const activeMaintenance = maintenanceWindows.filter(
+    (window) => window.status === "active",
+  );
+  const resolvedMaintenance = maintenanceWindows
+    .filter((window) => window.status === "completed" || window.status === "cancelled")
+    .slice(0, 6);
+  const [subscriberEmail, setSubscriberEmail] = useState("");
+  const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubscribe = async () => {
+    setSubscriptionMessage(null);
+    if (!subscriberEmail.trim()) {
+      setSubscriptionMessage("Enter an email address first.");
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const response = await fetch("/api/status/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectSlug: resolvedProjectSlug,
+          email: subscriberEmail.trim(),
+          incidentCreated: true,
+          incidentResolved: true,
+          maintenanceAlerts: true,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Could not subscribe.");
+      }
+      setSubscriberEmail("");
+      setSubscriptionMessage("Subscribed. You will receive future status alerts.");
+    } catch (error) {
+      setSubscriptionMessage(error instanceof Error ? error.message : "Could not subscribe.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <main className="relative overflow-hidden px-4 py-10 sm:px-6 sm:py-14">
@@ -119,6 +169,9 @@ export default function StatusPage({ params }: StatusPageProps) {
 
       <div className="relative mx-auto w-full max-w-5xl space-y-8">
         <header className="space-y-4 text-center">
+          <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm font-semibold text-zinc-700 shadow-sm">
+            {initials || "SP"}
+          </div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
             {workspace.name}
           </p>
@@ -126,8 +179,11 @@ export default function StatusPage({ params }: StatusPageProps) {
             {projectName} status
           </h1>
           <p className="mx-auto max-w-2xl text-base text-zinc-600 sm:text-lg">
-            This page shows real-time system status and incident updates.
+            {workspaceIntro}
           </p>
+          {supportEmail ? (
+            <p className="text-xs text-zinc-500">Need help? Contact {supportEmail}</p>
+          ) : null}
         </header>
 
         <section className={`rounded-2xl border p-6 shadow-sm sm:p-8 ${tone.panelClass}`}>
@@ -165,6 +221,22 @@ export default function StatusPage({ params }: StatusPageProps) {
             {activeIncidents.length} active incident
             {activeIncidents.length > 1 ? "s are" : " is"} currently being handled.
           </p>
+        ) : null}
+
+        {activeMaintenance.length > 0 ? (
+          <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800 shadow-sm">
+            <p className="font-semibold">Planned maintenance in progress</p>
+            <div className="mt-2 space-y-2">
+              {activeMaintenance.map((window) => (
+                <article key={window.id} className="rounded-lg border border-sky-200 bg-white/70 p-3">
+                  <p className="font-medium">{window.title}</p>
+                  <p className="text-xs opacity-80">
+                    {formatDateTime(window.startsAt)} - {formatDateTime(window.endsAt)}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
         ) : null}
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
@@ -215,6 +287,48 @@ export default function StatusPage({ params }: StatusPageProps) {
             </div>
           )}
         </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-xl font-semibold text-zinc-900">Subscribe to alerts</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Get incident and maintenance updates by email.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              value={subscriberEmail}
+              onChange={(event) => setSubscriberEmail(event.target.value)}
+              placeholder="you@company.com"
+              className="h-10 flex-1 rounded-xl border border-zinc-300 px-3 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+            />
+            <button
+              type="button"
+              onClick={() => void onSubscribe()}
+              disabled={submitting}
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? "Subscribing..." : "Subscribe"}
+            </button>
+          </div>
+          {subscriptionMessage ? (
+            <p className="mt-2 text-xs text-zinc-600">{subscriptionMessage}</p>
+          ) : null}
+        </section>
+
+        {resolvedMaintenance.length > 0 ? (
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-xl font-semibold text-zinc-900">Completed maintenance</h2>
+            <div className="mt-3 space-y-3">
+              {resolvedMaintenance.map((window) => (
+                <article key={window.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="text-sm font-medium text-zinc-900">{window.title}</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {formatDateTime(window.startsAt)} - {formatDateTime(window.endsAt)}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-5 flex items-end justify-between gap-4">

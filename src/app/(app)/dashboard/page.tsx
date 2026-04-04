@@ -10,7 +10,8 @@ import type { DashboardMetric } from "@/lib/models/monitoring";
 import { useAppData } from "@/state/app-data-provider";
 
 export default function OverviewPage() {
-  const { services, incidents, workspace, currentProject, uptimeSummary } = useAppData();
+  const { services, incidents, maintenanceWindows, workspace, currentProject, uptimeSummary } =
+    useAppData();
   const operationalCount = services.filter((service) => service.status === "operational").length;
   const degradedCount = services.filter((service) => service.status === "degraded").length;
   const activeIncidentCount = incidents.filter(
@@ -18,6 +19,9 @@ export default function OverviewPage() {
   ).length;
   const resolvedIncidentCount = incidents.filter(
     (incident) => incident.status === "resolved",
+  ).length;
+  const activeMaintenanceCount = maintenanceWindows.filter(
+    (window) => window.status === "active",
   ).length;
 
   const dashboardMetrics: DashboardMetric[] = [
@@ -47,6 +51,12 @@ export default function OverviewPage() {
           ? `${resolvedIncidentCount} resolved recently`
           : "No open incidents",
       tone: "danger",
+    },
+    {
+      label: "Maintenance",
+      value: String(activeMaintenanceCount),
+      detail: activeMaintenanceCount > 0 ? "Planned windows live" : "No active maintenance",
+      tone: "neutral",
     },
   ];
 

@@ -3,6 +3,7 @@ import type { Workspace } from "@/lib/models/workspace";
 export const defaultWorkspace: Workspace = {
   id: "ws_default",
   name: "StatusPal Workspace",
+  publicDescription: "Real-time system status and incident updates.",
   projects: [
     {
       id: "proj_main",
@@ -14,7 +15,11 @@ export const defaultWorkspace: Workspace = {
   notificationSettings: {
     incidentAlertsEnabled: true,
     maintenanceAlertsEnabled: true,
+    incidentEmailAlertsEnabled: false,
+    maintenanceEmailAlertsEnabled: false,
     discordWebhookUrl: undefined,
+    alertEmail: undefined,
+    supportEmail: undefined,
   },
   domainSettings: {
     statusPageSlug: "main-status-page",

@@ -1,8 +1,9 @@
-import type { Incident, IncidentStatus, Service } from "@/lib/models/monitoring";
+import type { Incident, IncidentEvent, IncidentStatus, Service } from "@/lib/models/monitoring";
 import { IncidentCard } from "@/components/incidents/incident-card";
 
 type IncidentsListProps = {
   incidents: Incident[];
+  incidentEvents: IncidentEvent[];
   services: Service[];
   onUpdateStatus: (incidentId: string, status: IncidentStatus) => void;
   onResolve: (incidentId: string, resolutionSummary?: string) => void;
@@ -12,6 +13,7 @@ type IncidentsListProps = {
 
 export function IncidentsList({
   incidents,
+  incidentEvents,
   services,
   onUpdateStatus,
   onResolve,
@@ -34,6 +36,9 @@ export function IncidentsList({
         <IncidentCard
           key={incident.id}
           incident={incident}
+          timelineEvents={incidentEvents
+            .filter((event) => event.incidentId === incident.id)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())}
           serviceName={serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
           onUpdateStatus={onUpdateStatus}
           onResolve={onResolve}

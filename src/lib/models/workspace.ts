@@ -8,7 +8,11 @@ export type Project = {
 export type WorkspaceNotificationSettings = {
   incidentAlertsEnabled: boolean;
   maintenanceAlertsEnabled: boolean;
+  incidentEmailAlertsEnabled: boolean;
+  maintenanceEmailAlertsEnabled: boolean;
   discordWebhookUrl?: string;
+  alertEmail?: string;
+  supportEmail?: string;
 };
 
 export type WorkspaceDomainSettings = {
@@ -25,6 +29,7 @@ export type Workspace = {
   id: string;
   name: string;
   projects: Project[];
+  publicDescription?: string;
   notificationSettings: WorkspaceNotificationSettings;
   domainSettings: WorkspaceDomainSettings;
 };

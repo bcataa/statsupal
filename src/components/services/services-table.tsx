@@ -16,6 +16,9 @@ type EditFormState = {
   url: string;
   checkType: Service["checkType"];
   checkInterval: string;
+  timeoutMs: number;
+  failureThreshold: number;
+  retryCount: number;
   description: string;
 };
 
@@ -43,6 +46,9 @@ export function ServicesTable({ services }: ServicesTableProps) {
       url: service.url,
       checkType: service.checkType,
       checkInterval: service.checkInterval,
+      timeoutMs: service.timeoutMs,
+      failureThreshold: service.failureThreshold,
+      retryCount: service.retryCount,
       description: service.description ?? "",
     });
     setErrorMessage(null);
@@ -79,6 +85,9 @@ export function ServicesTable({ services }: ServicesTableProps) {
         url: form.url,
         checkType: form.checkType,
         checkInterval: form.checkInterval,
+        timeoutMs: form.timeoutMs,
+        failureThreshold: form.failureThreshold,
+        retryCount: form.retryCount,
         description: form.description || undefined,
       });
       closeEdit();
@@ -118,6 +127,9 @@ export function ServicesTable({ services }: ServicesTableProps) {
         url: service.url,
         checkType: service.checkType,
         checkInterval: service.checkInterval,
+        timeoutMs: service.timeoutMs,
+        failureThreshold: service.failureThreshold,
+        retryCount: service.retryCount,
         description: service.description,
         isPublished: nextIsPublished,
       });
@@ -142,6 +154,8 @@ export function ServicesTable({ services }: ServicesTableProps) {
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Interval</th>
+              <th className="px-4 py-3 font-medium">Timeout</th>
+              <th className="px-4 py-3 font-medium">Failures</th>
               <th className="px-4 py-3 font-medium">Last Checked</th>
               <th className="px-4 py-3 font-medium">Response</th>
               <th className="px-4 py-3 font-medium">Status Page</th>
@@ -163,6 +177,8 @@ export function ServicesTable({ services }: ServicesTableProps) {
                 </td>
                 <td className="px-4 py-3 text-zinc-600">{formatCheckType(service.checkType)}</td>
                 <td className="px-4 py-3 text-zinc-600">{service.checkInterval}</td>
+                <td className="px-4 py-3 text-zinc-600">{service.timeoutMs} ms</td>
+                <td className="px-4 py-3 text-zinc-600">{service.failureThreshold}</td>
                 <td className="px-4 py-3 text-zinc-600">
                   {formatTimestampOrText(service.lastChecked)}
                 </td>
@@ -232,6 +248,8 @@ export function ServicesTable({ services }: ServicesTableProps) {
             <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
               <p>Type: {formatCheckType(service.checkType)}</p>
               <p>Interval: {service.checkInterval}</p>
+              <p>Timeout: {service.timeoutMs} ms</p>
+              <p>Threshold: {service.failureThreshold} fails</p>
               <p>Checked: {formatTimestampOrText(service.lastChecked)}</p>
               <p>
                 Response:{" "}
@@ -337,6 +355,56 @@ export function ServicesTable({ services }: ServicesTableProps) {
                     onChange={(event) =>
                       setForm((prev) =>
                         prev ? { ...prev, checkInterval: event.target.value } : prev,
+                      )
+                    }
+                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">Timeout (ms)</label>
+                  <input
+                    type="number"
+                    min={1000}
+                    value={form.timeoutMs}
+                    onChange={(event) =>
+                      setForm((prev) =>
+                        prev ? { ...prev, timeoutMs: Number(event.target.value || 10000) } : prev,
+                      )
+                    }
+                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">
+                    Failure threshold
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={form.failureThreshold}
+                    onChange={(event) =>
+                      setForm((prev) =>
+                        prev
+                          ? { ...prev, failureThreshold: Number(event.target.value || 3) }
+                          : prev,
+                      )
+                    }
+                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">Retry count</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={5}
+                    value={form.retryCount}
+                    onChange={(event) =>
+                      setForm((prev) =>
+                        prev ? { ...prev, retryCount: Number(event.target.value || 0) } : prev,
                       )
                     }
                     className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"

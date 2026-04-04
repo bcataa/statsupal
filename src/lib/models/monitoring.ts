@@ -6,6 +6,9 @@ export type Service = {
   name: string;
   url: string;
   isPublished: boolean;
+  timeoutMs: number;
+  failureThreshold: number;
+  retryCount: number;
   status: ServiceStatus;
   checkType: CheckType;
   checkInterval: string;
@@ -52,4 +55,45 @@ export type UptimeSummary = {
   points: UptimeDayPoint[];
   averageUptimePercentage: number;
   averageResponseTimeMs: number;
+};
+
+export type MaintenanceWindowStatus = "scheduled" | "active" | "completed" | "cancelled";
+
+export type MaintenanceWindow = {
+  id: string;
+  title: string;
+  description?: string;
+  startsAt: string;
+  endsAt: string;
+  affectedServiceIds: string[];
+  status: MaintenanceWindowStatus;
+  createdAt: string;
+};
+
+export type IncidentEventType =
+  | "created"
+  | "status_changed"
+  | "monitoring"
+  | "resolved"
+  | "manual_update"
+  | "maintenance_linked";
+
+export type IncidentEvent = {
+  id: string;
+  incidentId: string;
+  eventType: IncidentEventType;
+  message: string;
+  source: "monitoring" | "manual" | "system";
+  createdAt: string;
+};
+
+export type AlertSubscriber = {
+  id: string;
+  email: string;
+  incidentCreated: boolean;
+  incidentResolved: boolean;
+  maintenanceAlerts: boolean;
+  token: string;
+  active: boolean;
+  createdAt: string;
 };

@@ -6,7 +6,15 @@ import { IncidentsList } from "@/components/incidents/incidents-list";
 import { useAppData } from "@/state/app-data-provider";
 
 export default function IncidentsPage() {
-  const { incidents, services, updateIncidentStatus, resolveIncident, deleteIncident } = useAppData();
+  const {
+    incidents,
+    incidentEvents,
+    maintenanceWindows,
+    services,
+    updateIncidentStatus,
+    resolveIncident,
+    deleteIncident,
+  } = useAppData();
   const [deletingIncidentId, setDeletingIncidentId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -36,7 +44,7 @@ export default function IncidentsPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Active incidents
@@ -54,6 +62,18 @@ export default function IncidentsPage() {
             Monitoring-generated
           </p>
           <p className="mt-1 text-2xl font-semibold text-zinc-900">{monitoringIncidents}</p>
+        </article>
+        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Active maintenance
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-zinc-900">
+            {
+              maintenanceWindows.filter(
+                (window) => window.status === "active",
+              ).length
+            }
+          </p>
         </article>
       </section>
 
@@ -84,6 +104,7 @@ export default function IncidentsPage() {
             </div>
             <IncidentsList
               incidents={activeIncidents}
+              incidentEvents={incidentEvents}
               services={services}
               onUpdateStatus={updateIncidentStatus}
               onResolve={resolveIncident}
@@ -115,6 +136,7 @@ export default function IncidentsPage() {
             </div>
             <IncidentsList
               incidents={resolvedIncidents}
+              incidentEvents={incidentEvents}
               services={services}
               onUpdateStatus={updateIncidentStatus}
               onResolve={resolveIncident}

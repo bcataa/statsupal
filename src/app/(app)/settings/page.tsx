@@ -17,9 +17,14 @@ export default function SettingsPage() {
     isHydrated,
     updateWorkspaceInfo,
     setOnboardingState,
+    maintenanceWindows,
+    createMaintenanceWindow,
   } = useAppData();
   const [workspaceName, setWorkspaceName] = useState(workspace.name);
   const [projectName, setProjectName] = useState(currentProject?.name ?? "");
+  const [publicDescription, setPublicDescription] = useState(
+    workspace.publicDescription ?? "Real-time system status and incident updates.",
+  );
   const [statusPageSlug, setStatusPageSlug] = useState(
     currentProject?.slug ?? workspace.domainSettings.statusPageSlug,
   );
@@ -32,11 +37,26 @@ export default function SettingsPage() {
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState(
     workspace.notificationSettings.discordWebhookUrl ?? "",
   );
+  const [alertEmail, setAlertEmail] = useState(workspace.notificationSettings.alertEmail ?? "");
+  const [supportEmail, setSupportEmail] = useState(
+    workspace.notificationSettings.supportEmail ?? "",
+  );
+  const [incidentEmailAlerts, setIncidentEmailAlerts] = useState(
+    workspace.notificationSettings.incidentEmailAlertsEnabled,
+  );
+  const [maintenanceEmailAlerts, setMaintenanceEmailAlerts] = useState(
+    workspace.notificationSettings.maintenanceEmailAlertsEnabled,
+  );
   const [customDomain, setCustomDomain] = useState(workspace.domainSettings.customDomain ?? "");
   const [workspaceSaving, setWorkspaceSaving] = useState(false);
   const [notificationSaving, setNotificationSaving] = useState(false);
   const [domainSaving, setDomainSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(null);
+  const [isVerifyingDomain, setIsVerifyingDomain] = useState(false);
+  const [maintenanceTitle, setMaintenanceTitle] = useState("");
+  const [maintenanceDescription, setMaintenanceDescription] = useState("");
+  const [maintenanceStartsAt, setMaintenanceStartsAt] = useState("");
+  const [maintenanceEndsAt, setMaintenanceEndsAt] = useState("");
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountEmail, setAccountEmail] = useState<string>("Not available");
 
@@ -47,11 +67,13 @@ export default function SettingsPage() {
     setProjectName(currentProject?.name ?? "");
     setStatusPageSlug(currentProject?.slug ?? workspace.domainSettings.statusPageSlug);
     setCustomDomain(workspace.domainSettings.customDomain ?? "");
+    setPublicDescription(workspace.publicDescription ?? "Real-time system status and incident updates.");
   }, [
     currentProject?.name,
     currentProject?.slug,
     workspace.domainSettings.customDomain,
     workspace.domainSettings.statusPageSlug,
+    workspace.publicDescription,
     workspace.name,
   ]);
 
@@ -59,6 +81,10 @@ export default function SettingsPage() {
     setIncidentAlerts(workspace.notificationSettings.incidentAlertsEnabled);
     setMaintenanceAlerts(workspace.notificationSettings.maintenanceAlertsEnabled);
     setDiscordWebhookUrl(workspace.notificationSettings.discordWebhookUrl ?? "");
+    setAlertEmail(workspace.notificationSettings.alertEmail ?? "");
+    setSupportEmail(workspace.notificationSettings.supportEmail ?? "");
+    setIncidentEmailAlerts(workspace.notificationSettings.incidentEmailAlertsEnabled);
+    setMaintenanceEmailAlerts(workspace.notificationSettings.maintenanceEmailAlertsEnabled);
   }, [workspace.notificationSettings]);
 
   useEffect(() => {
@@ -112,6 +138,7 @@ export default function SettingsPage() {
         workspaceName: trimmedWorkspace,
         projectName: trimmedProject,
         projectSlug: statusPageSlug.trim() ? toSlug(statusPageSlug.trim()) : toSlug(trimmedProject),
+        publicDescription: publicDescription.trim(),
       });
       setSaveState({
         tone: "success",
@@ -137,7 +164,11 @@ export default function SettingsPage() {
       updateWorkspaceInfo({
         incidentAlertsEnabled: incidentAlerts,
         maintenanceAlertsEnabled: maintenanceAlerts,
+        incidentEmailAlertsEnabled: incidentEmailAlerts,
+        maintenanceEmailAlertsEnabled: maintenanceEmailAlerts,
         discordWebhookUrl: discordWebhookUrl.trim(),
+        alertEmail: alertEmail.trim(),
+        supportEmail: supportEmail.trim(),
       });
       setOnboardingState({ alertsConfigured: incidentAlerts });
       setSaveState({
@@ -152,6 +183,70 @@ export default function SettingsPage() {
       });
     } finally {
       setNotificationSaving(false);
+    }
+  };
+
+  const onVerifyDomain = async () => {
+    if (!customDomain.trim()) {
+      setSaveState({ tone: "error", message: "Enter a custom domain first." });
+      return;
+    }
+    try {
+      setIsVerifyingDomain(true);
+      const response = await fetch("/api/domain/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: customDomain.trim() }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Domain verification failed.");
+      }
+      updateWorkspaceInfo({
+        customDomain: customDomain.trim(),
+        customDomainStatus: body.verified ? "verified" : "failed",
+      });
+      setSaveState({
+        tone: body.verified ? "success" : "error",
+        message: body.verified
+          ? "Domain verified successfully."
+          : "Domain could not be verified. Check your CNAME and try again.",
+      });
+    } catch (error) {
+      setSaveState({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Domain verification failed.",
+      });
+    } finally {
+      setIsVerifyingDomain(false);
+    }
+  };
+
+  const onCreateMaintenance = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaveState(null);
+    if (!maintenanceTitle.trim() || !maintenanceStartsAt || !maintenanceEndsAt) {
+      setSaveState({ tone: "error", message: "Maintenance title, start, and end are required." });
+      return;
+    }
+    try {
+      await createMaintenanceWindow({
+        title: maintenanceTitle.trim(),
+        description: maintenanceDescription.trim() || undefined,
+        startsAt: new Date(maintenanceStartsAt).toISOString(),
+        endsAt: new Date(maintenanceEndsAt).toISOString(),
+        affectedServiceIds: [],
+      });
+      setMaintenanceTitle("");
+      setMaintenanceDescription("");
+      setMaintenanceStartsAt("");
+      setMaintenanceEndsAt("");
+      setSaveState({ tone: "success", message: "Maintenance window created." });
+    } catch (error) {
+      setSaveState({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Could not create maintenance window.",
+      });
     }
   };
 
@@ -240,6 +335,16 @@ export default function SettingsPage() {
               placeholder="Main Status Page"
             />
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              Public status description
+            </label>
+            <textarea
+              value={publicDescription}
+              onChange={(event) => setPublicDescription(event.target.value)}
+              className="min-h-20 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+            />
+          </div>
           <div className="flex justify-end">
             <button
               type="submit"
@@ -315,6 +420,52 @@ export default function SettingsPage() {
               Used for automated incident and recovery notifications.
             </p>
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Alert email</label>
+              <input
+                value={alertEmail}
+                onChange={(event) => setAlertEmail(event.target.value)}
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+                placeholder="alerts@company.com"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-700">Support email</label>
+              <input
+                value={supportEmail}
+                onChange={(event) => setSupportEmail(event.target.value)}
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+                placeholder="support@company.com"
+              />
+            </div>
+          </div>
+          <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-3">
+            <input
+              type="checkbox"
+              checked={incidentEmailAlerts}
+              onChange={(event) => setIncidentEmailAlerts(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900"
+            />
+            <span>
+              <p className="text-sm font-medium text-zinc-900">Incident email alerts</p>
+              <p className="text-xs text-zinc-500">Send email on incident start and recovery.</p>
+            </span>
+          </label>
+          <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-3">
+            <input
+              type="checkbox"
+              checked={maintenanceEmailAlerts}
+              onChange={(event) => setMaintenanceEmailAlerts(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900"
+            />
+            <span>
+              <p className="text-sm font-medium text-zinc-900">Maintenance email alerts</p>
+              <p className="text-xs text-zinc-500">
+                Send planned maintenance announcements to subscribers.
+              </p>
+            </span>
+          </label>
           <div className="flex justify-end">
             <button
               type="submit"
@@ -369,6 +520,14 @@ export default function SettingsPage() {
           </div>
           <div className="flex justify-end">
             <button
+              type="button"
+              onClick={() => void onVerifyDomain()}
+              disabled={isVerifyingDomain}
+              className="mr-2 inline-flex h-10 items-center justify-center rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isVerifyingDomain ? "Verifying..." : "Verify domain"}
+            </button>
+            <button
               type="submit"
               disabled={domainSaving}
               className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -377,6 +536,63 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
+        <p className="mt-3 text-xs text-zinc-500">
+          DNS setup: create a CNAME record from your custom domain to your deployment domain.
+        </p>
+      </section>
+
+      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-zinc-900">Maintenance settings</h3>
+        <p className="mt-1 text-sm text-zinc-500">
+          Plan maintenance windows to reduce false incident noise during planned work.
+        </p>
+        <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={onCreateMaintenance}>
+          <input
+            value={maintenanceTitle}
+            onChange={(event) => setMaintenanceTitle(event.target.value)}
+            className="rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+            placeholder="Maintenance title"
+          />
+          <input
+            value={maintenanceDescription}
+            onChange={(event) => setMaintenanceDescription(event.target.value)}
+            className="rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+            placeholder="Description (optional)"
+          />
+          <input
+            type="datetime-local"
+            value={maintenanceStartsAt}
+            onChange={(event) => setMaintenanceStartsAt(event.target.value)}
+            className="rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+          />
+          <input
+            type="datetime-local"
+            value={maintenanceEndsAt}
+            onChange={(event) => setMaintenanceEndsAt(event.target.value)}
+            className="rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+          />
+          <div className="sm:col-span-2 flex justify-end">
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800"
+            >
+              Create maintenance window
+            </button>
+          </div>
+        </form>
+        <div className="mt-4 space-y-2">
+          {maintenanceWindows.slice(0, 5).map((window) => (
+            <div
+              key={window.id}
+              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700"
+            >
+              <p className="font-medium">{window.title}</p>
+              <p className="text-xs text-zinc-500">
+                {new Date(window.startsAt).toLocaleString()} - {new Date(window.endsAt).toLocaleString()} ({window.status})
+              </p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

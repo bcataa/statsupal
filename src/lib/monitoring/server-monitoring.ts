@@ -29,6 +29,9 @@ type ServiceRow = {
   url: string;
   status: Service["status"];
   consecutive_failures: number | null;
+  timeout_ms: number | null;
+  failure_threshold: number | null;
+  retry_count: number | null;
 };
 
 type IncidentRow = {
@@ -44,7 +47,29 @@ type WorkspaceNotificationRow = {
   user_id: string;
   name: string;
   incident_alerts_enabled: boolean | null;
+  incident_email_alerts_enabled: boolean | null;
+  maintenance_email_alerts_enabled: boolean | null;
   discord_webhook_url: string | null;
+  alert_email: string | null;
+  support_email: string | null;
+};
+
+type SubscriberRow = {
+  workspace_id: string;
+  email: string;
+  incident_created: boolean | null;
+  incident_resolved: boolean | null;
+  active: boolean | null;
+};
+
+type MaintenanceRow = {
+  id: string;
+  workspace_id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  affected_service_ids: string[] | null;
+  status: "scheduled" | "active" | "completed" | "cancelled";
 };
 
 function getErrorMessage(error: unknown): string {
@@ -64,9 +89,47 @@ function isDuplicateError(error: unknown): boolean {
   return value.code === "23505";
 }
 
+function hasErrorCode(error: unknown, code: string): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const value = error as { code?: unknown };
+  return value.code === code;
+}
+
 function createMonitoringIncidentId(serviceId: string): string {
   const random = crypto.randomUUID().split("-")[0];
   return `inc_auto_${serviceId}_${random}`;
+}
+
+function createIncidentEventId(incidentId: string): string {
+  return `evt_${incidentId}_${crypto.randomUUID().split("-")[0]}`;
+}
+
+function isMaintenanceActiveForService(
+  maintenanceRows: MaintenanceRow[],
+  workspaceId: string,
+  serviceId: string,
+): MaintenanceRow | null {
+  const now = Date.now();
+  for (const row of maintenanceRows) {
+    if (row.workspace_id !== workspaceId) {
+      continue;
+    }
+    if (row.status !== "active") {
+      continue;
+    }
+    const startsAt = new Date(row.starts_at).getTime();
+    const endsAt = new Date(row.ends_at).getTime();
+    if (!(startsAt <= now && now <= endsAt)) {
+      continue;
+    }
+    const affected = row.affected_service_ids ?? [];
+    if (affected.length === 0 || affected.includes(serviceId)) {
+      return row;
+    }
+  }
+  return null;
 }
 
 export async function runServerMonitoringCycle({
@@ -77,10 +140,19 @@ export async function runServerMonitoringCycle({
   logger?: Logger;
 }) {
   const db = supabase as SupabaseAdminClient;
-  const servicesResult = await db
+  let servicesResult = await db
     .from("services")
-    .select("id,user_id,workspace_id,name,url,status,consecutive_failures")
+    .select(
+      "id,user_id,workspace_id,name,url,status,consecutive_failures,timeout_ms,failure_threshold,retry_count",
+    )
     .order("created_at", { ascending: false });
+
+  if (servicesResult.error && hasErrorCode(servicesResult.error, "42703")) {
+    servicesResult = await db
+      .from("services")
+      .select("id,user_id,workspace_id,name,url,status,consecutive_failures")
+      .order("created_at", { ascending: false });
+  }
 
   if (servicesResult.error) {
     logger.error("[monitor-worker] failed to load services", {
@@ -115,10 +187,29 @@ export async function runServerMonitoringCycle({
     }
   }
 
-  const workspaceNotificationResult = await db
+  let workspaceNotificationResult = await db
     .from("workspaces")
-    .select("id,user_id,name,incident_alerts_enabled,discord_webhook_url")
+    .select(
+      "id,user_id,name,incident_alerts_enabled,incident_email_alerts_enabled,maintenance_email_alerts_enabled,discord_webhook_url,alert_email,support_email",
+    )
     .order("created_at", { ascending: false });
+
+  if (workspaceNotificationResult.error && hasErrorCode(workspaceNotificationResult.error, "42703")) {
+    workspaceNotificationResult = await db
+      .from("workspaces")
+      .select("id,user_id,name,incident_alerts_enabled,discord_webhook_url")
+      .order("created_at", { ascending: false });
+  }
+
+  const subscribersResult = await db
+    .from("alert_subscribers")
+    .select("workspace_id,email,incident_created,incident_resolved,active")
+    .order("created_at", { ascending: false });
+
+  const maintenanceResult = await db
+    .from("maintenance_windows")
+    .select("id,workspace_id,title,starts_at,ends_at,affected_service_ids,status")
+    .order("starts_at", { ascending: false });
 
   const workspaceById = new Map<string, WorkspaceNotificationRow>();
   if (workspaceNotificationResult.error) {
@@ -131,8 +222,61 @@ export async function runServerMonitoringCycle({
     }
   }
 
+  const subscribersByWorkspace = new Map<string, SubscriberRow[]>();
+  if (subscribersResult.error && !hasErrorCode(subscribersResult.error, "42P01")) {
+    logger.warn("[monitor-worker] failed to load alert subscribers", {
+      error: getErrorMessage(subscribersResult.error),
+    });
+  } else if (!subscribersResult.error) {
+    for (const row of (subscribersResult.data ?? []) as SubscriberRow[]) {
+      if (row.active === false) {
+        continue;
+      }
+      const existing = subscribersByWorkspace.get(row.workspace_id) ?? [];
+      existing.push(row);
+      subscribersByWorkspace.set(row.workspace_id, existing);
+    }
+  }
+
+  const maintenanceRows = maintenanceResult.error
+    ? ([] as MaintenanceRow[])
+    : ((maintenanceResult.data ?? []) as MaintenanceRow[]);
+  if (maintenanceResult.error && !hasErrorCode(maintenanceResult.error, "42P01")) {
+    logger.warn("[monitor-worker] failed to load maintenance windows", {
+      error: getErrorMessage(maintenanceResult.error),
+    });
+  }
+
+  const nowMs = Date.now();
+  for (const maintenance of maintenanceRows) {
+    if (maintenance.status === "cancelled") {
+      continue;
+    }
+    const startMs = new Date(maintenance.starts_at).getTime();
+    const endMs = new Date(maintenance.ends_at).getTime();
+    const nextStatus: MaintenanceRow["status"] =
+      nowMs < startMs ? "scheduled" : nowMs <= endMs ? "active" : "completed";
+    if (nextStatus !== maintenance.status) {
+      const statusUpdate = await db
+        .from("maintenance_windows")
+        .update({ status: nextStatus })
+        .eq("id", maintenance.id)
+        .eq("id", maintenance.id);
+      if (statusUpdate.error) {
+        logger.warn("[monitor-worker] failed updating maintenance status", {
+          maintenanceId: maintenance.id,
+          error: getErrorMessage(statusUpdate.error),
+        });
+      } else {
+        maintenance.status = nextStatus;
+      }
+    }
+  }
+
   const checkTasks = services.map(async (service) => {
-    const result = await runHttpCheck(service.url);
+    const timeoutMs = Math.max(1000, service.timeout_ms ?? 10000);
+    const failureThreshold = Math.max(1, service.failure_threshold ?? 3);
+    const result = await runHttpCheck(service.url, timeoutMs);
     const previousStatus = service.status;
     const previousFailureCount = service.consecutive_failures ?? 0;
     const nextFailureCount = result.status === "down" ? previousFailureCount + 1 : 0;
@@ -142,6 +286,7 @@ export async function runServerMonitoringCycle({
       previousStatus,
       previousFailureCount,
       nextFailureCount,
+      failureThreshold,
       mappedStatus: result.status,
       httpStatus: result.httpStatus,
       errorReason: result.errorReason,
@@ -195,6 +340,12 @@ export async function runServerMonitoringCycle({
 
     const activeIncident = activeByServiceId.get(service.id);
     const workspaceSettings = workspaceById.get(service.workspace_id);
+    const activeMaintenance = isMaintenanceActiveForService(
+      maintenanceRows,
+      service.workspace_id,
+      service.id,
+    );
+    const workspaceSubscribers = subscribersByWorkspace.get(service.workspace_id) ?? [];
 
     if (result.status === "down" && nextFailureCount === 1) {
       logger.info("[monitor-worker] first failure recorded", {
@@ -208,7 +359,16 @@ export async function runServerMonitoringCycle({
       });
     }
 
-    if (result.status === "down" && nextFailureCount >= 3 && !activeIncident) {
+    if (result.status === "down" && activeMaintenance) {
+      logger.info("[monitor-worker] incident suppressed during maintenance", {
+        serviceId: service.id,
+        maintenanceId: activeMaintenance.id,
+        maintenanceTitle: activeMaintenance.title,
+      });
+      return;
+    }
+
+    if (result.status === "down" && nextFailureCount >= failureThreshold && !activeIncident) {
       const now = new Date().toISOString();
       const incidentId = createMonitoringIncidentId(service.id);
       const incidentTitle = `${service.name} is down`;
@@ -233,6 +393,16 @@ export async function runServerMonitoringCycle({
         });
       } else {
         logger.info("[monitor-worker] incident created", { serviceId: service.id });
+        await db.from("incident_events").insert({
+          id: createIncidentEventId(incidentId),
+          user_id: service.user_id,
+          workspace_id: service.workspace_id,
+          incident_id: incidentId,
+          event_type: "created",
+          source: "monitoring",
+          message: `Monitoring detected ${nextFailureCount} consecutive failures.`,
+          created_at: now,
+        });
         if (workspaceSettings) {
           await notifyIncidentEvent({
             event: "created",
@@ -250,8 +420,17 @@ export async function runServerMonitoringCycle({
             workspace: {
               workspaceName: workspaceSettings.name,
               incidentAlertsEnabled: workspaceSettings.incident_alerts_enabled ?? true,
+              incidentEmailAlertsEnabled:
+                workspaceSettings.incident_email_alerts_enabled ?? false,
+              maintenanceEmailAlertsEnabled:
+                workspaceSettings.maintenance_email_alerts_enabled ?? false,
               discordWebhookUrl: workspaceSettings.discord_webhook_url ?? undefined,
+              alertEmail: workspaceSettings.alert_email ?? undefined,
+              supportEmail: workspaceSettings.support_email ?? undefined,
             },
+            subscriberEmails: workspaceSubscribers
+              .filter((subscriber) => subscriber.incident_created ?? true)
+              .map((subscriber) => subscriber.email),
             logger,
           });
         }
@@ -293,6 +472,16 @@ export async function runServerMonitoringCycle({
           incidentId: activeIncident.id,
           serviceId: service.id,
         });
+        await db.from("incident_events").insert({
+          id: createIncidentEventId(activeIncident.id),
+          user_id: service.user_id,
+          workspace_id: service.workspace_id,
+          incident_id: activeIncident.id,
+          event_type: "resolved",
+          source: "monitoring",
+          message: `Monitoring confirmed recovery at ${result.responseTimeMs} ms.`,
+          created_at: now,
+        });
         if (workspaceSettings) {
           await notifyIncidentEvent({
             event: "resolved",
@@ -311,8 +500,17 @@ export async function runServerMonitoringCycle({
             workspace: {
               workspaceName: workspaceSettings.name,
               incidentAlertsEnabled: workspaceSettings.incident_alerts_enabled ?? true,
+              incidentEmailAlertsEnabled:
+                workspaceSettings.incident_email_alerts_enabled ?? false,
+              maintenanceEmailAlertsEnabled:
+                workspaceSettings.maintenance_email_alerts_enabled ?? false,
               discordWebhookUrl: workspaceSettings.discord_webhook_url ?? undefined,
+              alertEmail: workspaceSettings.alert_email ?? undefined,
+              supportEmail: workspaceSettings.support_email ?? undefined,
             },
+            subscriberEmails: workspaceSubscribers
+              .filter((subscriber) => subscriber.incident_resolved ?? true)
+              .map((subscriber) => subscriber.email),
             logger,
           });
         }

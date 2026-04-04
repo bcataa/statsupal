@@ -16,6 +16,9 @@ type FormState = {
   url: string;
   checkType: CheckType;
   checkInterval: string;
+  timeoutMs: number;
+  failureThreshold: number;
+  retryCount: number;
   description: string;
 };
 
@@ -26,6 +29,9 @@ const defaultState: FormState = {
   url: "",
   checkType: "http",
   checkInterval: "1 min",
+  timeoutMs: 10000,
+  failureThreshold: 3,
+  retryCount: 0,
   description: "",
 };
 
@@ -48,6 +54,9 @@ function validateForm(form: FormState): FormErrors {
 
   if (!form.checkInterval.trim()) {
     errors.checkInterval = "Check interval is required.";
+  }
+  if (form.timeoutMs < 1000) {
+    errors.checkInterval = "Timeout should be at least 1000 ms.";
   }
 
   return errors;
@@ -118,6 +127,9 @@ export function AddServiceModal() {
         url: form.url.trim(),
         checkType: form.checkType,
         checkInterval: form.checkInterval.trim(),
+        timeoutMs: form.timeoutMs,
+        failureThreshold: form.failureThreshold,
+        retryCount: form.retryCount,
         description: form.description.trim() || undefined,
       });
 
@@ -236,6 +248,75 @@ export function AddServiceModal() {
               {errors.checkInterval && (
                 <p className="mt-1 text-xs text-rose-600">{errors.checkInterval}</p>
               )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label
+                htmlFor="service-timeout-ms"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Timeout (ms)
+              </label>
+              <input
+                id="service-timeout-ms"
+                type="number"
+                min={1000}
+                step={500}
+                value={form.timeoutMs}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    timeoutMs: Number(event.target.value || 10000),
+                  }))
+                }
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="service-failure-threshold"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Failure threshold
+              </label>
+              <input
+                id="service-failure-threshold"
+                type="number"
+                min={1}
+                max={10}
+                value={form.failureThreshold}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    failureThreshold: Number(event.target.value || 3),
+                  }))
+                }
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="service-retry-count"
+                className="mb-1 block text-sm font-medium text-zinc-700"
+              >
+                Retry count
+              </label>
+              <input
+                id="service-retry-count"
+                type="number"
+                min={0}
+                max={5}
+                value={form.retryCount}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    retryCount: Number(event.target.value || 0),
+                  }))
+                }
+                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+              />
             </div>
           </div>
 

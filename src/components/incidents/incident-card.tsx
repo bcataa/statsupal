@@ -1,10 +1,11 @@
-import type { Incident, IncidentStatus } from "@/lib/models/monitoring";
+import type { Incident, IncidentEvent, IncidentStatus } from "@/lib/models/monitoring";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
 type IncidentCardProps = {
   incident: Incident;
+  timelineEvents: IncidentEvent[];
   serviceName: string;
   onUpdateStatus: (incidentId: string, status: IncidentStatus) => void;
   onResolve: (incidentId: string, resolutionSummary?: string) => void;
@@ -26,6 +27,7 @@ function getNextStatus(status: IncidentStatus): IncidentStatus | null {
 
 export function IncidentCard({
   incident,
+  timelineEvents,
   serviceName,
   onUpdateStatus,
   onResolve,
@@ -175,11 +177,24 @@ export function IncidentCard({
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Incident timeline
           </p>
-          <ul className="mt-2 space-y-2 text-sm text-zinc-700">
-            <li>Started: {formatDateTime(incident.startedAt)}</li>
-            <li>Status updated: {formatDateTime(incident.updatedAt)}</li>
-            {incident.resolvedAt && <li>Resolved: {formatDateTime(incident.resolvedAt)}</li>}
-          </ul>
+          {timelineEvents.length === 0 ? (
+            <ul className="mt-2 space-y-2 text-sm text-zinc-700">
+              <li>Started: {formatDateTime(incident.startedAt)}</li>
+              <li>Status updated: {formatDateTime(incident.updatedAt)}</li>
+              {incident.resolvedAt && <li>Resolved: {formatDateTime(incident.resolvedAt)}</li>}
+            </ul>
+          ) : (
+            <ul className="mt-2 space-y-2 text-sm text-zinc-700">
+              {timelineEvents.map((event) => (
+                <li key={event.id}>
+                  <span className="font-medium">{event.source}</span> — {event.message}
+                  <span className="ml-1 text-xs text-zinc-500">
+                    ({formatDateTime(event.createdAt)})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
           {!incident.resolutionSummary && incident.status !== "resolved" && (
             <p className="mt-2 text-xs text-zinc-500">
               No resolution summary yet.
