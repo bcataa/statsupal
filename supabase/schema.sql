@@ -29,6 +29,7 @@ create table if not exists public.services (
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   name text not null,
   url text not null,
+  is_published boolean not null default true,
   status text not null check (status in ('pending', 'operational', 'degraded', 'down')),
   check_type text not null check (check_type in ('http', 'ping', 'api')),
   check_interval text not null,
@@ -83,6 +84,7 @@ alter table public.workspaces add column if not exists discord_webhook_url text;
 alter table public.workspaces add column if not exists custom_domain text;
 alter table public.workspaces add column if not exists custom_domain_status text not null default 'unconfigured';
 alter table public.services add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.services add column if not exists is_published boolean not null default true;
 alter table public.services add column if not exists consecutive_failures integer not null default 0;
 alter table public.incidents add column if not exists user_id uuid references auth.users(id) on delete cascade;
 

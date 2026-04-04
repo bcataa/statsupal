@@ -7,7 +7,7 @@ export const navigationItems: NavItem[] = [
   { label: "Overview", href: "/dashboard" },
   { label: "Services", href: "/services" },
   { label: "Incidents", href: "/incidents" },
-  { label: "Status Page", href: "/status/demo" },
+  { label: "Status Page", href: "/status" },
   { label: "Settings", href: "/settings" },
 ];
 

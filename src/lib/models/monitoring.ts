@@ -5,6 +5,7 @@ export type Service = {
   id: string;
   name: string;
   url: string;
+  isPublished: boolean;
   status: ServiceStatus;
   checkType: CheckType;
   checkInterval: string;

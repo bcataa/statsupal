@@ -79,6 +79,10 @@ function hasErrorCode(error: unknown, code: string): boolean {
   return details.code === code;
 }
 
+function isMissingColumnError(error: unknown): boolean {
+  return hasErrorCode(error, "42703");
+}
+
 function formatErrorForLog(error: unknown, fallbackMessage: string): SupabaseErrorDetails {
   return getErrorDetails(error, fallbackMessage);
 }
@@ -144,16 +148,12 @@ async function validateUserScopedTables(db: DbClient, userId: string): Promise<v
   const checks = [
     db
       .from(workspaceTable)
-      .select(
-        "id,user_id,name,project_name,project_slug,incident_alerts_enabled,maintenance_alerts_enabled,discord_webhook_url,custom_domain,custom_domain_status",
-      )
+      .select("*")
       .eq("user_id", userId)
       .limit(1),
     db
       .from("services")
-      .select(
-        "id,user_id,workspace_id,name,url,status,check_type,check_interval,consecutive_failures",
-      )
+      .select("id,user_id,workspace_id,name,url,status,check_type,check_interval")
       .eq("user_id", userId)
       .limit(1),
     db
@@ -237,6 +237,7 @@ type ServiceRow = {
   workspace_id: string;
   name: string;
   url: string;
+  is_published: boolean | null;
   status: Service["status"];
   check_type: Service["checkType"];
   check_interval: string;
@@ -317,6 +318,7 @@ function toServiceModel(row: ServiceRow): Service {
     id: row.id,
     name: row.name,
     url: row.url,
+    isPublished: row.is_published ?? true,
     status: row.status,
     checkType: row.check_type,
     checkInterval: row.check_interval,
@@ -378,6 +380,25 @@ export async function ensureWorkspace(
     })
     .select("*")
     .single();
+
+  if (created.error && isMissingColumnError(created.error)) {
+    const legacyCreated = await db
+      .from(workspaceTable)
+      .insert({
+        user_id: userId,
+        name: "My Workspace",
+        project_name: "Main Status Page",
+        project_slug: "main-status-page",
+      })
+      .select("*")
+      .single();
+
+    if (legacyCreated.error || !legacyCreated.data) {
+      throw legacyCreated.error ?? new Error("Could not create default workspace.");
+    }
+
+    return legacyCreated.data as WorkspaceRow;
+  }
 
   if (created.error || !created.data) {
     throw created.error ?? new Error("Could not create default workspace.");
@@ -477,6 +498,24 @@ export async function persistWorkspaceInfo(
     .eq("id", workspace.id)
     .eq("user_id", userId);
 
+  if (result.error && isMissingColumnError(result.error)) {
+    const legacyResult = await db
+      .from(workspaceTable)
+      .update({
+        name: payload.workspaceName || workspace.name,
+        project_name: nextProjectName,
+        project_slug: nextProjectSlug,
+      })
+      .eq("id", workspace.id)
+      .eq("user_id", userId);
+
+    if (legacyResult.error) {
+      throw legacyResult.error;
+    }
+
+    return;
+  }
+
   if (result.error) {
     throw result.error;
   }
@@ -495,6 +534,7 @@ export async function persistService(
     workspace_id: workspaceId,
     name: service.name,
     url: service.url,
+    is_published: service.isPublished,
     status: service.status,
     check_type: service.checkType,
     check_interval: service.checkInterval,
@@ -512,10 +552,23 @@ export async function persistService(
 
   if (result.error) {
     const details = getErrorDetails(result.error, "Failed to persist service.");
+    const isMissingPublishedColumn = details.code === "42703";
     const isPendingStatusConstraintError =
       service.status === "pending" &&
       details.code === "23514" &&
       details.message.toLowerCase().includes("services_status_check");
+
+    // Backward compatibility: older DB schemas may not include is_published.
+    if (isMissingPublishedColumn) {
+      const legacyPayload = {
+        ...basePayload,
+      };
+      delete (legacyPayload as { is_published?: boolean }).is_published;
+      result = await db.from("services").upsert(legacyPayload, { onConflict: "id" });
+      if (!result.error) {
+        return;
+      }
+    }
 
     // Backward compatibility: older DB schemas may not include "pending" in check constraint.
     if (isPendingStatusConstraintError) {

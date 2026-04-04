@@ -109,6 +109,24 @@ export function ServicesTable({ services }: ServicesTableProps) {
     }
   };
 
+  const handleTogglePublished = async (service: Service, nextIsPublished: boolean) => {
+    try {
+      setErrorMessage(null);
+      await updateService({
+        id: service.id,
+        name: service.name,
+        url: service.url,
+        checkType: service.checkType,
+        checkInterval: service.checkInterval,
+        description: service.description,
+        isPublished: nextIsPublished,
+      });
+    } catch (error) {
+      console.error("[ServicesTable] publish toggle failed", error);
+      setErrorMessage("Could not update visibility on status page. Please try again.");
+    }
+  };
+
   return (
     <>
       {errorMessage ? (
@@ -126,6 +144,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
               <th className="px-4 py-3 font-medium">Interval</th>
               <th className="px-4 py-3 font-medium">Last Checked</th>
               <th className="px-4 py-3 font-medium">Response</th>
+              <th className="px-4 py-3 font-medium">Status Page</th>
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -153,6 +172,19 @@ export function ServicesTable({ services }: ServicesTableProps) {
                     responseTimeMs: service.responseTimeMs,
                     lastChecked: service.lastChecked,
                   })}
+                </td>
+                <td className="px-4 py-3">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={service.isPublished}
+                      onChange={(event) =>
+                        void handleTogglePublished(service, event.target.checked)
+                      }
+                      className="h-4 w-4 rounded border-zinc-300 text-zinc-900"
+                    />
+                    Show on status page
+                  </label>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -210,6 +242,16 @@ export function ServicesTable({ services }: ServicesTableProps) {
                 })}
               </p>
             </div>
+
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
+              <input
+                type="checkbox"
+                checked={service.isPublished}
+                onChange={(event) => void handleTogglePublished(service, event.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 text-zinc-900"
+              />
+              Show on status page
+            </label>
 
             <div className="mt-3 flex items-center gap-2">
               <button

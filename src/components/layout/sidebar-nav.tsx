@@ -34,12 +34,16 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
 
       <nav className="space-y-1.5">
         {navigationItems.map((item) => {
-          const active = isActive(pathname, item.href);
+          const href =
+            item.label === "Status Page"
+              ? `/status/${currentProject?.slug ?? workspace.domainSettings.statusPageSlug}`
+              : item.href;
+          const active = isActive(pathname, href);
 
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={item.label}
+              href={href}
               onClick={onNavigate}
               className={[
                 "flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",

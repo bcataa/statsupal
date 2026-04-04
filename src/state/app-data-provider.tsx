@@ -52,6 +52,7 @@ type UpdateServiceInput = {
   checkType: CheckType;
   checkInterval: string;
   description?: string;
+  isPublished?: boolean;
 };
 
 type CreateIncidentInput = {
@@ -409,6 +410,10 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
           checkType: action.payload.checkType,
           checkInterval: action.payload.checkInterval,
           description: action.payload.description,
+          isPublished:
+            action.payload.isPublished !== undefined
+              ? action.payload.isPublished
+              : service.isPublished,
         };
       }),
     };
@@ -612,6 +617,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         id: createServiceId(),
         name: input.name.trim(),
         url: input.url.trim(),
+        isPublished: true,
         checkType: input.checkType,
         checkInterval: input.checkInterval.trim(),
         description: input.description?.trim() || undefined,
@@ -639,6 +645,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           workspace_id: workspaceId,
           name: service.name,
           url: service.url,
+          is_published: service.isPublished,
           status: service.status,
           check_type: service.checkType,
           check_interval: service.checkInterval,
@@ -698,6 +705,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         ...existing,
         name: input.name.trim(),
         url: input.url.trim(),
+        isPublished:
+          input.isPublished !== undefined ? input.isPublished : existing.isPublished,
         checkType: input.checkType,
         checkInterval: input.checkInterval.trim(),
         description: input.description?.trim() || undefined,
@@ -723,6 +732,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           checkType: updatedService.checkType,
           checkInterval: updatedService.checkInterval,
           description: updatedService.description,
+          isPublished: updatedService.isPublished,
         },
       });
     },

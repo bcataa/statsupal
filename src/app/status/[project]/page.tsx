@@ -13,7 +13,7 @@ type StatusPageProps = {
 type OverallStatus = "all-operational" | "partial-outage" | "major-outage";
 
 function formatProjectName(project: string): string {
-  const decoded = decodeURIComponent(project || "demo").trim();
+  const decoded = decodeURIComponent(project).trim();
   if (!decoded) {
     return "Statsupal";
   }
@@ -90,13 +90,19 @@ function getLastUpdated(services: Service[]): string {
 
 export default function StatusPage({ params }: StatusPageProps) {
   const { services, incidents, workspace } = useAppData();
-  const projectName = formatProjectName(params.project || "demo");
-  const overallStatus = getOverallStatus(services);
+  const publishedServices = services.filter((service) => service.isPublished);
+  const projectSlug = decodeURIComponent(params.project || "").trim();
+  const fallbackSlug = workspace.domainSettings.statusPageSlug || "status";
+  const resolvedProjectSlug = projectSlug || fallbackSlug;
+  const projectName = formatProjectName(resolvedProjectSlug);
+  const overallStatus = getOverallStatus(publishedServices);
   const tone = getStatusTone(overallStatus);
-  const lastUpdated = getLastUpdated(services);
-  const operationalCount = services.filter((service) => service.status === "operational").length;
-  const degradedCount = services.filter((service) => service.status === "degraded").length;
-  const downCount = services.filter((service) => service.status === "down").length;
+  const lastUpdated = getLastUpdated(publishedServices);
+  const operationalCount = publishedServices.filter(
+    (service) => service.status === "operational",
+  ).length;
+  const degradedCount = publishedServices.filter((service) => service.status === "degraded").length;
+  const downCount = publishedServices.filter((service) => service.status === "down").length;
   const activeIncidents = incidents
     .filter((incident) => incident.status !== "resolved")
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -112,38 +118,30 @@ export default function StatusPage({ params }: StatusPageProps) {
       <div className="pointer-events-none absolute right-0 top-16 h-80 w-80 rounded-full bg-indigo-200/30 blur-3xl" />
 
       <div className="relative mx-auto w-full max-w-5xl space-y-8">
-        <header className="space-y-5 text-center">
+        <header className="space-y-4 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            {workspace.name} public status
+            {workspace.name}
           </p>
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs text-zinc-600 shadow-sm">
-            <span className={`h-2.5 w-2.5 rounded-full ${tone.dotClass} animate-pulse`} />
-            Live status
-          </div>
           <h1 className="text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-            {getStatusHeadline(overallStatus)}
+            {projectName} status
           </h1>
           <p className="mx-auto max-w-2xl text-base text-zinc-600 sm:text-lg">
-            {projectName} status page for customers. {getStatusDescription(overallStatus)}
+            This page shows real-time system status and incident updates.
           </p>
-              {activeIncidents.length > 0 ? (
-                <p className="mx-auto max-w-2xl rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">
-                  {activeIncidents.length} active incident
-                  {activeIncidents.length > 1 ? "s are" : " is"} being handled by our team.
-                </p>
-              ) : null}
-          <p className="text-xs text-zinc-500">Last updated {formatDateTime(lastUpdated)}</p>
         </header>
 
         <section className={`rounded-2xl border p-6 shadow-sm sm:p-8 ${tone.panelClass}`}>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">
-                Current system health
+              <div className="inline-flex items-center gap-2 rounded-full border border-current/20 bg-white/70 px-3 py-1 text-xs">
+                <span className={`h-2.5 w-2.5 rounded-full ${tone.dotClass} animate-pulse`} />
+                Live status
+              </div>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                {getStatusHeadline(overallStatus)}
               </h2>
-              <p className="mt-1 text-sm/6 opacity-90">
-                This page shows live service status and incident updates from our team.
-              </p>
+              <p className="mt-2 text-sm/6 opacity-90">{getStatusDescription(overallStatus)}</p>
+              <p className="mt-2 text-xs opacity-80">Last updated {formatDateTime(lastUpdated)}</p>
             </div>
             <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
               <div className="rounded-xl border border-current/20 bg-white/60 px-3 py-2">
@@ -162,6 +160,13 @@ export default function StatusPage({ params }: StatusPageProps) {
           </div>
         </section>
 
+        {activeIncidents.length > 0 ? (
+          <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {activeIncidents.length} active incident
+            {activeIncidents.length > 1 ? "s are" : " is"} currently being handled.
+          </p>
+        ) : null}
+
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-5">
             <h2 className="text-xl font-semibold text-zinc-900">Services</h2>
@@ -170,13 +175,13 @@ export default function StatusPage({ params }: StatusPageProps) {
             </p>
           </div>
 
-          {services.length === 0 ? (
+          {publishedServices.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
-              <p className="text-sm font-medium text-zinc-700">No services published yet.</p>
+              <p className="text-sm font-medium text-zinc-700">No public services available yet.</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {services.map((service) => (
+              {publishedServices.map((service) => (
                 <article
                   key={service.id}
                   className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
@@ -211,106 +216,104 @@ export default function StatusPage({ params }: StatusPageProps) {
           )}
         </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-              <div className="mb-5 flex items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-zinc-900">Incident history</h2>
-                  <p className="text-sm text-zinc-500">
-                    Active incidents are highlighted first, with resolved updates shown below.
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-900">Incident history</h2>
+              <p className="text-sm text-zinc-500">
+                Active incidents are listed first, followed by recently resolved updates.
+              </p>
+            </div>
+            <span className="text-xs text-zinc-500">
+              {activeIncidents.length} active • {resolvedIncidents.length} resolved
+            </span>
+          </div>
+
+          {incidents.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
+              <p className="text-sm font-medium text-zinc-700">No incidents reported.</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Everything is operating normally right now.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Active incidents
+                </p>
+                {activeIncidents.length === 0 ? (
+                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                    No active incidents.
                   </p>
-                </div>
-                <span className="text-xs text-zinc-500">
-                  {activeIncidents.length} active • {resolvedIncidents.length} resolved
-                </span>
+                ) : (
+                  <div className="space-y-3">
+                    {activeIncidents.map((incident) => (
+                      <article
+                        key={incident.id}
+                        className="rounded-xl border border-rose-200 bg-rose-50/40 p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-zinc-900">{incident.title}</p>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge value={incident.status} />
+                            <StatusBadge value={incident.severity} />
+                          </div>
+                        </div>
+                        <p className="mt-1 text-xs text-zinc-600">
+                          Affected service:{" "}
+                          {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Started {formatDateTime(incident.startedAt)} • Updated{" "}
+                          {formatDateTime(incident.updatedAt)}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {incidents.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
-                  <p className="text-sm font-medium text-zinc-700">No incidents reported.</p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    Everything is operating normally right now.
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Resolved incidents
+                </p>
+                {resolvedIncidents.length === 0 ? (
+                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                    No resolved incidents yet.
                   </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
+                ) : (
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      Active
-                    </p>
-                    {activeIncidents.length === 0 ? (
-                      <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                        No active incidents.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {activeIncidents.map((incident) => (
-                          <article
-                            key={incident.id}
-                            className="rounded-xl border border-rose-200 bg-rose-50/40 p-4"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-zinc-900">{incident.title}</p>
-                              <div className="flex items-center gap-2">
-                                <StatusBadge value={incident.status} />
-                                <StatusBadge value={incident.severity} />
-                              </div>
-                            </div>
-                            <p className="mt-1 text-xs text-zinc-600">
-                              Affected service:{" "}
-                              {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
-                            </p>
-                            <p className="mt-1 text-xs text-zinc-500">
-                              Started {formatDateTime(incident.startedAt)} • Updated{" "}
-                              {formatDateTime(incident.updatedAt)}
-                            </p>
-                          </article>
-                        ))}
-                      </div>
-                    )}
+                    {resolvedIncidents.map((incident) => (
+                      <article
+                        key={incident.id}
+                        className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-4"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-zinc-900">{incident.title}</p>
+                          <StatusBadge value="resolved" />
+                        </div>
+                        <p className="mt-1 text-xs text-zinc-600">
+                          Affected service:{" "}
+                          {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Resolved{" "}
+                          {incident.resolvedAt
+                            ? formatDateTime(incident.resolvedAt)
+                            : formatDateTime(incident.updatedAt)}
+                        </p>
+                        {incident.resolutionSummary ? (
+                          <p className="mt-2 text-xs text-zinc-600">{incident.resolutionSummary}</p>
+                        ) : null}
+                      </article>
+                    ))}
                   </div>
-
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                      Resolved
-                    </p>
-                    {resolvedIncidents.length === 0 ? (
-                      <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                        No resolved incidents yet.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {resolvedIncidents.map((incident) => (
-                          <article
-                            key={incident.id}
-                            className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-4"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-zinc-900">{incident.title}</p>
-                              <StatusBadge value="resolved" />
-                            </div>
-                            <p className="mt-1 text-xs text-zinc-600">
-                              Affected service:{" "}
-                              {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
-                            </p>
-                            <p className="mt-1 text-xs text-zinc-500">
-                              Resolved{" "}
-                              {incident.resolvedAt
-                                ? formatDateTime(incident.resolvedAt)
-                                : formatDateTime(incident.updatedAt)}
-                            </p>
-                            {incident.resolutionSummary ? (
-                              <p className="mt-2 text-xs text-zinc-600">
-                                {incident.resolutionSummary}
-                              </p>
-                            ) : null}
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </section>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm text-zinc-600 shadow-sm">
           This page provides live service status and incident communication so you can quickly
@@ -319,7 +322,7 @@ export default function StatusPage({ params }: StatusPageProps) {
         </section>
 
         <footer className="pb-4 text-center text-xs text-zinc-500">
-          Powered by {workspace.name || "Statsupal"} • Last refresh {formatDateTime(lastUpdated)}
+          Powered by {workspace.name || "StatusPal"} • Last refresh {formatDateTime(lastUpdated)}
         </footer>
       </div>
     </main>
