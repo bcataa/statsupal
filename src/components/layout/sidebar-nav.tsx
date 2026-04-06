@@ -34,9 +34,13 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
 
       <nav className="space-y-1.5">
         {navigationItems.map((item) => {
+          const statusSlug =
+            currentProject?.slug ||
+            workspace.projects[0]?.slug ||
+            workspace.domainSettings.statusPageSlug;
           const href =
             item.label === "Status Page"
-              ? `/status/${currentProject?.slug ?? workspace.domainSettings.statusPageSlug}`
+              ? `/status/${encodeURIComponent(statusSlug)}`
               : item.href;
           const active = isActive(pathname, href);
 

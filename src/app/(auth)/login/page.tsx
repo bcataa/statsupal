@@ -27,11 +27,7 @@ export default function LoginPage() {
       } = await supabase.auth.getUser();
 
       if (user) {
-        if (user.user_metadata?.onboarding_completed) {
-          router.replace("/dashboard");
-        } else {
-          router.replace("/onboarding/profile");
-        }
+        router.replace("/dashboard");
         router.refresh();
       }
     };
@@ -76,10 +72,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (signInData.user?.user_metadata?.onboarding_completed) {
+    if (signInData.user) {
       router.push("/dashboard");
-    } else {
-      router.push("/onboarding/profile");
     }
     router.refresh();
   };

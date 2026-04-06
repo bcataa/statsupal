@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { AddServiceButton } from "@/components/services/add-service-button";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { IncidentsSummarySection } from "@/components/dashboard/incidents-summary-section";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
@@ -17,7 +17,6 @@ export default function OverviewPage() {
     maintenanceWindows,
     workspace,
     currentProject,
-    onboarding,
     uptimeSummary,
   } = useAppData();
   const operationalCount = services.filter((service) => service.status === "operational").length;
@@ -31,30 +30,7 @@ export default function OverviewPage() {
   const activeMaintenanceCount = maintenanceWindows.filter(
     (window) => window.status === "active",
   ).length;
-  const hasNotificationDestination =
-    Boolean(workspace.notificationSettings.discordWebhookUrl?.trim()) ||
-    Boolean(workspace.notificationSettings.alertEmail?.trim());
-  const onboardingTasks = [
-    {
-      id: "service",
-      label: "Add your first monitored service",
-      done: services.length > 0,
-      href: "/services",
-    },
-    {
-      id: "alerts",
-      label: "Configure alert destination",
-      done: hasNotificationDestination || onboarding.alertsConfigured,
-      href: "/settings",
-    },
-    {
-      id: "branding",
-      label: "Set public status branding",
-      done: Boolean(workspace.publicDescription?.trim()),
-      href: "/settings",
-    },
-  ];
-  const completedTasks = onboardingTasks.filter((task) => task.done).length;
+  const isFirstRun = services.length === 0;
 
   const dashboardMetrics: DashboardMetric[] = [
     {
@@ -97,64 +73,46 @@ export default function OverviewPage() {
       <DashboardHeader
         workspaceName={workspace.name}
         projectName={currentProject?.name ?? "Main Project"}
+        showCreateIncidentButton={!isFirstRun}
       />
 
-      <MetricsGrid metrics={dashboardMetrics} />
-
-      {completedTasks < onboardingTasks.length ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
-                Launch checklist
-              </p>
-              <h3 className="mt-1 text-lg font-semibold text-zinc-900">
-                Finish your first setup steps
-              </h3>
-              <p className="mt-1 text-sm text-zinc-500">
-                Complete these to make your status page ready for visitors.
-              </p>
-            </div>
-            <p className="text-sm font-medium text-zinc-600">
-              {completedTasks}/{onboardingTasks.length} completed
-            </p>
-          </div>
-          <div className="mt-4 space-y-2">
-            {onboardingTasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2"
-              >
-                <p className={`text-sm ${task.done ? "text-zinc-500 line-through" : "text-zinc-800"}`}>
-                  {task.label}
-                </p>
-                <Link
-                  href={task.href}
-                  className="text-xs font-medium text-zinc-700 underline-offset-2 hover:underline"
-                >
-                  {task.done ? "Done" : "Open"}
-                </Link>
-              </div>
-            ))}
+      {isFirstRun ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
+            Welcome
+          </p>
+          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
+            Start monitoring in one step
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-zinc-600">
+            Add your first service to begin live checks. Advanced setup like notifications,
+            custom domains, and maintenance can be configured anytime in Settings.
+          </p>
+          <div className="mt-6">
+            <AddServiceButton />
           </div>
         </section>
-      ) : null}
+      ) : (
+        <>
+          <MetricsGrid metrics={dashboardMetrics} />
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
-          <ServicesHealthSection services={services} />
-          <IncidentsSummarySection incidents={incidents} services={services} />
-        </div>
-        <div className="space-y-6">
-          <UptimeTrendCard points={uptimeSummary.points} />
-          <PerformanceSummaryCard
-            services={services}
-            resolvedIncidents={resolvedIncidentCount}
-            averageResponseTimeMs={uptimeSummary.averageResponseTimeMs}
-            averageUptimePercentage={uptimeSummary.averageUptimePercentage}
-          />
-        </div>
-      </section>
+          <section className="grid gap-6 xl:grid-cols-3">
+            <div className="space-y-6 xl:col-span-2">
+              <ServicesHealthSection services={services} />
+              <IncidentsSummarySection incidents={incidents} services={services} />
+            </div>
+            <div className="space-y-6">
+              <UptimeTrendCard points={uptimeSummary.points} />
+              <PerformanceSummaryCard
+                services={services}
+                resolvedIncidents={resolvedIncidentCount}
+                averageResponseTimeMs={uptimeSummary.averageResponseTimeMs}
+                averageUptimePercentage={uptimeSummary.averageUptimePercentage}
+              />
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
