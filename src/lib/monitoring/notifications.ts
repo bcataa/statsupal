@@ -258,12 +258,19 @@ export async function notifyIncidentEvent(input: IncidentNotificationInput) {
   }
 
   const discordMessage = buildDiscordMessage(input);
-  const discordBotToken = input.workspace.discordBotToken?.trim();
+  const discordBotToken =
+    input.workspace.discordBotToken?.trim() || process.env.DISCORD_BOT_TOKEN?.trim();
   const discordBotChannelId = input.workspace.discordBotChannelId?.trim();
   const discordWebhookUrl = input.workspace.discordWebhookUrl?.trim();
 
   let botAttempted = false;
   let botSent = false;
+  if (discordBotChannelId && !discordBotToken) {
+    logger.info("[notifications] discord bot token missing, fallback will be used if configured", {
+      event: input.event,
+      incidentId: input.incident.id,
+    });
+  }
   if (discordBotToken && discordBotChannelId) {
     botAttempted = true;
     try {

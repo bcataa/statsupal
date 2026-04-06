@@ -74,13 +74,23 @@ export async function GET() {
 
     const row = (secretResult.data ?? null) as SecretRow | null;
     const channelId = row?.discord_bot_channel_id?.trim() || "";
-    const tokenExists = Boolean(row?.discord_bot_token?.trim());
+    const tokenExists = Boolean(
+      process.env.DISCORD_BOT_TOKEN?.trim() || row?.discord_bot_token?.trim(),
+    );
     const configured = tokenExists && channelId.length > 0;
+    const discordClientId = process.env.DISCORD_CLIENT_ID?.trim();
+    const inviteUrl = discordClientId
+      ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
+          discordClientId,
+        )}&scope=bot&permissions=2048`
+      : null;
 
     return NextResponse.json({
       success: true,
       discordBotConfigured: configured,
       discordBotChannelId: channelId || undefined,
+      inviteUrl,
+      usesManagedBotToken: Boolean(process.env.DISCORD_BOT_TOKEN?.trim()),
     });
   } catch (error) {
     return NextResponse.json(
@@ -107,27 +117,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
   }
 
-  let body: { discordBotToken?: string; discordBotChannelId?: string } = {};
+  let body: { discordBotChannelId?: string } = {};
   try {
-    body = (await request.json()) as { discordBotToken?: string; discordBotChannelId?: string };
+    body = (await request.json()) as { discordBotChannelId?: string };
   } catch {
     return NextResponse.json({ success: false, message: "Invalid request body." }, { status: 400 });
   }
 
-  const discordBotToken = (body.discordBotToken ?? "").trim();
   const discordBotChannelId = (body.discordBotChannelId ?? "").trim();
-  const hasToken = discordBotToken.length > 0;
   const hasChannel = discordBotChannelId.length > 0;
-
-  if (hasToken !== hasChannel) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Provide both Discord Bot Token and Discord Channel ID, or leave both empty.",
-      },
-      { status: 400 },
-    );
-  }
 
   try {
     const workspace = await ensureWorkspace(supabase, user.id);
@@ -142,7 +140,7 @@ export async function POST(request: Request) {
       };
     };
 
-    if (!hasToken && !hasChannel) {
+    if (!hasChannel) {
       const removeResult = await admin
         .from("workspace_notification_secrets")
         .delete()
@@ -161,7 +159,7 @@ export async function POST(request: Request) {
       {
         workspace_id: workspace.id,
         user_id: user.id,
-        discord_bot_token: discordBotToken,
+        discord_bot_token: null,
         discord_bot_channel_id: discordBotChannelId,
         updated_at: new Date().toISOString(),
       },

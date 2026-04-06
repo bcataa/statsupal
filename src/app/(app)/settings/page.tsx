@@ -67,9 +67,10 @@ export default function SettingsPage() {
   const [maintenanceStartsAt, setMaintenanceStartsAt] = useState("");
   const [maintenanceEndsAt, setMaintenanceEndsAt] = useState("");
   const [maintenanceSaving, setMaintenanceSaving] = useState(false);
-  const [discordBotToken, setDiscordBotToken] = useState("");
   const [discordBotChannelId, setDiscordBotChannelId] = useState("");
   const [discordBotConfigured, setDiscordBotConfigured] = useState(false);
+  const [discordInviteUrl, setDiscordInviteUrl] = useState<string | null>(null);
+  const [usesManagedBotToken, setUsesManagedBotToken] = useState(false);
   const [botConfigLoading, setBotConfigLoading] = useState(true);
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountEmail, setAccountEmail] = useState<string>("Not available");
@@ -112,6 +113,8 @@ export default function SettingsPage() {
         }
         setDiscordBotConfigured(Boolean(body.discordBotConfigured));
         setDiscordBotChannelId(body.discordBotChannelId ?? "");
+        setDiscordInviteUrl(body.inviteUrl ?? null);
+        setUsesManagedBotToken(Boolean(body.usesManagedBotToken));
       } catch (error) {
         console.error("[Settings] discord bot config load failed", error);
         setNotificationSaveState({
@@ -223,28 +226,20 @@ export default function SettingsPage() {
         alertEmail: alertEmail.trim(),
         supportEmail: supportEmail.trim(),
       });
-      const nextBotToken = discordBotToken.trim();
       const nextBotChannelId = discordBotChannelId.trim();
-      const shouldKeepExistingBotConfig =
-        discordBotConfigured && nextBotToken.length === 0 && nextBotChannelId.length > 0;
-
-      if (!shouldKeepExistingBotConfig) {
-        const botConfigResponse = await fetch("/api/notifications/config", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            discordBotToken: nextBotToken,
-            discordBotChannelId: nextBotChannelId,
-          }),
-        });
-        const botConfigBody = await botConfigResponse.json();
-        if (!botConfigResponse.ok || !botConfigBody?.success) {
-          throw new Error(botConfigBody?.message || "Could not save Discord bot integration.");
-        }
-        setDiscordBotConfigured(Boolean(botConfigBody.discordBotConfigured));
-        setDiscordBotChannelId(botConfigBody.discordBotChannelId ?? "");
+      const botConfigResponse = await fetch("/api/notifications/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          discordBotChannelId: nextBotChannelId,
+        }),
+      });
+      const botConfigBody = await botConfigResponse.json();
+      if (!botConfigResponse.ok || !botConfigBody?.success) {
+        throw new Error(botConfigBody?.message || "Could not save Discord bot integration.");
       }
-      setDiscordBotToken("");
+      setDiscordBotConfigured(Boolean(botConfigBody.discordBotConfigured));
+      setDiscordBotChannelId(botConfigBody.discordBotChannelId ?? "");
       setOnboardingState({ alertsConfigured: incidentAlerts });
       setNotificationSaveState({
         tone: "success",
@@ -537,17 +532,25 @@ export default function SettingsPage() {
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-zinc-700">
-                Discord Bot Token
-              </label>
-              <input
-                value={discordBotToken}
-                onChange={(event) => setDiscordBotToken(event.target.value)}
-                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
-                placeholder={discordBotConfigured ? "Configured (leave blank to keep)" : "Discord bot token"}
-                type="password"
-              />
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3">
+              <p className="text-sm font-medium text-zinc-900">Statsupal Discord Bot</p>
+              <p className="mt-1 text-xs text-zinc-600">
+                Add the bot to your server once, then choose a channel ID below.
+              </p>
+              {discordInviteUrl ? (
+                <a
+                  href={discordInviteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                >
+                  Add Statsupal Bot to server
+                </a>
+              ) : (
+                <p className="mt-3 text-xs text-zinc-500">
+                  Configure `DISCORD_CLIENT_ID` to enable one-click bot invite.
+                </p>
+              )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">
@@ -559,6 +562,9 @@ export default function SettingsPage() {
                 className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
                 placeholder="123456789012345678"
               />
+              <p className="mt-1 text-xs text-zinc-500">
+                Right click channel → Copy Channel ID (enable Developer Mode in Discord).
+              </p>
             </div>
           </div>
           <p className="text-xs text-zinc-500">
@@ -569,7 +575,9 @@ export default function SettingsPage() {
                 : "Discord bot integration is not configured yet."}
           </p>
           <p className="text-xs text-zinc-500">
-            Bot credentials are stored server-side and are never returned to the browser.
+            {usesManagedBotToken
+              ? "Using managed bot token from server environment."
+              : "No managed bot token configured yet. Webhook fallback still works."}
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

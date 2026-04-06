@@ -138,7 +138,7 @@ export async function POST(request: Request) {
     }
 
     const message = `**${workspaceRow.name}** test alert\nThis is a test Discord notification from Statsupal.`;
-    const botToken = secretRow?.discord_bot_token?.trim();
+    const botToken = process.env.DISCORD_BOT_TOKEN?.trim() || secretRow?.discord_bot_token?.trim();
     const botChannelId = secretRow?.discord_bot_channel_id?.trim();
     const webhookUrl = workspaceRow.discord_webhook_url?.trim();
 
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
       {
         success: false,
         message:
-          "Configure Discord Bot Token + Channel ID or a Discord webhook URL before testing.",
+          "Configure Discord Channel ID or a Discord webhook URL before testing.",
       },
       { status: 400 },
     );
