@@ -31,7 +31,7 @@ export default async function OnboardingLayout({
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/70 text-[9px]">
               S
             </span>
-            StatusPal
+            Statsupal
           </Link>
           <span className="text-xs">◉</span>
         </div>

@@ -53,15 +53,12 @@ export default function OnboardingProfilePage() {
   return (
     <main className="px-4 py-8">
       <div className="mx-auto w-full max-w-[760px]">
-        <div className="mb-8 flex items-center justify-between rounded-sm border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-          <p>Account created successfully.</p>
-          <button type="button" className="text-sky-600">
-            ×
-          </button>
+        <div className="mb-8 rounded-sm border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          <p>Let&apos;s finish setup with a few quick details.</p>
         </div>
 
         <h1 className="mb-4 text-center text-3xl font-semibold text-zinc-900">
-          Welcome on board StatusPal
+          Welcome to Statsupal
         </h1>
 
         <section className="mx-auto w-full max-w-[560px] rounded-sm border border-zinc-200 bg-white p-4 shadow-[0_8px_20px_-15px_rgba(0,0,0,0.55)]">

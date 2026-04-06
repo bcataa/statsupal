@@ -45,6 +45,16 @@ function getStatusHeadline(status: OverallStatus): string {
   return "All Systems Operational";
 }
 
+function getPublicServiceLabel(status: Service["status"]): "Up" | "Degraded" | "Down" {
+  if (status === "operational") {
+    return "Up";
+  }
+  if (status === "degraded") {
+    return "Degraded";
+  }
+  return "Down";
+}
+
 function getStatusDescription(status: OverallStatus): string {
   if (status === "major-outage") {
     return "Some services are currently having issues. Our team is actively working to restore full service.";
@@ -90,7 +100,7 @@ function getLastUpdated(services: Service[]): string {
 }
 
 export default function StatusPage({ params }: StatusPageProps) {
-  const { services, incidents, maintenanceWindows, workspace } = useAppData();
+  const { services, incidents, maintenanceWindows, workspace, refreshData } = useAppData();
   const publishedServices = services.filter((service) => service.isPublished);
   const projectSlug = decodeURIComponent(params.project || "").trim();
   const fallbackSlug = workspace.domainSettings.statusPageSlug || "status";
@@ -129,6 +139,7 @@ export default function StatusPage({ params }: StatusPageProps) {
   const [subscriberEmail, setSubscriberEmail] = useState("");
   const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const onSubscribe = async () => {
     setSubscriptionMessage(null);
@@ -159,6 +170,15 @@ export default function StatusPage({ params }: StatusPageProps) {
       setSubscriptionMessage(error instanceof Error ? error.message : "Could not subscribe.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await refreshData();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -197,9 +217,19 @@ export default function StatusPage({ params }: StatusPageProps) {
                 {getStatusHeadline(overallStatus)}
               </h2>
               <p className="mt-2 text-sm/6 opacity-90">{getStatusDescription(overallStatus)}</p>
-              <p className="mt-2 text-xs opacity-80">Last updated {formatDateTime(lastUpdated)}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <p className="text-xs opacity-80">Last updated {formatDateTime(lastUpdated)}</p>
+                <button
+                  type="button"
+                  onClick={() => void onRefresh()}
+                  disabled={refreshing}
+                  className="rounded-full border border-current/20 bg-white/70 px-2 py-0.5 text-[11px] font-medium hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {refreshing ? "Refreshing..." : "Refresh"}
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-xs sm:text-sm">
+            <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 sm:text-sm">
               <div className="rounded-xl border border-current/20 bg-white/60 px-3 py-2">
                 <p className="font-semibold">{operationalCount}</p>
                 <p className="opacity-80">Healthy</p>
@@ -212,6 +242,10 @@ export default function StatusPage({ params }: StatusPageProps) {
                 <p className="font-semibold">{downCount}</p>
                 <p className="opacity-80">Having issues</p>
               </div>
+              <div className="rounded-xl border border-current/20 bg-white/60 px-3 py-2">
+                <p className="font-semibold">{activeIncidents.length}</p>
+                <p className="opacity-80">Active incidents</p>
+              </div>
             </div>
           </div>
         </section>
@@ -223,12 +257,15 @@ export default function StatusPage({ params }: StatusPageProps) {
           </p>
         ) : null}
 
-        {activeMaintenance.length > 0 ? (
-          <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800 shadow-sm">
-            <p className="font-semibold">Planned maintenance in progress</p>
-            <div className="mt-2 space-y-2">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-xl font-semibold text-zinc-900">Maintenance windows</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Planned changes are listed separately from incidents.
+          </p>
+          {activeMaintenance.length > 0 ? (
+            <div className="mt-3 space-y-2">
               {activeMaintenance.map((window) => (
-                <article key={window.id} className="rounded-lg border border-sky-200 bg-white/70 p-3">
+                <article key={window.id} className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
                   <p className="font-medium">{window.title}</p>
                   <p className="text-xs opacity-80">
                     {formatDateTime(window.startsAt)} - {formatDateTime(window.endsAt)}
@@ -236,8 +273,12 @@ export default function StatusPage({ params }: StatusPageProps) {
                 </article>
               ))}
             </div>
-          </section>
-        ) : null}
+          ) : (
+            <p className="mt-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-4 text-sm text-zinc-600">
+              No maintenance windows are active right now.
+            </p>
+          )}
+        </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-5">
@@ -249,7 +290,18 @@ export default function StatusPage({ params }: StatusPageProps) {
 
           {publishedServices.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
-              <p className="text-sm font-medium text-zinc-700">No public services available yet.</p>
+              <p className="text-sm font-medium text-zinc-700">No public services published yet.</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                This page will show live status as soon as services are published.
+              </p>
+              {supportEmail ? (
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="mt-4 inline-flex rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+                >
+                  Contact support
+                </a>
+              ) : null}
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
@@ -269,7 +321,12 @@ export default function StatusPage({ params }: StatusPageProps) {
                         </p>
                       )}
                     </div>
-                    <StatusBadge value={service.status} />
+                    <div className="text-right">
+                      <StatusBadge value={service.status} />
+                      <p className="mt-1 text-xs font-medium text-zinc-600">
+                        {getPublicServiceLabel(service.status)}
+                      </p>
+                    </div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-zinc-600">
                     <p>Last checked: {formatTimestampOrText(service.lastChecked || "Unknown")}</p>
@@ -314,9 +371,9 @@ export default function StatusPage({ params }: StatusPageProps) {
           ) : null}
         </section>
 
-        {resolvedMaintenance.length > 0 ? (
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-            <h2 className="text-xl font-semibold text-zinc-900">Completed maintenance</h2>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-xl font-semibold text-zinc-900">Completed maintenance</h2>
+          {resolvedMaintenance.length > 0 ? (
             <div className="mt-3 space-y-3">
               {resolvedMaintenance.map((window) => (
                 <article key={window.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
@@ -327,8 +384,12 @@ export default function StatusPage({ params }: StatusPageProps) {
                 </article>
               ))}
             </div>
-          </section>
-        ) : null}
+          ) : (
+            <p className="mt-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-4 text-sm text-zinc-600">
+              No completed maintenance to show yet.
+            </p>
+          )}
+        </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-5 flex items-end justify-between gap-4">
@@ -436,7 +497,7 @@ export default function StatusPage({ params }: StatusPageProps) {
         </section>
 
         <footer className="pb-4 text-center text-xs text-zinc-500">
-          Powered by {workspace.name || "StatusPal"} • Last refresh {formatDateTime(lastUpdated)}
+          Powered by {workspace.name || "Statsupal"} • Last refresh {formatDateTime(lastUpdated)}
         </footer>
       </div>
     </main>

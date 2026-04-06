@@ -91,14 +91,15 @@ export default function MarketingPage() {
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-indigo-300 text-[10px] text-indigo-600">
                 S
               </span>
-              <span className="text-base font-semibold">StatusPal</span>
+              <span className="text-base font-semibold">Statsupal</span>
             </Link>
             <nav className="hidden items-center gap-6 text-sm text-zinc-700 lg:flex">
               <Link href="/product" className="hover:text-zinc-900">Product</Link>
               <Link href="/how-it-works" className="hover:text-zinc-900">How it works</Link>
-              <Link href="/status/demo" className="hover:text-zinc-900">Showcase</Link>
+              <Link href="/status/main-status-page" className="hover:text-zinc-900">Showcase</Link>
               <Link href="/register" className="hover:text-zinc-900">Free</Link>
               <Link href="/integrations" className="hover:text-zinc-900">Integrations</Link>
+              <Link href="/privacy" className="hover:text-zinc-900">Privacy</Link>
             </nav>
           </div>
 
@@ -143,8 +144,8 @@ export default function MarketingPage() {
             >
               Get started
             </Link>
-            <Link href="/status/demo" className="inline-flex h-12 items-center rounded-full border border-zinc-300 bg-white px-7 text-base font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50">
-              Contact us
+            <Link href="/contact" className="inline-flex h-12 items-center rounded-full border border-zinc-300 bg-white px-7 text-base font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50">
+              Contact support
             </Link>
           </div>
           <div className="mt-4">

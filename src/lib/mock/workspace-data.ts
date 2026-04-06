@@ -2,7 +2,7 @@ import type { Workspace } from "@/lib/models/workspace";
 
 export const defaultWorkspace: Workspace = {
   id: "ws_default",
-  name: "StatusPal Workspace",
+  name: "Statsupal Workspace",
   publicDescription: "Real-time system status and incident updates.",
   projects: [
     {

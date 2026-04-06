@@ -54,6 +54,12 @@ type WorkspaceNotificationRow = {
   support_email: string | null;
 };
 
+type WorkspaceNotificationSecretRow = {
+  workspace_id: string;
+  discord_bot_token: string | null;
+  discord_bot_channel_id: string | null;
+};
+
 type SubscriberRow = {
   workspace_id: string;
   email: string;
@@ -210,6 +216,10 @@ export async function runServerMonitoringCycle({
     .from("maintenance_windows")
     .select("id,workspace_id,title,starts_at,ends_at,affected_service_ids,status")
     .order("starts_at", { ascending: false });
+  const workspaceSecretResult = await db
+    .from("workspace_notification_secrets")
+    .select("workspace_id,discord_bot_token,discord_bot_channel_id")
+    .order("workspace_id", { ascending: true });
 
   const workspaceById = new Map<string, WorkspaceNotificationRow>();
   if (workspaceNotificationResult.error) {
@@ -235,6 +245,17 @@ export async function runServerMonitoringCycle({
       const existing = subscribersByWorkspace.get(row.workspace_id) ?? [];
       existing.push(row);
       subscribersByWorkspace.set(row.workspace_id, existing);
+    }
+  }
+
+  const workspaceSecretsByWorkspace = new Map<string, WorkspaceNotificationSecretRow>();
+  if (workspaceSecretResult.error && !hasErrorCode(workspaceSecretResult.error, "42P01")) {
+    logger.warn("[monitor-worker] failed to load workspace notification secrets", {
+      error: getErrorMessage(workspaceSecretResult.error),
+    });
+  } else if (!workspaceSecretResult.error) {
+    for (const row of (workspaceSecretResult.data ?? []) as WorkspaceNotificationSecretRow[]) {
+      workspaceSecretsByWorkspace.set(row.workspace_id, row);
     }
   }
 
@@ -340,6 +361,7 @@ export async function runServerMonitoringCycle({
 
     const activeIncident = activeByServiceId.get(service.id);
     const workspaceSettings = workspaceById.get(service.workspace_id);
+    const workspaceSecrets = workspaceSecretsByWorkspace.get(service.workspace_id);
     const activeMaintenance = isMaintenanceActiveForService(
       maintenanceRows,
       service.workspace_id,
@@ -424,13 +446,13 @@ export async function runServerMonitoringCycle({
                 workspaceSettings.incident_email_alerts_enabled ?? false,
               maintenanceEmailAlertsEnabled:
                 workspaceSettings.maintenance_email_alerts_enabled ?? false,
+              discordBotToken: workspaceSecrets?.discord_bot_token ?? undefined,
+              discordBotChannelId: workspaceSecrets?.discord_bot_channel_id ?? undefined,
               discordWebhookUrl: workspaceSettings.discord_webhook_url ?? undefined,
               alertEmail: workspaceSettings.alert_email ?? undefined,
               supportEmail: workspaceSettings.support_email ?? undefined,
             },
-            subscriberEmails: workspaceSubscribers
-              .filter((subscriber) => subscriber.incident_created ?? true)
-              .map((subscriber) => subscriber.email),
+            subscriberEmails: workspaceSubscribers.map((subscriber) => subscriber.email),
             logger,
           });
         }
@@ -504,13 +526,13 @@ export async function runServerMonitoringCycle({
                 workspaceSettings.incident_email_alerts_enabled ?? false,
               maintenanceEmailAlertsEnabled:
                 workspaceSettings.maintenance_email_alerts_enabled ?? false,
+              discordBotToken: workspaceSecrets?.discord_bot_token ?? undefined,
+              discordBotChannelId: workspaceSecrets?.discord_bot_channel_id ?? undefined,
               discordWebhookUrl: workspaceSettings.discord_webhook_url ?? undefined,
               alertEmail: workspaceSettings.alert_email ?? undefined,
               supportEmail: workspaceSettings.support_email ?? undefined,
             },
-            subscriberEmails: workspaceSubscribers
-              .filter((subscriber) => subscriber.incident_resolved ?? true)
-              .map((subscriber) => subscriber.email),
+            subscriberEmails: workspaceSubscribers.map((subscriber) => subscriber.email),
             logger,
           });
         }

@@ -123,6 +123,15 @@ create table if not exists public.alert_subscribers (
   unique (workspace_id, email)
 );
 
+create table if not exists public.workspace_notification_secrets (
+  workspace_id uuid primary key references public.workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  discord_bot_token text,
+  discord_bot_channel_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists incidents_user_id_idx on public.incidents(user_id);
 create unique index if not exists incidents_one_active_per_service_idx
   on public.incidents(user_id, affected_service_id)
@@ -140,6 +149,9 @@ alter table public.workspaces add column if not exists support_email text;
 alter table public.workspaces add column if not exists public_description text;
 alter table public.workspaces add column if not exists custom_domain text;
 alter table public.workspaces add column if not exists custom_domain_status text not null default 'unconfigured';
+alter table public.workspace_notification_secrets add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.workspace_notification_secrets add column if not exists discord_bot_token text;
+alter table public.workspace_notification_secrets add column if not exists discord_bot_channel_id text;
 alter table public.services add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.services add column if not exists is_published boolean not null default true;
 alter table public.services add column if not exists timeout_ms integer not null default 10000;
@@ -160,6 +172,7 @@ alter table public.service_check_history enable row level security;
 alter table public.maintenance_windows enable row level security;
 alter table public.incident_events enable row level security;
 alter table public.alert_subscribers enable row level security;
+alter table public.workspace_notification_secrets enable row level security;
 
 drop policy if exists "Users can read own workspaces" on public.workspaces;
 create policy "Users can read own workspaces"
@@ -334,6 +347,13 @@ create policy "Users can read own workspace subscribers"
       where w.id = alert_subscribers.workspace_id and w.user_id = auth.uid()
     )
   );
+
+drop policy if exists "Users can manage own workspace notification secrets" on public.workspace_notification_secrets;
+create policy "Users can manage own workspace notification secrets"
+  on public.workspace_notification_secrets
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 -- Quick validation checks (run manually in SQL Editor)
 -- select id, user_id from public.workspaces limit 1;

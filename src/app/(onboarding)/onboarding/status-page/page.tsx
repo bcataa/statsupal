@@ -58,11 +58,8 @@ export default function OnboardingStatusPage() {
   return (
     <main className="px-4 py-8">
       <div className="mx-auto w-full max-w-[760px]">
-        <div className="mb-8 flex items-center justify-between rounded-sm border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-          <p>User successfully updated.</p>
-          <button type="button" className="text-sky-600">
-            ×
-          </button>
+        <div className="mb-8 rounded-sm border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+          <p>One last step: configure your public status page identity.</p>
         </div>
 
         <h1 className="mb-4 text-center text-3xl font-semibold text-zinc-900">

@@ -35,7 +35,7 @@ export default function ProductPage() {
             Built for reliable incident communication
           </h1>
           <p className="mt-4 max-w-3xl text-lg leading-8 text-zinc-600">
-            StatusPal gives your team a focused platform to monitor services, communicate
+            Statsupal gives your team a focused platform to monitor services, communicate
             outages clearly, and keep customers informed in real time.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">

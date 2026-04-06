@@ -41,7 +41,7 @@ export default function HowItWorksPage() {
     <div className="min-h-screen bg-[#f5f5f8] text-zinc-900">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
         <Link href="/" className="text-base font-semibold text-zinc-900">
-          StatusPal
+          Statsupal
         </Link>
         <div className="flex items-center gap-3">
           <Link href="/login" className="text-sm font-medium text-zinc-700">
@@ -117,7 +117,7 @@ export default function HowItWorksPage() {
                 Start your own status server
               </Link>
               <Link
-                href="/status/demo"
+                href="/status/main-status-page"
                 className="inline-flex h-11 items-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 View public status example

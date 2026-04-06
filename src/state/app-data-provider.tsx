@@ -242,6 +242,7 @@ type AppDataContextValue = {
     },
   ) => void;
   addAlertSubscriber: (subscriber: AlertSubscriber) => void;
+  refreshData: () => Promise<void>;
 };
 
 const AppDataContext = createContext<AppDataContextValue | null>(null);
@@ -1509,6 +1510,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteMaintenanceWindow,
       updateServiceStatus,
       addAlertSubscriber,
+      refreshData: async () => {
+        if (!state.authUserId || !supabase) {
+          return;
+        }
+        await reloadFromSupabase(state.authUserId);
+      },
     }),
     [
       setCurrentProject,
@@ -1525,6 +1532,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteMaintenanceWindow,
       updateServiceStatus,
       addAlertSubscriber,
+      reloadFromSupabase,
+      supabase,
       state.services,
       state.incidents,
       state.maintenanceWindows,
@@ -1536,6 +1545,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       state.dataError,
       state.workspace,
       state.currentProjectId,
+      state.authUserId,
       state.onboarding,
       isAddServiceModalOpen,
       isCreateIncidentModalOpen,

@@ -30,6 +30,9 @@ export function TopHeader({ onOpenSidebar }: TopHeaderProps) {
               <span className="block h-0.5 w-4 rounded bg-zinc-700" />
             </span>
           </button>
+          <span className="hidden rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-violet-700 md:inline">
+            STATSUPAL
+          </span>
           <h1 className="text-lg font-semibold text-zinc-900">{title}</h1>
           <span className="hidden rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 md:inline">
             {workspace.name} / {currentProject?.name ?? "Project"}

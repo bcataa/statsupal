@@ -88,7 +88,7 @@ export default function LoginPage() {
     <AuthPageShell>
       <section className="mx-auto w-full max-w-md rounded-md border border-zinc-200 bg-white p-8 shadow-sm">
         <h1 className="text-[42px] font-semibold tracking-tight text-zinc-900">Welcome back!</h1>
-        <p className="mt-1 text-[22px] text-zinc-700">Sign in to your StatusPal account</p>
+        <p className="mt-1 text-[22px] text-zinc-700">Sign in to your Statsupal account</p>
 
         {!supabase && (
           <p className="mt-5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { IncidentsSummarySection } from "@/components/dashboard/incidents-summary-section";
 import { MetricsGrid } from "@/components/dashboard/metrics-grid";
@@ -10,8 +11,15 @@ import type { DashboardMetric } from "@/lib/models/monitoring";
 import { useAppData } from "@/state/app-data-provider";
 
 export default function OverviewPage() {
-  const { services, incidents, maintenanceWindows, workspace, currentProject, uptimeSummary } =
-    useAppData();
+  const {
+    services,
+    incidents,
+    maintenanceWindows,
+    workspace,
+    currentProject,
+    onboarding,
+    uptimeSummary,
+  } = useAppData();
   const operationalCount = services.filter((service) => service.status === "operational").length;
   const degradedCount = services.filter((service) => service.status === "degraded").length;
   const activeIncidentCount = incidents.filter(
@@ -23,6 +31,30 @@ export default function OverviewPage() {
   const activeMaintenanceCount = maintenanceWindows.filter(
     (window) => window.status === "active",
   ).length;
+  const hasNotificationDestination =
+    Boolean(workspace.notificationSettings.discordWebhookUrl?.trim()) ||
+    Boolean(workspace.notificationSettings.alertEmail?.trim());
+  const onboardingTasks = [
+    {
+      id: "service",
+      label: "Add your first monitored service",
+      done: services.length > 0,
+      href: "/services",
+    },
+    {
+      id: "alerts",
+      label: "Configure alert destination",
+      done: hasNotificationDestination || onboarding.alertsConfigured,
+      href: "/settings",
+    },
+    {
+      id: "branding",
+      label: "Set public status branding",
+      done: Boolean(workspace.publicDescription?.trim()),
+      href: "/settings",
+    },
+  ];
+  const completedTasks = onboardingTasks.filter((task) => task.done).length;
 
   const dashboardMetrics: DashboardMetric[] = [
     {
@@ -68,6 +100,45 @@ export default function OverviewPage() {
       />
 
       <MetricsGrid metrics={dashboardMetrics} />
+
+      {completedTasks < onboardingTasks.length ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
+                Launch checklist
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-zinc-900">
+                Finish your first setup steps
+              </h3>
+              <p className="mt-1 text-sm text-zinc-500">
+                Complete these to make your status page ready for visitors.
+              </p>
+            </div>
+            <p className="text-sm font-medium text-zinc-600">
+              {completedTasks}/{onboardingTasks.length} completed
+            </p>
+          </div>
+          <div className="mt-4 space-y-2">
+            {onboardingTasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2"
+              >
+                <p className={`text-sm ${task.done ? "text-zinc-500 line-through" : "text-zinc-800"}`}>
+                  {task.label}
+                </p>
+                <Link
+                  href={task.href}
+                  className="text-xs font-medium text-zinc-700 underline-offset-2 hover:underline"
+                >
+                  {task.done ? "Done" : "Open"}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">

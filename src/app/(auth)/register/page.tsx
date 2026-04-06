@@ -89,7 +89,7 @@ export default function RegisterPage() {
       <section className="mx-auto grid w-full max-w-5xl gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
         <div className="rounded-md border border-zinc-200 bg-white p-8 shadow-sm">
           <h1 className="text-[40px] font-semibold tracking-tight text-zinc-900">
-            Try StatusPal free for 14 days
+            Try Statsupal free for 14 days
           </h1>
           <p className="mt-1 text-[20px] text-zinc-700">No credit card required</p>
 
@@ -152,13 +152,13 @@ export default function RegisterPage() {
               />
               <span>
                 I accept the{" "}
-                <a href="#" className="underline">
+                <Link href="/terms" className="underline">
                   Terms of Service
-                </a>{" "}
+                </Link>{" "}
                 and{" "}
-                <a href="#" className="underline">
+                <Link href="/privacy" className="underline">
                   Privacy Policy
-                </a>
+                </Link>
               </span>
             </label>
 

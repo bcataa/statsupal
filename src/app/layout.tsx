@@ -14,8 +14,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Statsupal",
-  description: "Modern status monitoring dashboard",
+  title: {
+    default: "Statsupal",
+    template: "%s | Statsupal",
+  },
+  description: "Status monitoring, incidents, and public communication for modern teams.",
 };
 
 export default function RootLayout({

@@ -1,4 +1,5 @@
 import type { Incident } from "@/lib/models/monitoring";
+import { Resend } from "resend";
 
 type Logger = Pick<Console, "info" | "warn" | "error">;
 
@@ -7,6 +8,8 @@ type NotificationWorkspaceSettings = {
   incidentAlertsEnabled: boolean;
   incidentEmailAlertsEnabled: boolean;
   maintenanceEmailAlertsEnabled: boolean;
+  discordBotToken?: string;
+  discordBotChannelId?: string;
   discordWebhookUrl?: string;
   alertEmail?: string;
   supportEmail?: string;
@@ -39,6 +42,84 @@ type NotificationProvider = {
   sendIncidentEvent: (input: IncidentNotificationInput) => Promise<void>;
 };
 
+type SendIncidentEmailInput = {
+  to: string[] | string;
+  subject: string;
+  title: string;
+  description: string;
+  status: "DOWN" | "RESOLVED";
+  serviceName: string;
+  timestamp?: string;
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing RESEND_API_KEY");
+  }
+  if (!resendClient) {
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+}
+
+export async function sendIncidentEmail({
+  to,
+  subject,
+  title,
+  description,
+  status,
+  serviceName,
+  timestamp,
+}: SendIncidentEmailInput) {
+  const fromEmail = process.env.RESEND_FROM_EMAIL;
+  if (!fromEmail) {
+    throw new Error("Missing RESEND_FROM_EMAIL");
+  }
+
+  const recipients = Array.isArray(to) ? to : [to];
+  if (recipients.length === 0) {
+    return;
+  }
+
+  const resend = getResendClient();
+  const sentAt = timestamp ?? new Date().toISOString();
+  const statusTone =
+    status === "DOWN"
+      ? "background:#fef2f2;color:#991b1b;border:1px solid #fecaca;"
+      : "background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;";
+
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#18181b;">
+      <h2 style="margin:0 0 14px;font-size:22px;line-height:1.3;">${escapeHtml(title)}</h2>
+      <div style="display:inline-block;padding:6px 10px;border-radius:9999px;font-size:12px;font-weight:600;${statusTone}">
+        ${escapeHtml(status)}
+      </div>
+      <p style="margin:16px 0 8px;font-size:14px;"><strong>Service:</strong> ${escapeHtml(serviceName)}</p>
+      <p style="margin:0 0 8px;font-size:14px;"><strong>Description:</strong> ${escapeHtml(description)}</p>
+      <p style="margin:0;font-size:12px;color:#52525b;"><strong>Timestamp:</strong> ${escapeHtml(sentAt)}</p>
+    </div>
+  `;
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: recipients,
+    subject,
+    html,
+  });
+}
+
 function buildDiscordMessage(input: IncidentNotificationInput): string {
   const { event, service, incident, workspace } = input;
   if (event === "created") {
@@ -63,41 +144,62 @@ function buildDiscordMessage(input: IncidentNotificationInput): string {
     .join("\n");
 }
 
-const discordProvider: NotificationProvider = {
-  name: "discord",
-  canSend(input) {
-    return Boolean(input.workspace.discordWebhookUrl?.trim());
-  },
-  async sendIncidentEvent(input) {
-    const logger = input.logger ?? console;
-    const webhook = input.workspace.discordWebhookUrl?.trim();
-    if (!webhook) {
-      logger.info("[monitor-notify] discord webhook not configured", {
-        event: input.event,
-        incidentId: input.incident.id,
-      });
-      return;
-    }
+type SendDiscordBotMessageInput = {
+  botToken: string;
+  channelId: string;
+  content: string;
+};
 
-    const response = await fetch(webhook, {
+export async function sendDiscordBotMessage({
+  botToken,
+  channelId,
+  content,
+}: SendDiscordBotMessageInput) {
+  const response = await fetch(
+    `https://discord.com/api/v10/channels/${encodeURIComponent(channelId)}/messages`,
+    {
       method: "POST",
       headers: {
+        Authorization: `Bot ${botToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        content: buildDiscordMessage(input),
-      }),
-    });
+      body: JSON.stringify({ content }),
+    },
+  );
 
-    if (!response.ok) {
-      throw new Error(`Discord webhook failed with HTTP ${response.status}`);
-    }
-  },
+  if (!response.ok) {
+    throw new Error(`Discord bot message failed with HTTP ${response.status}`);
+  }
+}
+
+type SendDiscordWebhookMessageInput = {
+  webhookUrl: string;
+  content: string;
 };
+
+export async function sendDiscordWebhookMessage({
+  webhookUrl,
+  content,
+}: SendDiscordWebhookMessageInput) {
+  const response = await fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ content }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Discord webhook failed with HTTP ${response.status}`);
+  }
+}
 
 const emailProvider: NotificationProvider = {
   name: "email",
   canSend(input) {
+    if (!input.workspace.incidentEmailAlertsEnabled) {
+      return false;
+    }
     const recipients = new Set<string>();
     if (input.workspace.alertEmail) {
       recipients.add(input.workspace.alertEmail.trim().toLowerCase());
@@ -105,17 +207,13 @@ const emailProvider: NotificationProvider = {
     for (const email of input.subscriberEmails ?? []) {
       recipients.add(email.trim().toLowerCase());
     }
-    return recipients.size > 0 && Boolean(process.env.RESEND_API_KEY);
+    return (
+      recipients.size > 0 &&
+      Boolean(process.env.RESEND_API_KEY) &&
+      Boolean(process.env.RESEND_FROM_EMAIL)
+    );
   },
   async sendIncidentEvent(input) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      return;
-    }
-    if (!input.workspace.incidentEmailAlertsEnabled) {
-      return;
-    }
-
     const recipients = new Set<string>();
     if (input.workspace.alertEmail) {
       recipients.add(input.workspace.alertEmail.trim().toLowerCase());
@@ -127,45 +225,27 @@ const emailProvider: NotificationProvider = {
       return;
     }
 
-    const from =
-      process.env.RESEND_FROM_EMAIL ||
-      input.workspace.supportEmail ||
-      "alerts@statsupal.local";
     const subject =
       input.event === "created"
         ? `[${input.workspace.workspaceName}] Incident started: ${input.incident.title}`
         : `[${input.workspace.workspaceName}] Incident resolved: ${input.incident.title}`;
-    const html = `
-      <h2>${input.workspace.workspaceName} status update</h2>
-      <p><strong>Service:</strong> ${input.service.name}</p>
-      <p><strong>Incident:</strong> ${input.incident.title}</p>
-      <p><strong>Status:</strong> ${input.incident.status}</p>
-      <p><strong>Severity:</strong> ${input.incident.severity}</p>
-      ${input.incident.resolutionSummary ? `<p><strong>Resolution:</strong> ${input.incident.resolutionSummary}</p>` : ""}
-      <p><strong>URL:</strong> ${input.service.url}</p>
-    `;
-
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: Array.from(recipients),
-        subject,
-        html,
-      }),
+    await sendIncidentEmail({
+      to: Array.from(recipients),
+      subject,
+      title: input.incident.title,
+      description:
+        input.event === "created"
+          ? `An incident has been detected for ${input.service.name}. The team is investigating.`
+          : input.incident.resolutionSummary ??
+            `The incident affecting ${input.service.name} has been resolved.`,
+      status: input.event === "created" ? "DOWN" : "RESOLVED",
+      serviceName: input.service.name,
+      timestamp: new Date().toISOString(),
     });
-
-    if (!response.ok) {
-      throw new Error(`Email provider failed with HTTP ${response.status}`);
-    }
   },
 };
 
-const providers: NotificationProvider[] = [discordProvider, emailProvider];
+const providers: NotificationProvider[] = [emailProvider];
 
 export async function notifyIncidentEvent(input: IncidentNotificationInput) {
   const logger = input.logger ?? console;
@@ -177,24 +257,90 @@ export async function notifyIncidentEvent(input: IncidentNotificationInput) {
     return;
   }
 
+  const discordMessage = buildDiscordMessage(input);
+  const discordBotToken = input.workspace.discordBotToken?.trim();
+  const discordBotChannelId = input.workspace.discordBotChannelId?.trim();
+  const discordWebhookUrl = input.workspace.discordWebhookUrl?.trim();
+
+  let botAttempted = false;
+  let botSent = false;
+  if (discordBotToken && discordBotChannelId) {
+    botAttempted = true;
+    try {
+      await sendDiscordBotMessage({
+        botToken: discordBotToken,
+        channelId: discordBotChannelId,
+        content: discordMessage,
+      });
+      botSent = true;
+      logger.info("[notifications] discord bot message sent", {
+        event: input.event,
+        incidentId: input.incident.id,
+      });
+    } catch (error) {
+      logger.error("[notifications] discord bot message failed", {
+        event: input.event,
+        incidentId: input.incident.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (discordWebhookUrl && !botSent) {
+    try {
+      await sendDiscordWebhookMessage({
+        webhookUrl: discordWebhookUrl,
+        content: discordMessage,
+      });
+      logger.info("[notifications] discord webhook sent", {
+        event: input.event,
+        incidentId: input.incident.id,
+        fallbackUsed: botAttempted,
+      });
+      if (botAttempted) {
+        logger.info("[notifications] fallback used", {
+          provider: "discord_webhook",
+          event: input.event,
+          incidentId: input.incident.id,
+        });
+      }
+    } catch (error) {
+      logger.error("[notifications] discord webhook failed", {
+        event: input.event,
+        incidentId: input.incident.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   for (const provider of providers) {
     if (!provider.canSend(input)) {
       continue;
     }
     try {
       await provider.sendIncidentEvent(input);
-      logger.info("[monitor-notify] sent incident notification", {
+          logger.info(
+            provider.name === "email"
+              ? "[notifications] email sent"
+              : "[monitor-notify] sent incident notification",
+            {
         provider: provider.name,
         event: input.event,
         incidentId: input.incident.id,
-      });
+            },
+          );
     } catch (error) {
-      logger.error("[monitor-notify] notification failed", {
-        provider: provider.name,
-        event: input.event,
-        incidentId: input.incident.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
+          logger.error(
+            provider.name === "email"
+              ? "[notifications] email failed"
+              : "[monitor-notify] notification failed",
+            {
+              provider: provider.name,
+              event: input.event,
+              incidentId: input.incident.id,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
     }
   }
 }
