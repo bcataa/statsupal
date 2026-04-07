@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toSlug } from "@/lib/utils/slug";
 import { useAppData } from "@/state/app-data-provider";
@@ -70,6 +70,12 @@ export default function SettingsPage() {
   const [discordBotChannelId, setDiscordBotChannelId] = useState("");
   const [discordBotConfigured, setDiscordBotConfigured] = useState(false);
   const [discordInviteUrl, setDiscordInviteUrl] = useState<string | null>(null);
+  const [discordOauthAuthorizeUrl, setDiscordOauthAuthorizeUrl] = useState<string | null>(null);
+  const [discordGuildId, setDiscordGuildId] = useState("");
+  const [discordChannels, setDiscordChannels] = useState<{ id: string; name: string }[]>([]);
+  const [channelsLoading, setChannelsLoading] = useState(false);
+  const [channelListError, setChannelListError] = useState<string | null>(null);
+  const [discordDisconnecting, setDiscordDisconnecting] = useState(false);
   const [usesManagedBotToken, setUsesManagedBotToken] = useState(false);
   const [botConfigLoading, setBotConfigLoading] = useState(true);
   const [accountLoading, setAccountLoading] = useState(true);
@@ -102,35 +108,126 @@ export default function SettingsPage() {
     setMaintenanceEmailAlerts(workspace.notificationSettings.maintenanceEmailAlertsEnabled);
   }, [workspace.notificationSettings]);
 
+  const loadDiscordBotConfig = useCallback(async () => {
+    try {
+      setBotConfigLoading(true);
+      const response = await fetch("/api/notifications/config", { method: "GET" });
+      const body = await response.json();
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Could not load Discord bot configuration.");
+      }
+      setDiscordBotConfigured(Boolean(body.discordBotConfigured));
+      setDiscordBotChannelId(body.discordBotChannelId ?? "");
+      setDiscordInviteUrl(body.inviteUrl ?? null);
+      setDiscordOauthAuthorizeUrl(body.discordOauthAuthorizeUrl ?? null);
+      setDiscordGuildId(typeof body.discordGuildId === "string" ? body.discordGuildId : "");
+      setUsesManagedBotToken(Boolean(body.usesManagedBotToken));
+    } catch (error) {
+      console.error("[Settings] discord bot config load failed", error);
+      setNotificationSaveState({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not load Discord bot configuration.",
+      });
+    } finally {
+      setBotConfigLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const loadDiscordBotConfig = async () => {
+    void loadDiscordBotConfig();
+  }, [loadDiscordBotConfig]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const discord = params.get("discord");
+    if (!discord) {
+      return;
+    }
+    const messages: Record<string, string> = {
+      connected: "Discord server connected. Pick a channel below, then save.",
+      denied: "Discord authorization was cancelled.",
+      bad_state: "Discord sign-in expired. Try Invite again.",
+      no_guild: "No server was selected. Choose a server when Discord asks.",
+      session: "Your session changed during Discord sign-in. Sign in and try again.",
+      no_bot_token: "Server is missing DISCORD_BOT_TOKEN. Contact support.",
+      token_exchange: "Could not finish Discord sign-in. Check redirect URL and client secret.",
+      save_failed: "Could not save the Discord server link.",
+      schema: "Database needs an update (discord_guild_id). Apply latest schema.sql.",
+      oauth_not_configured: "Discord OAuth is not configured on the server.",
+      missing_params: "Discord sign-in was incomplete. Try again.",
+      discord_error: "Discord returned an error. Try again later.",
+    };
+    const message = messages[discord] ?? "Something went wrong connecting Discord.";
+    setNotificationSaveState({
+      tone: discord === "connected" ? "success" : "error",
+      message,
+    });
+    if (discord === "connected") {
+      void loadDiscordBotConfig();
+    }
+    const path = window.location.pathname;
+    window.history.replaceState({}, "", path);
+  }, [loadDiscordBotConfig]);
+
+  useEffect(() => {
+    if (!discordGuildId.trim()) {
+      setDiscordChannels([]);
+      setChannelListError(null);
+      return;
+    }
+    let cancelled = false;
+    const loadChannels = async () => {
+      setChannelsLoading(true);
+      setChannelListError(null);
       try {
-        setBotConfigLoading(true);
-        const response = await fetch("/api/notifications/config", { method: "GET" });
+        const response = await fetch("/api/discord/channels");
         const body = await response.json();
-        if (!response.ok || !body?.success) {
-          throw new Error(body?.message || "Could not load Discord bot configuration.");
+        if (cancelled) {
+          return;
         }
-        setDiscordBotConfigured(Boolean(body.discordBotConfigured));
-        setDiscordBotChannelId(body.discordBotChannelId ?? "");
-        setDiscordInviteUrl(body.inviteUrl ?? null);
-        setUsesManagedBotToken(Boolean(body.usesManagedBotToken));
+        if (!response.ok || !body?.success) {
+          throw new Error(body?.message || "Could not load channels.");
+        }
+        setDiscordChannels(Array.isArray(body.channels) ? body.channels : []);
       } catch (error) {
-        console.error("[Settings] discord bot config load failed", error);
-        setNotificationSaveState({
-          tone: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Could not load Discord bot configuration.",
-        });
+        if (!cancelled) {
+          setDiscordChannels([]);
+          setChannelListError(
+            error instanceof Error ? error.message : "Could not load channels.",
+          );
+        }
       } finally {
-        setBotConfigLoading(false);
+        if (!cancelled) {
+          setChannelsLoading(false);
+        }
       }
     };
+    void loadChannels();
+    return () => {
+      cancelled = true;
+    };
+  }, [discordGuildId]);
 
-    void loadDiscordBotConfig();
-  }, []);
+  const discordChannelOptions = useMemo(() => {
+    const list = [...discordChannels];
+    if (
+      discordBotChannelId &&
+      !list.some((channel) => channel.id === discordBotChannelId)
+    ) {
+      list.unshift({ id: discordBotChannelId, name: "Current channel" });
+    }
+    return list;
+  }, [discordBotChannelId, discordChannels]);
+
+  const legacyDiscordChannelField =
+    !discordGuildId.trim() && !discordOauthAuthorizeUrl && Boolean(discordInviteUrl);
+  const showOauthChannelSelect = Boolean(discordGuildId.trim());
 
   useEffect(() => {
     if (notificationSaveState?.tone !== "success") {
@@ -240,6 +337,11 @@ export default function SettingsPage() {
       }
       setDiscordBotConfigured(Boolean(botConfigBody.discordBotConfigured));
       setDiscordBotChannelId(botConfigBody.discordBotChannelId ?? "");
+      if (typeof botConfigBody.discordGuildId === "string") {
+        setDiscordGuildId(botConfigBody.discordGuildId);
+      } else if (!botConfigBody.discordBotConfigured && !botConfigBody.discordGuildId) {
+        setDiscordGuildId("");
+      }
       setOnboardingState({ alertsConfigured: incidentAlerts });
       setNotificationSaveState({
         tone: "success",
@@ -256,6 +358,42 @@ export default function SettingsPage() {
       });
     } finally {
       setNotificationSaving(false);
+    }
+  };
+
+  const onDisconnectDiscord = async () => {
+    setNotificationSaveState(null);
+    setNotificationTestState(null);
+    try {
+      setDiscordDisconnecting(true);
+      const response = await fetch("/api/notifications/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clearDiscord: true }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body?.success) {
+        throw new Error(body?.message || "Could not disconnect Discord.");
+      }
+      setDiscordBotConfigured(false);
+      setDiscordBotChannelId("");
+      setDiscordGuildId("");
+      setDiscordChannels([]);
+      setChannelListError(null);
+      setNotificationSaveState({
+        tone: "success",
+        message: "Discord disconnected.",
+      });
+    } catch (error) {
+      setNotificationSaveState({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not disconnect Discord.",
+      });
+    } finally {
+      setDiscordDisconnecting(false);
     }
   };
 
@@ -535,36 +673,94 @@ export default function SettingsPage() {
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3">
               <p className="text-sm font-medium text-zinc-900">Statsupal Discord Bot</p>
               <p className="mt-1 text-xs text-zinc-600">
-                Add the bot to your server once, then choose a channel ID below.
+                Invite opens Discord so you can pick a server. Then choose the announcement channel
+                here—no Developer Mode.
               </p>
-              {discordInviteUrl ? (
-                <a
-                  href={discordInviteUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
-                >
-                  Add Statsupal Bot to server
-                </a>
-              ) : (
-                <p className="mt-3 text-xs text-zinc-500">
-                  Configure `DISCORD_CLIENT_ID` to enable one-click bot invite.
-                </p>
-              )}
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {discordOauthAuthorizeUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.href = discordOauthAuthorizeUrl;
+                    }}
+                    className="inline-flex min-h-9 items-center justify-center rounded-full bg-[#eb459e] px-5 text-sm font-bold text-zinc-950 shadow-sm transition hover:brightness-95"
+                  >
+                    Invite
+                  </button>
+                ) : null}
+                {discordInviteUrl && !discordOauthAuthorizeUrl ? (
+                  <a
+                    href={discordInviteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-9 items-center justify-center rounded-full bg-[#eb459e] px-5 text-sm font-bold text-zinc-950 shadow-sm transition hover:brightness-95"
+                  >
+                    Invite
+                  </a>
+                ) : null}
+                {!discordOauthAuthorizeUrl && !discordInviteUrl ? (
+                  <p className="text-xs text-zinc-500">
+                    Set DISCORD_CLIENT_ID (and OAuth env vars for the full flow) on the server.
+                  </p>
+                ) : null}
+                {discordGuildId.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => void onDisconnectDiscord()}
+                    disabled={discordDisconnecting || notificationSaving || botConfigLoading}
+                    className="text-xs font-medium text-zinc-600 underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    {discordDisconnecting ? "Disconnecting…" : "Disconnect"}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">
-                Discord Channel ID
+                Discord channel
               </label>
-              <input
-                value={discordBotChannelId}
-                onChange={(event) => setDiscordBotChannelId(event.target.value)}
-                className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
-                placeholder="123456789012345678"
-              />
-              <p className="mt-1 text-xs text-zinc-500">
-                Right click channel → Copy Channel ID (enable Developer Mode in Discord).
-              </p>
+              {showOauthChannelSelect ? (
+                <>
+                  <select
+                    value={discordBotChannelId}
+                    onChange={(event) => setDiscordBotChannelId(event.target.value)}
+                    disabled={channelsLoading || botConfigLoading}
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2 disabled:opacity-60"
+                  >
+                    <option value="">Select a channel</option>
+                    {discordChannelOptions.map((channel) => (
+                      <option key={channel.id} value={channel.id}>
+                        {channel.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {channelsLoading
+                      ? "Loading channels from your server…"
+                      : "Only channels the bot can see are listed."}
+                  </p>
+                  {channelListError ? (
+                    <p className="mt-1 text-xs text-rose-600">{channelListError}</p>
+                  ) : null}
+                </>
+              ) : legacyDiscordChannelField ? (
+                <>
+                  <input
+                    value={discordBotChannelId}
+                    onChange={(event) => setDiscordBotChannelId(event.target.value)}
+                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
+                    placeholder="Channel ID (legacy)"
+                  />
+                  <p className="mt-1 text-xs text-zinc-500">
+                    OAuth is not configured on the server—paste a channel ID or add
+                    DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI, and DISCORD_OAUTH_STATE_SECRET.
+                  </p>
+                </>
+              ) : (
+                <p className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">
+                  Use Invite first. After you authorize in Discord, the channel list appears here.
+                </p>
+              )}
             </div>
           </div>
           <p className="text-xs text-zinc-500">

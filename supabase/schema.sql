@@ -128,6 +128,7 @@ create table if not exists public.workspace_notification_secrets (
   user_id uuid not null references auth.users(id) on delete cascade,
   discord_bot_token text,
   discord_bot_channel_id text,
+  discord_guild_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -152,6 +153,7 @@ alter table public.workspaces add column if not exists custom_domain_status text
 alter table public.workspace_notification_secrets add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.workspace_notification_secrets add column if not exists discord_bot_token text;
 alter table public.workspace_notification_secrets add column if not exists discord_bot_channel_id text;
+alter table public.workspace_notification_secrets add column if not exists discord_guild_id text;
 alter table public.services add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.services add column if not exists is_published boolean not null default true;
 alter table public.services add column if not exists timeout_ms integer not null default 10000;
