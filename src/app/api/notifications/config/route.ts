@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DISCORD_BOT_INVITE_PERMISSIONS, getDiscordOAuthConfig } from "@/lib/discord/env";
+import { buildDiscordBotInviteUrl, getDiscordOAuthConfig } from "@/lib/discord/env";
 import { ensureWorkspace } from "@/lib/supabase/app-data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -89,11 +89,7 @@ export async function GET() {
     const configured = tokenExists && channelId.length > 0;
     const discordClientId = process.env.DISCORD_CLIENT_ID?.trim();
     const oauthReady = Boolean(getDiscordOAuthConfig());
-    const inviteUrl = discordClientId
-      ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
-          discordClientId,
-        )}&scope=bot&permissions=${DISCORD_BOT_INVITE_PERMISSIONS}`
-      : null;
+    const inviteUrl = discordClientId ? buildDiscordBotInviteUrl(discordClientId) : null;
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { DISCORD_BOT_INVITE_PERMISSIONS, getDiscordOAuthConfig } from "@/lib/discord/env";
+import {
+  DISCORD_BOT_INVITE_PERMISSIONS,
+  DISCORD_BOT_INVITE_SCOPE,
+  getDiscordOAuthConfig,
+} from "@/lib/discord/env";
 import { signDiscordOAuthState } from "@/lib/discord/oauth-state";
 import { ensureWorkspace } from "@/lib/supabase/app-data";
 import { createClient } from "@/lib/supabase/server";
@@ -47,7 +51,7 @@ export async function GET() {
       client_id: oauth.clientId,
       response_type: "code",
       redirect_uri: oauth.redirectUri,
-      scope: "bot",
+      scope: DISCORD_BOT_INVITE_SCOPE,
       permissions: DISCORD_BOT_INVITE_PERMISSIONS,
       state,
     });

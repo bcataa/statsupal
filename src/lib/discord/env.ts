@@ -1,5 +1,16 @@
-/** Permissions: View Channel + Send Messages */
-export const DISCORD_BOT_INVITE_PERMISSIONS = "3072";
+/** Send Messages — add View Channel (1024) if the bot cannot see channels. */
+export const DISCORD_BOT_INVITE_PERMISSIONS = "2048";
+
+export const DISCORD_BOT_INVITE_SCOPE = "bot applications.commands";
+
+export function buildDiscordBotInviteUrl(clientId: string): string {
+  const params = new URLSearchParams({
+    client_id: clientId,
+    scope: DISCORD_BOT_INVITE_SCOPE,
+    permissions: DISCORD_BOT_INVITE_PERMISSIONS,
+  });
+  return `https://discord.com/oauth2/authorize?${params.toString()}`;
+}
 
 export function getDiscordOAuthConfig(): {
   clientId: string;
