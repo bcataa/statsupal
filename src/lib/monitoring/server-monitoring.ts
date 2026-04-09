@@ -1,8 +1,38 @@
+import { logMonitoring } from "@/lib/logging/server-log";
+import { fireOptionalMonitorWebhook, updateMonitorHeartbeatRow } from "@/lib/monitoring/monitor-heartbeat";
 import { runHttpCheck } from "@/lib/monitoring/monitor";
 import { notifyIncidentEvent } from "@/lib/monitoring/notifications";
+import {
+  recordMonitorCycleEndInMemory,
+  recordMonitorCycleStartInMemory,
+} from "@/lib/monitoring/monitor-runtime-memory";
 import type { Incident, Service } from "@/lib/models/monitoring";
 
 type Logger = Pick<Console, "info" | "warn" | "error">;
+
+const defaultCycleLogger: Logger = {
+  info: (msg, ...args) => {
+    const p = args[0];
+    logMonitoring.info(
+      String(msg),
+      p && typeof p === "object" ? (p as Record<string, unknown>) : undefined,
+    );
+  },
+  warn: (msg, ...args) => {
+    const p = args[0];
+    logMonitoring.warn(
+      String(msg),
+      p && typeof p === "object" ? (p as Record<string, unknown>) : undefined,
+    );
+  },
+  error: (msg, ...args) => {
+    const p = args[0];
+    logMonitoring.error(
+      String(msg),
+      p && typeof p === "object" ? (p as Record<string, unknown>) : undefined,
+    );
+  },
+};
 
 type SupabaseAdminClient = {
   from: (table: string) => {
@@ -140,12 +170,63 @@ function isMaintenanceActiveForService(
 
 export async function runServerMonitoringCycle({
   supabase,
-  logger = console,
+  logger = defaultCycleLogger,
 }: {
   supabase: unknown;
   logger?: Logger;
 }) {
+  const cycleStartedAt = new Date().toISOString();
+  recordMonitorCycleStartInMemory(cycleStartedAt);
+  await updateMonitorHeartbeatRow({
+    last_cycle_started_at: cycleStartedAt,
+    last_error: null,
+  });
+
+  const completeCycle = async (input: {
+    servicesChecked: number;
+    lastError: string | null;
+    fireWebhook: boolean;
+    logLevel: "info" | "error";
+    logMessage: string;
+    logPayload?: Record<string, unknown>;
+  }) => {
+    const completedAt = new Date().toISOString();
+    recordMonitorCycleEndInMemory(
+      input.servicesChecked,
+      input.lastError ?? undefined,
+    );
+    await updateMonitorHeartbeatRow({
+      last_cycle_started_at: cycleStartedAt,
+      last_cycle_completed_at: completedAt,
+      services_checked: input.servicesChecked,
+      last_error: input.lastError,
+    });
+    if (input.logLevel === "error") {
+      logMonitoring.error(input.logMessage, input.logPayload);
+    } else {
+      logMonitoring.info(input.logMessage, input.logPayload);
+    }
+    if (input.fireWebhook && !input.lastError) {
+      fireOptionalMonitorWebhook();
+    }
+  };
+
+  async function safeNotifyIncidentEvent(
+    args: Parameters<typeof notifyIncidentEvent>[0],
+  ): Promise<void> {
+    try {
+      await notifyIncidentEvent(args);
+    } catch (error) {
+      logMonitoring.error("notification delivery failed; monitoring continues", {
+        incidentId: args.incident.id,
+        event: args.event,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const db = supabase as SupabaseAdminClient;
+  logMonitoring.info("monitoring cycle started");
   let servicesResult = await db
     .from("services")
     .select(
@@ -161,15 +242,29 @@ export async function runServerMonitoringCycle({
   }
 
   if (servicesResult.error) {
-    logger.error("[monitor-worker] failed to load services", {
+    logger.error("failed to load services", {
       error: getErrorMessage(servicesResult.error),
+    });
+    await completeCycle({
+      servicesChecked: 0,
+      lastError: `services query: ${getErrorMessage(servicesResult.error)}`,
+      fireWebhook: false,
+      logLevel: "error",
+      logMessage: "monitoring cycle aborted: services query failed",
     });
     return;
   }
 
   const services = (servicesResult.data ?? []) as ServiceRow[];
   if (services.length === 0) {
-    logger.info("[monitor-worker] no services found");
+    logger.info("no services to check");
+    await completeCycle({
+      servicesChecked: 0,
+      lastError: null,
+      fireWebhook: true,
+      logLevel: "info",
+      logMessage: "monitoring cycle finished (no services)",
+    });
     return;
   }
 
@@ -180,8 +275,15 @@ export async function runServerMonitoringCycle({
     .order("updated_at", { ascending: false });
 
   if (incidentsResult.error) {
-    logger.error("[monitor-worker] failed to load active incidents", {
+    logger.error("failed to load active incidents", {
       error: getErrorMessage(incidentsResult.error),
+    });
+    await completeCycle({
+      servicesChecked: services.length,
+      lastError: `incidents query: ${getErrorMessage(incidentsResult.error)}`,
+      fireWebhook: false,
+      logLevel: "error",
+      logMessage: "monitoring cycle aborted: incidents query failed",
     });
     return;
   }
@@ -223,7 +325,7 @@ export async function runServerMonitoringCycle({
 
   const workspaceById = new Map<string, WorkspaceNotificationRow>();
   if (workspaceNotificationResult.error) {
-    logger.warn("[monitor-worker] failed to load workspace notification settings", {
+    logger.warn("failed to load workspace notification settings", {
       error: getErrorMessage(workspaceNotificationResult.error),
     });
   } else {
@@ -234,7 +336,7 @@ export async function runServerMonitoringCycle({
 
   const subscribersByWorkspace = new Map<string, SubscriberRow[]>();
   if (subscribersResult.error && !hasErrorCode(subscribersResult.error, "42P01")) {
-    logger.warn("[monitor-worker] failed to load alert subscribers", {
+    logger.warn("failed to load alert subscribers", {
       error: getErrorMessage(subscribersResult.error),
     });
   } else if (!subscribersResult.error) {
@@ -250,7 +352,7 @@ export async function runServerMonitoringCycle({
 
   const workspaceSecretsByWorkspace = new Map<string, WorkspaceNotificationSecretRow>();
   if (workspaceSecretResult.error && !hasErrorCode(workspaceSecretResult.error, "42P01")) {
-    logger.warn("[monitor-worker] failed to load workspace notification secrets", {
+    logger.warn("failed to load workspace notification secrets", {
       error: getErrorMessage(workspaceSecretResult.error),
     });
   } else if (!workspaceSecretResult.error) {
@@ -263,7 +365,7 @@ export async function runServerMonitoringCycle({
     ? ([] as MaintenanceRow[])
     : ((maintenanceResult.data ?? []) as MaintenanceRow[]);
   if (maintenanceResult.error && !hasErrorCode(maintenanceResult.error, "42P01")) {
-    logger.warn("[monitor-worker] failed to load maintenance windows", {
+    logger.warn("failed to load maintenance windows", {
       error: getErrorMessage(maintenanceResult.error),
     });
   }
@@ -284,7 +386,7 @@ export async function runServerMonitoringCycle({
         .eq("id", maintenance.id)
         .eq("id", maintenance.id);
       if (statusUpdate.error) {
-        logger.warn("[monitor-worker] failed updating maintenance status", {
+        logger.warn("failed updating maintenance status", {
           maintenanceId: maintenance.id,
           error: getErrorMessage(statusUpdate.error),
         });
@@ -301,7 +403,7 @@ export async function runServerMonitoringCycle({
     const previousStatus = service.status;
     const previousFailureCount = service.consecutive_failures ?? 0;
     const nextFailureCount = result.status === "down" ? previousFailureCount + 1 : 0;
-    logger.info("[monitor-worker] raw-result", {
+    logger.info("service check result", {
       serviceId: service.id,
       url: service.url,
       previousStatus,
@@ -328,13 +430,13 @@ export async function runServerMonitoringCycle({
       .eq("user_id", service.user_id);
 
     if (updateResult.error) {
-      logger.error("[monitor-worker] failed updating service status", {
+      logger.error("failed updating service status", {
         serviceId: service.id,
         error: getErrorMessage(updateResult.error),
       });
       return;
     }
-    logger.info("[monitor-worker] service status persisted", {
+    logger.info("service status persisted", {
       serviceId: service.id,
       status: result.status,
       responseTimeMs: result.responseTimeMs,
@@ -353,7 +455,7 @@ export async function runServerMonitoringCycle({
     });
 
     if (historyInsert.error) {
-      logger.warn("[monitor-worker] failed writing service history row", {
+      logger.warn("failed writing service history row", {
         serviceId: service.id,
         error: getErrorMessage(historyInsert.error),
       });
@@ -370,19 +472,19 @@ export async function runServerMonitoringCycle({
     const workspaceSubscribers = subscribersByWorkspace.get(service.workspace_id) ?? [];
 
     if (result.status === "down" && nextFailureCount === 1) {
-      logger.info("[monitor-worker] first failure recorded", {
+      logger.info("first failure recorded", {
         serviceId: service.id,
       });
     }
     if (result.status === "down" && nextFailureCount > 1) {
-      logger.info("[monitor-worker] repeated failure count", {
+      logger.info("repeated failure count", {
         serviceId: service.id,
         consecutiveFailures: nextFailureCount,
       });
     }
 
     if (result.status === "down" && activeMaintenance) {
-      logger.info("[monitor-worker] incident suppressed during maintenance", {
+      logger.info("incident suppressed during maintenance", {
         serviceId: service.id,
         maintenanceId: activeMaintenance.id,
         maintenanceTitle: activeMaintenance.title,
@@ -409,12 +511,12 @@ export async function runServerMonitoringCycle({
       });
 
       if (incidentInsert.error && !isDuplicateError(incidentInsert.error)) {
-        logger.error("[monitor-worker] failed creating incident", {
+        logger.error("failed creating incident", {
           serviceId: service.id,
           error: getErrorMessage(incidentInsert.error),
         });
       } else {
-        logger.info("[monitor-worker] incident created", { serviceId: service.id });
+        logger.info("incident created", { serviceId: service.id });
         await db.from("incident_events").insert({
           id: createIncidentEventId(incidentId),
           user_id: service.user_id,
@@ -426,7 +528,7 @@ export async function runServerMonitoringCycle({
           created_at: now,
         });
         if (workspaceSettings) {
-          await notifyIncidentEvent({
+          await safeNotifyIncidentEvent({
             event: "created",
             service: {
               id: service.id,
@@ -462,7 +564,7 @@ export async function runServerMonitoringCycle({
     }
 
     if (result.status !== "down" && previousFailureCount > 0 && !activeIncident) {
-      logger.info("[monitor-worker] transient failure recovered before incident threshold", {
+      logger.info("transient failure recovered before incident threshold", {
         serviceId: service.id,
         previousFailureCount,
       });
@@ -485,12 +587,12 @@ export async function runServerMonitoringCycle({
         .eq("user_id", service.user_id);
 
       if (resolveResult.error) {
-        logger.error("[monitor-worker] failed resolving incident", {
+        logger.error("failed resolving incident", {
           incidentId: activeIncident.id,
           error: getErrorMessage(resolveResult.error),
         });
       } else {
-        logger.info("[monitor-worker] incident resolved", {
+        logger.info("incident resolved", {
           incidentId: activeIncident.id,
           serviceId: service.id,
         });
@@ -505,7 +607,7 @@ export async function runServerMonitoringCycle({
           created_at: now,
         });
         if (workspaceSettings) {
-          await notifyIncidentEvent({
+          await safeNotifyIncidentEvent({
             event: "resolved",
             service: {
               id: service.id,
@@ -541,4 +643,12 @@ export async function runServerMonitoringCycle({
   });
 
   await Promise.allSettled(checkTasks);
+  await completeCycle({
+    servicesChecked: services.length,
+    lastError: null,
+    fireWebhook: true,
+    logLevel: "info",
+    logMessage: "monitoring cycle finished",
+    logPayload: { servicesChecked: services.length },
+  });
 }

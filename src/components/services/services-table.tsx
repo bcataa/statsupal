@@ -158,7 +158,12 @@ export function ServicesTable({ services }: ServicesTableProps) {
               <th className="px-4 py-3 font-medium">Failures</th>
               <th className="px-4 py-3 font-medium">Last Checked</th>
               <th className="px-4 py-3 font-medium">Response</th>
-              <th className="px-4 py-3 font-medium">Status Page</th>
+              <th className="px-4 py-3 font-medium">
+                <span className="block">Visibility</span>
+                <span className="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-zinc-400">
+                  Public page
+                </span>
+              </th>
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
@@ -199,8 +204,11 @@ export function ServicesTable({ services }: ServicesTableProps) {
                       }
                       className="h-4 w-4 rounded border-zinc-300 text-zinc-900"
                     />
-                    Show on status page
+                    <span className="text-zinc-800">Show on public page</span>
                   </label>
+                  <p className="mt-1 max-w-[10rem] text-[10px] leading-tight text-zinc-400">
+                    Off = monitored, hidden from visitors
+                  </p>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -268,8 +276,11 @@ export function ServicesTable({ services }: ServicesTableProps) {
                 onChange={(event) => void handleTogglePublished(service, event.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 text-zinc-900"
               />
-              Show on status page
+              Show on public page
             </label>
+            <p className="mt-1 text-[10px] text-zinc-400">
+              Uncheck to keep the service monitored but hidden from the public status page.
+            </p>
 
             <div className="mt-3 flex items-center gap-2">
               <button

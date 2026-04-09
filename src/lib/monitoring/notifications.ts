@@ -1,4 +1,5 @@
 import type { Incident } from "@/lib/models/monitoring";
+import { logNotifications } from "@/lib/logging/server-log";
 import { Resend } from "resend";
 
 type Logger = Pick<Console, "info" | "warn" | "error">;
@@ -112,11 +113,27 @@ export async function sendIncidentEmail({
     </div>
   `;
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from: fromEmail,
     to: recipients,
     subject,
     html,
+  });
+  const err =
+    result &&
+    typeof result === "object" &&
+    "error" in result &&
+    (result as { error?: { message?: string; statusCode?: number } }).error;
+  if (err) {
+    const msg = typeof err.message === "string" ? err.message : "Resend send failed";
+    logNotifications.error("email send rejected by provider", {
+      message: msg,
+      statusCode: err.statusCode,
+    });
+    throw new Error(msg);
+  }
+  logNotifications.info("email sent via Resend", {
+    recipientCount: recipients.length,
   });
 }
 
@@ -168,7 +185,10 @@ export async function sendDiscordBotMessage({
   );
 
   if (!response.ok) {
-    throw new Error(`Discord bot message failed with HTTP ${response.status}`);
+    const snippet = (await response.text().catch(() => "")).slice(0, 160);
+    throw new Error(
+      `Discord bot message failed with HTTP ${response.status}${snippet ? `: ${snippet}` : ""}`,
+    );
   }
 }
 
@@ -190,7 +210,10 @@ export async function sendDiscordWebhookMessage({
   });
 
   if (!response.ok) {
-    throw new Error(`Discord webhook failed with HTTP ${response.status}`);
+    const snippet = (await response.text().catch(() => "")).slice(0, 160);
+    throw new Error(
+      `Discord webhook failed with HTTP ${response.status}${snippet ? `: ${snippet}` : ""}`,
+    );
   }
 }
 
@@ -247,10 +270,33 @@ const emailProvider: NotificationProvider = {
 
 const providers: NotificationProvider[] = [emailProvider];
 
+function resolveNotifyLogger(input: IncidentNotificationInput): Pick<Console, "info" | "warn" | "error"> {
+  if (input.logger) {
+    return input.logger;
+  }
+  return {
+    info: (msg?: unknown, ...args: unknown[]) => {
+      const payload =
+        args[0] && typeof args[0] === "object" ? (args[0] as Record<string, unknown>) : undefined;
+      logNotifications.info(String(msg ?? ""), payload);
+    },
+    warn: (msg?: unknown, ...args: unknown[]) => {
+      const payload =
+        args[0] && typeof args[0] === "object" ? (args[0] as Record<string, unknown>) : undefined;
+      logNotifications.warn(String(msg ?? ""), payload);
+    },
+    error: (msg?: unknown, ...args: unknown[]) => {
+      const payload =
+        args[0] && typeof args[0] === "object" ? (args[0] as Record<string, unknown>) : undefined;
+      logNotifications.error(String(msg ?? ""), payload);
+    },
+  };
+}
+
 export async function notifyIncidentEvent(input: IncidentNotificationInput) {
-  const logger = input.logger ?? console;
+  const logger = resolveNotifyLogger(input);
   if (!input.workspace.incidentAlertsEnabled) {
-    logger.info("[monitor-notify] incident alerts disabled", {
+    logNotifications.info("incident alerts disabled for workspace", {
       event: input.event,
       incidentId: input.incident.id,
     });
@@ -266,7 +312,7 @@ export async function notifyIncidentEvent(input: IncidentNotificationInput) {
   let botAttempted = false;
   let botSent = false;
   if (discordBotChannelId && !discordBotToken) {
-    logger.info("[notifications] discord bot token missing, fallback will be used if configured", {
+    logger.info("discord bot token missing; webhook fallback may be used", {
       event: input.event,
       incidentId: input.incident.id,
     });
@@ -280,12 +326,12 @@ export async function notifyIncidentEvent(input: IncidentNotificationInput) {
         content: discordMessage,
       });
       botSent = true;
-      logger.info("[notifications] discord bot message sent", {
+      logger.info("discord bot message sent", {
         event: input.event,
         incidentId: input.incident.id,
       });
     } catch (error) {
-      logger.error("[notifications] discord bot message failed", {
+      logger.error("discord bot message failed", {
         event: input.event,
         incidentId: input.incident.id,
         error: error instanceof Error ? error.message : String(error),
@@ -299,20 +345,19 @@ export async function notifyIncidentEvent(input: IncidentNotificationInput) {
         webhookUrl: discordWebhookUrl,
         content: discordMessage,
       });
-      logger.info("[notifications] discord webhook sent", {
+      logger.info("discord webhook message sent", {
         event: input.event,
         incidentId: input.incident.id,
         fallbackUsed: botAttempted,
       });
       if (botAttempted) {
-        logger.info("[notifications] fallback used", {
-          provider: "discord_webhook",
+        logger.info("discord webhook used as fallback after bot failure", {
           event: input.event,
           incidentId: input.incident.id,
         });
       }
     } catch (error) {
-      logger.error("[notifications] discord webhook failed", {
+      logger.error("discord webhook message failed", {
         event: input.event,
         incidentId: input.incident.id,
         error: error instanceof Error ? error.message : String(error),
@@ -326,28 +371,20 @@ export async function notifyIncidentEvent(input: IncidentNotificationInput) {
     }
     try {
       await provider.sendIncidentEvent(input);
-          logger.info(
-            provider.name === "email"
-              ? "[notifications] email sent"
-              : "[monitor-notify] sent incident notification",
-            {
+      if (provider.name !== "email") {
+        logNotifications.info("notification provider completed", {
+          provider: provider.name,
+          event: input.event,
+          incidentId: input.incident.id,
+        });
+      }
+    } catch (error) {
+      logNotifications.error("notification provider failed", {
         provider: provider.name,
         event: input.event,
         incidentId: input.incident.id,
-            },
-          );
-    } catch (error) {
-          logger.error(
-            provider.name === "email"
-              ? "[notifications] email failed"
-              : "[monitor-notify] notification failed",
-            {
-              provider: provider.name,
-              event: input.event,
-              incidentId: input.incident.id,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

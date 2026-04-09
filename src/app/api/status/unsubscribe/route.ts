@@ -1,3 +1,5 @@
+import { logApi } from "@/lib/logging/server-log";
+import { publicRateLimitExceeded } from "@/lib/rate-limit/public-rate-limit-response";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -8,6 +10,10 @@ type UnsubscribeBody = {
 };
 
 export async function POST(request: Request) {
+  const limited = publicRateLimitExceeded(request, "status:unsubscribe");
+  if (limited) {
+    return limited;
+  }
   try {
     const body = (await request.json()) as UnsubscribeBody;
     const token = body.token?.trim();
@@ -30,6 +36,9 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true });
   } catch (error) {
+    logApi.error("status unsubscribe failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return Response.json(
       {
         success: false,

@@ -1,4 +1,6 @@
 import { runServerMonitoringCycle } from "@/lib/monitoring/server-monitoring";
+import { logApi } from "@/lib/logging/server-log";
+import { publicRateLimitExceeded } from "@/lib/rate-limit/public-rate-limit-response";
 import { createAdminClient, getMonitoringEnv } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -6,6 +8,10 @@ export const dynamic = "force-dynamic";
 
 // Manual debug endpoint only. Production scheduling is handled by monitor-loop.ts.
 export async function GET(request: Request) {
+  const limited = publicRateLimitExceeded(request, "monitor:get");
+  if (limited) {
+    return limited;
+  }
   try {
     const source =
       request.headers.get("x-monitor-source") ||
@@ -13,7 +19,7 @@ export async function GET(request: Request) {
     // Validate all required monitoring env vars before starting checks.
     getMonitoringEnv();
     const supabase = createAdminClient();
-    console.log("[api/monitor] monitoring cycle started", { source });
+    logApi.info("monitor route invoked", { source });
     await runServerMonitoringCycle({ supabase });
     return Response.json({
       success: true,
@@ -22,9 +28,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown monitoring error";
-    console.error("[api/monitor] run failed", {
+    logApi.error("monitor route failed", {
       message,
-      error,
+      error: error instanceof Error ? error.message : String(error),
     });
     return Response.json(
       {

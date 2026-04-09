@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "monitor:worker": "tsx src/worker/monitoring-worker.ts"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

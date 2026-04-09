@@ -77,7 +77,7 @@ export default function OnboardingStatusPage() {
                 value={pageName}
                 onChange={(event) => setPageName(event.target.value)}
                 className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm outline-none focus:border-violet-400"
-                placeholder="Slebb"
+                placeholder="Acme Corp"
               />
             </div>
 
@@ -92,7 +92,7 @@ export default function OnboardingStatusPage() {
                   value={website}
                   onChange={(event) => setWebsite(event.target.value)}
                   className="ml-2 w-full text-sm outline-none"
-                  placeholder="slebb.com"
+                  placeholder="example.com"
                 />
               </div>
             </div>

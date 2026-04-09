@@ -37,7 +37,7 @@ export function OnboardingChecklistCard({
     },
     {
       id: "first-incident",
-      label: "Create first incident",
+      label: "Practice with an incident (optional)",
       completed: incidentsCount > 0,
     },
     {
@@ -55,7 +55,7 @@ export function OnboardingChecklistCard({
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Onboarding Checklist</h2>
           <p className="text-sm text-zinc-500">
-            Finish these steps to fully configure your monitoring workspace.
+            The most important step is adding a service so checks can run. The rest is optional polish.
           </p>
         </div>
         <p className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">

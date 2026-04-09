@@ -82,11 +82,12 @@ export default function OverviewPage() {
             Welcome
           </p>
           <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
-            Start monitoring in one step
+            Add a service to start monitoring
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-zinc-600">
-            Add your first service to begin live checks. Advanced setup like notifications,
-            custom domains, and maintenance can be configured anytime in Settings.
+            Open <strong className="font-medium text-zinc-800">Add service</strong> and paste the URL you
+            want to watch. Notifications, your public status page, and maintenance windows can be tuned
+            anytime in Settings.
           </p>
           <div className="mt-6">
             <AddServiceButton />

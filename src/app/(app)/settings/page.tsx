@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatDateTime } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 import { useAppData } from "@/state/app-data-provider";
 
@@ -93,6 +94,7 @@ export default function SettingsPage() {
   const [discordDisconnecting, setDiscordDisconnecting] = useState(false);
   const [usesManagedBotToken, setUsesManagedBotToken] = useState(false);
   const [botConfigLoading, setBotConfigLoading] = useState(true);
+  const [notificationsLastSavedAt, setNotificationsLastSavedAt] = useState<string | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [accountEmail, setAccountEmail] = useState<string>("Not available");
 
@@ -248,9 +250,12 @@ export default function SettingsPage() {
     if (notificationSaveState?.tone !== "success") {
       return;
     }
+    const long =
+      notificationSaveState.message.includes("Notification settings") ||
+      notificationSaveState.message.includes("Discord disconnected");
     const timer = setTimeout(() => {
       setNotificationSaveState(null);
-    }, 2600);
+    }, long ? 5200 : 2600);
     return () => clearTimeout(timer);
   }, [notificationSaveState]);
 
@@ -358,9 +363,11 @@ export default function SettingsPage() {
         setDiscordGuildId("");
       }
       setOnboardingState({ alertsConfigured: incidentAlerts });
+      const savedAt = new Date().toISOString();
+      setNotificationsLastSavedAt(savedAt);
       setNotificationSaveState({
         tone: "success",
-        message: "Changes saved",
+        message: "Notification settings saved successfully.",
       });
     } catch (error) {
       console.error("[Settings] notification save failed", error);
@@ -635,10 +642,19 @@ export default function SettingsPage() {
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-zinc-900">Notification preferences</h3>
-        <p className="mt-1 text-sm text-zinc-500">
-          Choose what updates your team should receive.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-lg font-semibold text-zinc-900">Notification preferences</h3>
+            <p className="mt-1 text-sm text-zinc-500">
+              Choose what updates your team should receive.
+            </p>
+          </div>
+          {notificationsLastSavedAt ? (
+            <p className="text-xs text-zinc-400">
+              Last saved {formatDateTime(notificationsLastSavedAt)}
+            </p>
+          ) : null}
+        </div>
         <form className="mt-5 space-y-4" onSubmit={onNotificationSave}>
           <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-3">
             <input
@@ -684,7 +700,17 @@ export default function SettingsPage() {
               Used if bot-based delivery is not configured or fails.
             </p>
           </div>
-          <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div
+            className={[
+              "relative rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-opacity",
+              botConfigLoading ? "pointer-events-none opacity-60" : "",
+            ].join(" ")}
+          >
+            {botConfigLoading ? (
+              <p className="absolute inset-x-5 top-5 z-10 rounded-lg bg-white/90 px-2 py-1 text-center text-xs font-medium text-zinc-600 shadow-sm">
+                Loading Discord status…
+              </p>
+            ) : null}
             <div className="flex items-start gap-3">
               <div
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5865F2] text-white shadow-sm"

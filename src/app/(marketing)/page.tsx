@@ -1,11 +1,27 @@
 import Link from "next/link";
 import { RevealSection } from "@/components/marketing/reveal-section";
 
-const stats = [
-  { label: "Incidents handled", value: "250K+" },
-  { label: "Status pages launched", value: "35K+" },
-  { label: "Monitoring checks/day", value: "25M+" },
-  { label: "Avg incident response", value: "< 5 min" },
+const highlights = [
+  {
+    title: "HTTP health checks",
+    description:
+      "Pick how often to check each URL, how long to wait, and how many failures open an incident.",
+  },
+  {
+    title: "Clear status pages",
+    description:
+      "Share a simple public page visitors understand—no jargon, just what is up and what is not.",
+  },
+  {
+    title: "Alerts that fit your stack",
+    description:
+      "Optional Discord and email so the right people hear about problems quickly.",
+  },
+  {
+    title: "Honest incident flow",
+    description:
+      "Track investigating, monitoring, and resolved states so communication stays consistent.",
+  },
 ];
 
 const pillars = [
@@ -100,6 +116,7 @@ export default function MarketingPage() {
               <Link href="/register" className="hover:text-zinc-900">Free</Link>
               <Link href="/integrations" className="hover:text-zinc-900">Integrations</Link>
               <Link href="/privacy" className="hover:text-zinc-900">Privacy</Link>
+              <Link href="/terms" className="hover:text-zinc-900">Terms</Link>
             </nav>
           </div>
 
@@ -121,7 +138,7 @@ export default function MarketingPage() {
         <section className="max-w-[540px]">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
             <span className="h-2 w-2 rounded-full bg-indigo-500" />
-            EU Region Now Available!
+            Built for clear uptime communication
             <span className="text-indigo-500">→</span>
           </div>
 
@@ -177,11 +194,11 @@ export default function MarketingPage() {
       </main>
 
       <section className="mx-auto grid w-full max-w-7xl gap-4 px-5 pb-8 sm:grid-cols-2 sm:px-8 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <RevealSection key={stat.label}>
+        {highlights.map((item) => (
+          <RevealSection key={item.title}>
             <article className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <p className="text-2xl font-semibold tracking-tight text-zinc-900">{stat.value}</p>
-              <p className="mt-1 text-sm text-zinc-600">{stat.label}</p>
+              <p className="text-base font-semibold tracking-tight text-zinc-900">{item.title}</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">{item.description}</p>
             </article>
           </RevealSection>
         ))}
@@ -237,7 +254,61 @@ export default function MarketingPage() {
         </RevealSection>
       </section>
 
-      <section className="mx-auto w-full max-w-7xl px-5 pt-6 pb-14 sm:px-8">
+      <section className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8">
+        <RevealSection>
+          <div className="mb-6">
+            <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">Plans</h2>
+            <p className="mt-2 max-w-3xl text-base leading-7 text-zinc-600">
+              Start free while you validate monitoring and your public page. Paid tiers may arrive later;
+              we will never surprise-charge existing workspaces without notice.
+            </p>
+          </div>
+        </RevealSection>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <RevealSection>
+            <article className="flex h-full flex-col rounded-2xl border border-violet-200 bg-violet-50/40 p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Current</p>
+              <h3 className="mt-2 text-xl font-semibold text-zinc-900">Free</h3>
+              <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
+                Core monitoring, incidents, public status page, and notification hooks for early teams.
+              </p>
+              <Link
+                href="/register"
+                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#5f58f7] px-4 text-sm font-medium text-white hover:bg-[#544df1]"
+              >
+                Get started
+              </Link>
+            </article>
+          </RevealSection>
+          <RevealSection>
+            <article className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Coming later</p>
+              <h3 className="mt-2 text-xl font-semibold text-zinc-900">Pro</h3>
+              <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
+                Higher limits, advanced workflows, and team features as the product matures.
+              </p>
+              <p className="mt-4 text-xs text-zinc-500">Not on sale yet—use Free for launch.</p>
+            </article>
+          </RevealSection>
+          <RevealSection>
+            <article className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Custom</p>
+              <h3 className="mt-2 text-xl font-semibold text-zinc-900">Organization</h3>
+              <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
+                Security reviews, custom terms, or dedicated support—tell us what you need.
+              </p>
+              <Link
+                href="/contact"
+                className="mt-4 inline-flex h-10 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+              >
+                Contact
+              </Link>
+            </article>
+          </RevealSection>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-5 pt-2 pb-14 sm:px-8">
         <RevealSection>
           <div className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm sm:p-10">
             <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
@@ -263,6 +334,23 @@ export default function MarketingPage() {
           </div>
         </RevealSection>
       </section>
+
+      <footer className="mx-auto w-full max-w-7xl border-t border-zinc-200 px-5 py-8 sm:px-8">
+        <div className="flex flex-col gap-3 text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-medium text-zinc-800">Statsupal</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link href="/privacy" className="hover:text-zinc-900">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-zinc-900">
+              Terms
+            </Link>
+            <Link href="/contact" className="hover:text-zinc-900">
+              Contact
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logDiscord } from "@/lib/logging/server-log";
 import {
   DISCORD_BOT_INVITE_PERMISSIONS,
   DISCORD_BOT_INVITE_SCOPE,
@@ -13,6 +14,7 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 export async function GET() {
   const oauth = getDiscordOAuthConfig();
   if (!oauth) {
+    logDiscord.warn("oauth authorize rejected: server oauth not configured");
     return NextResponse.json(
       {
         success: false,

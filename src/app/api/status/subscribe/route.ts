@@ -1,3 +1,5 @@
+import { logApi } from "@/lib/logging/server-log";
+import { publicRateLimitExceeded } from "@/lib/rate-limit/public-rate-limit-response";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -20,6 +22,10 @@ function createToken(): string {
 }
 
 export async function POST(request: Request) {
+  const limited = publicRateLimitExceeded(request, "status:subscribe");
+  if (limited) {
+    return limited;
+  }
   try {
     const body = (await request.json()) as SubscribeBody;
     const projectSlug = body.projectSlug?.trim();
@@ -79,6 +85,9 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true });
   } catch (error) {
+    logApi.error("status subscribe failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return Response.json(
       {
         success: false,

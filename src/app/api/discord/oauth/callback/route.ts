@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { exchangeDiscordOAuthCode } from "@/lib/discord/exchange-oauth-code";
 import { getDiscordOAuthConfig, settingsPathAfterDiscordOAuth } from "@/lib/discord/env";
 import { verifyDiscordOAuthState } from "@/lib/discord/oauth-state";
+import { logDiscord } from "@/lib/logging/server-log";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -66,21 +68,18 @@ export async function GET(request: Request) {
     return fail("no_bot_token");
   }
 
-  const tokenBody = new URLSearchParams({
-    client_id: oauth.clientId,
-    client_secret: oauth.clientSecret,
-    grant_type: "authorization_code",
+  const exchanged = await exchangeDiscordOAuthCode({
+    clientId: oauth.clientId,
+    clientSecret: oauth.clientSecret,
     code,
-    redirect_uri: oauth.redirectUri,
+    redirectUri: oauth.redirectUri,
   });
 
-  const tokenRes = await fetch("https://discord.com/api/v10/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: tokenBody.toString(),
-  });
-
-  if (!tokenRes.ok) {
+  if (!exchanged.ok) {
+    logDiscord.error("oauth token exchange failed", {
+      status: exchanged.status,
+      bodySnippet: exchanged.bodySnippet,
+    });
     return fail("token_exchange");
   }
 

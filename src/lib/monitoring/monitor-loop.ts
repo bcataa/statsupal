@@ -1,6 +1,16 @@
+import { logMonitoring } from "@/lib/logging/server-log";
 import { runServerMonitoringCycle } from "@/lib/monitoring/server-monitoring";
+import { markMonitorLoopProcessStarted } from "@/lib/monitoring/monitor-runtime-memory";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+/**
+ * In-process monitoring loop for Next.js on Railway.
+ *
+ * Run exactly ONE instance that performs checks (either this loop with ENABLE_SERVER_MONITORING_LOOP=true,
+ * or the separate `src/worker/monitoring-worker.ts` process — never both). Multiple writers cause duplicate
+ * checks and duplicate incidents. Rate limits and the in-memory monitor snapshot are per-process only;
+ * cross-instance coordination is not implemented.
+ */
 const MONITOR_INTERVAL_MS = Number(process.env.MONITOR_INTERVAL_MS ?? "60000");
 
 type MonitorLoopState = {
@@ -32,7 +42,7 @@ export function startMonitoringLoop() {
   }
 
   if (!isLoopEnabled()) {
-    console.log("[monitor-loop] disabled");
+    logMonitoring.info("server monitor loop disabled by configuration");
     return;
   }
 
@@ -52,17 +62,18 @@ export function startMonitoringLoop() {
       }
       process.off("SIGTERM", state.stop);
       process.off("SIGINT", state.stop);
-      console.log("[monitor-loop] stopped");
+      logMonitoring.info("server monitor loop stopped");
     },
   };
 
   globalThis.__statsupalMonitorLoop = state;
+  markMonitorLoopProcessStarted();
 
   const scheduleNextRun = () => {
     if (state.stopped) {
       return;
     }
-    console.log("[monitor-loop] scheduling next run");
+    logMonitoring.info("scheduling next monitoring cycle");
     if (state.timer) {
       clearTimeout(state.timer);
       state.timer = null;
@@ -70,7 +81,7 @@ export function startMonitoringLoop() {
     state.timer = setTimeout(() => {
       void runCycle();
     }, MONITOR_INTERVAL_MS);
-    console.log("[monitor-loop] next run scheduled", {
+    logMonitoring.info("next monitoring cycle scheduled", {
       intervalMs: MONITOR_INTERVAL_MS,
     });
   };
@@ -80,18 +91,20 @@ export function startMonitoringLoop() {
       return;
     }
     if (state.running) {
-      console.warn("[monitor-loop] cycle already running; skipping overlap");
+      logMonitoring.warn("monitoring cycle already running; skipping overlap");
       return;
     }
 
     state.running = true;
-    console.log("[monitor-loop] running cycle");
+    logMonitoring.info("monitoring loop tick started");
     try {
       const supabase = createAdminClient();
       await runServerMonitoringCycle({ supabase });
-      console.log("[monitor-loop] cycle complete");
+      logMonitoring.info("monitoring loop tick completed");
     } catch (error) {
-      console.error("[monitor-loop] cycle failed", error);
+      logMonitoring.error("monitoring loop tick failed — will retry on next schedule", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       state.running = false;
       scheduleNextRun();
@@ -100,6 +113,6 @@ export function startMonitoringLoop() {
 
   process.on("SIGTERM", state.stop);
   process.on("SIGINT", state.stop);
-  console.log("[monitor-loop] started");
+  logMonitoring.info("server monitor loop started");
   void runCycle();
 }

@@ -1,3 +1,6 @@
+import { logApi } from "@/lib/logging/server-log";
+import { publicRateLimitExceeded } from "@/lib/rate-limit/public-rate-limit-response";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -6,6 +9,10 @@ type VerifyBody = {
 };
 
 export async function POST(request: Request) {
+  const limited = publicRateLimitExceeded(request, "domain:verify");
+  if (limited) {
+    return limited;
+  }
   try {
     const body = (await request.json()) as VerifyBody;
     const domain = body.domain?.trim().toLowerCase();
@@ -35,6 +42,9 @@ export async function POST(request: Request) {
       checkedAt: new Date().toISOString(),
     });
   } catch (error) {
+    logApi.error("domain verify failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return Response.json(
       {
         success: false,

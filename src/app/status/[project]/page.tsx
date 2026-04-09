@@ -1,6 +1,14 @@
+import Link from "next/link";
+import { PublicUptimeSection } from "@/components/status/public-uptime-section";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { logApi } from "@/lib/logging/server-log";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getPublicSupportEmail, getPublicSupportMailto } from "@/lib/support/contact-info";
 import type { Service } from "@/lib/models/monitoring";
+import {
+  loadPublicUptimeBars24h,
+  loadPublicWorkspaceUptime,
+} from "@/lib/status/public-uptime";
 import { formatDateTime, formatTimestampOrText } from "@/lib/utils/date-time";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 
@@ -116,11 +124,8 @@ export default async function StatusPage({ params }: StatusPageProps) {
       createdAt: row.created_at,
     }));
 
-  console.info("[status-public] workspace found", {
+  logApi.info("public status page loaded", {
     workspaceId: workspace.id,
-    projectSlug: resolvedProjectSlug,
-  });
-  console.info("[status-public] services loaded", {
     projectSlug: resolvedProjectSlug,
     servicesLoaded: publishedServices.length,
   });
@@ -131,6 +136,12 @@ export default async function StatusPage({ params }: StatusPageProps) {
   const downCount = publishedServices.filter((s) => s.status === "down").length;
   const lastUpdated = getLastUpdated(publishedServices);
 
+  const publishedIds = publishedServices.map((s) => s.id);
+  const [uptime, bars24h] = await Promise.all([
+    loadPublicWorkspaceUptime(admin, workspace.id, publishedIds),
+    loadPublicUptimeBars24h(admin, publishedIds),
+  ]);
+
   return (
     <main className="px-4 py-10 sm:px-6 sm:py-14">
       <div className="mx-auto w-full max-w-5xl space-y-8">
@@ -138,8 +149,9 @@ export default async function StatusPage({ params }: StatusPageProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
             {workspace.name}
           </p>
+          <p className="mt-1 text-[11px] font-medium text-violet-600">Powered by Statsupal</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
-            Status Page
+            Status page
           </h1>
           <p className="mt-2 text-sm text-zinc-600">
             {workspace.public_description || "Real-time system status and incident updates."}
@@ -168,6 +180,10 @@ export default async function StatusPage({ params }: StatusPageProps) {
             </div>
           </div>
         </section>
+
+        {publishedServices.length > 0 ? (
+          <PublicUptimeSection uptime={uptime} bars24h={bars24h} />
+        ) : null}
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-zinc-900">Services</h2>
@@ -208,11 +224,34 @@ export default async function StatusPage({ params }: StatusPageProps) {
           )}
         </section>
 
-        {workspace.support_email ? (
-          <footer className="pb-4 text-center text-xs text-zinc-500">
-            Need help? {workspace.support_email}
-          </footer>
-        ) : null}
+        <footer className="border-t border-zinc-200 pt-8 pb-4 text-center text-xs text-zinc-500">
+          {workspace.support_email ? (
+            <p>
+              Contact this team:{" "}
+              <a
+                className="font-medium text-violet-700 underline underline-offset-2"
+                href={`mailto:${workspace.support_email}`}
+              >
+                {workspace.support_email}
+              </a>
+            </p>
+          ) : null}
+          <p className={workspace.support_email ? "mt-3" : ""}>
+            <span className="text-zinc-600">Statsupal</span>
+            {" · "}
+            <a className="text-violet-700 underline underline-offset-2" href={getPublicSupportMailto()}>
+              {getPublicSupportEmail()}
+            </a>
+            {" · "}
+            <Link href="/privacy" className="text-zinc-600 hover:text-zinc-900">
+              Privacy
+            </Link>
+            {" · "}
+            <Link href="/terms" className="text-zinc-600 hover:text-zinc-900">
+              Terms
+            </Link>
+          </p>
+        </footer>
       </div>
     </main>
   );

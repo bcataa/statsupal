@@ -1,3 +1,6 @@
+-- Canonical snapshot of the full schema. For incremental deploys, prefer
+-- applying files in `supabase/migrations/` in timestamp order (see migrations/README.md).
+
 create extension if not exists "pgcrypto";
 
 -- Backward compatibility: some setups may have used singular "workspace".
@@ -133,6 +136,18 @@ create table if not exists public.workspace_notification_secrets (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.monitor_heartbeat (
+  id text primary key,
+  last_cycle_started_at timestamptz,
+  last_cycle_completed_at timestamptz,
+  services_checked integer,
+  last_error text,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.monitor_heartbeat (id) values ('default')
+  on conflict (id) do nothing;
+
 create index if not exists incidents_user_id_idx on public.incidents(user_id);
 create unique index if not exists incidents_one_active_per_service_idx
   on public.incidents(user_id, affected_service_id)
@@ -175,6 +190,7 @@ alter table public.maintenance_windows enable row level security;
 alter table public.incident_events enable row level security;
 alter table public.alert_subscribers enable row level security;
 alter table public.workspace_notification_secrets enable row level security;
+alter table public.monitor_heartbeat enable row level security;
 
 drop policy if exists "Users can read own workspaces" on public.workspaces;
 create policy "Users can read own workspaces"

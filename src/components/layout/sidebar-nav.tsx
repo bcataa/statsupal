@@ -63,9 +63,25 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
         })}
       </nav>
 
-      <div className="mt-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-        <p className="text-xs font-medium text-zinc-500">Current Plan</p>
-        <p className="mt-1 text-sm font-semibold text-zinc-900">Free</p>
+      <div className="mt-auto space-y-3">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+          <p className="text-xs font-medium text-zinc-500">Current plan</p>
+          <p className="mt-1 text-sm font-semibold text-zinc-900">Free</p>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">
+            Full monitoring and public status page. Visit the marketing site for plan updates.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 text-xs text-zinc-500">
+          <Link href="/privacy" className="hover:text-zinc-800">
+            Privacy
+          </Link>
+          <Link href="/terms" className="hover:text-zinc-800">
+            Terms
+          </Link>
+          <Link href="/contact" className="hover:text-zinc-800">
+            Contact
+          </Link>
+        </div>
       </div>
     </div>
   );

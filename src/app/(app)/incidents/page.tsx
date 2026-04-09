@@ -14,6 +14,7 @@ export default function IncidentsPage() {
     updateIncidentStatus,
     resolveIncident,
     deleteIncident,
+    isHydrated,
   } = useAppData();
   const [deletingIncidentId, setDeletingIncidentId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -29,6 +30,21 @@ export default function IncidentsPage() {
   const monitoringIncidents = incidents.filter(
     (incident) => incident.source === "monitoring",
   ).length;
+
+  if (!isHydrated) {
+    return (
+      <div className="mx-auto w-full max-w-7xl space-y-6">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="h-8 w-40 animate-pulse rounded-lg bg-zinc-200" />
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl bg-zinc-100" />
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">
@@ -84,10 +100,14 @@ export default function IncidentsPage() {
       ) : null}
 
       {incidents.length === 0 ? (
-        <section className="rounded-2xl border border-dashed border-zinc-300 bg-white p-10 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-zinc-900">No incidents yet</h3>
+        <section className="rounded-2xl border border-dashed border-zinc-300 bg-gradient-to-b from-white to-zinc-50/80 p-10 text-center shadow-sm">
+          <p className="text-3xl" aria-hidden>
+            ◆
+          </p>
+          <h3 className="mt-2 text-lg font-semibold text-zinc-900">No incidents yet</h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500">
-            Create your first incident to communicate real-time service disruption updates.
+            When something breaks, log it here so subscribers and your status page stay in sync.
+            Monitoring can also open incidents automatically.
           </p>
           <div className="mt-6 flex justify-center">
             <CreateIncidentButton />
