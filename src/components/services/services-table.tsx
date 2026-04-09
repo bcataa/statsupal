@@ -5,6 +5,7 @@ import type { Service } from "@/lib/models/monitoring";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 import { formatTimestampOrText } from "@/lib/utils/date-time";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Switch } from "@/components/ui/switch";
 import { useAppData } from "@/state/app-data-provider";
 
 type ServicesTableProps = {
@@ -195,20 +196,19 @@ export function ServicesTable({ services }: ServicesTableProps) {
                   })}
                 </td>
                 <td className="px-4 py-3">
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-start gap-3">
+                    <Switch
                       checked={service.isPublished}
-                      onChange={(event) =>
-                        void handleTogglePublished(service, event.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-zinc-300 text-zinc-900"
+                      onCheckedChange={(next) => void handleTogglePublished(service, next)}
+                      aria-label={`Public visibility for ${service.name}`}
                     />
-                    <span className="text-zinc-800">Show on public page</span>
-                  </label>
-                  <p className="mt-1 max-w-[10rem] text-[10px] leading-tight text-zinc-400">
-                    Off = monitored, hidden from visitors
-                  </p>
+                    <div>
+                      <p className="text-xs font-medium text-zinc-800">Public page</p>
+                      <p className="mt-0.5 max-w-[11rem] text-[10px] leading-tight text-zinc-400">
+                        {service.isPublished ? "Visible to visitors" : "Hidden—still monitored"}
+                      </p>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -269,18 +269,19 @@ export function ServicesTable({ services }: ServicesTableProps) {
               </p>
             </div>
 
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-xs text-zinc-700">
-              <input
-                type="checkbox"
+            <div className="mt-3 flex items-start gap-3">
+              <Switch
                 checked={service.isPublished}
-                onChange={(event) => void handleTogglePublished(service, event.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300 text-zinc-900"
+                onCheckedChange={(next) => void handleTogglePublished(service, next)}
+                aria-label={`Public visibility for ${service.name}`}
               />
-              Show on public page
-            </label>
-            <p className="mt-1 text-[10px] text-zinc-400">
-              Uncheck to keep the service monitored but hidden from the public status page.
-            </p>
+              <div>
+                <p className="text-xs font-medium text-zinc-800">Public page</p>
+                <p className="mt-0.5 text-[10px] text-zinc-400">
+                  {service.isPublished ? "Visible to visitors" : "Hidden—still monitored"}
+                </p>
+              </div>
+            </div>
 
             <div className="mt-3 flex items-center gap-2">
               <button

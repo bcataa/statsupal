@@ -7,7 +7,7 @@ export const navigationItems: NavItem[] = [
   { label: "Overview", href: "/dashboard" },
   { label: "Services", href: "/services" },
   { label: "Incidents", href: "/incidents" },
-  { label: "Status Page", href: "/status" },
+  { label: "Status Page", href: "/dashboard/status" },
   { label: "Settings", href: "/settings" },
 ];
 
@@ -19,8 +19,8 @@ const titleMap: Record<string, string> = {
 };
 
 export function getPageTitle(pathname: string): string {
-  if (pathname.startsWith("/status/")) {
-    return "Public Status Page";
+  if (pathname.startsWith("/dashboard/status")) {
+    return "Status Page";
   }
 
   return titleMap[pathname] ?? "Dashboard";

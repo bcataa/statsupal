@@ -1094,26 +1094,6 @@ export default function SettingsPage() {
       </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-zinc-900">Plan info</h3>
-        <p className="mt-1 text-sm text-zinc-500">
-          Your current plan and available monitoring capacity.
-        </p>
-        <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-zinc-900">Free plan</p>
-              <p className="mt-1 text-xs text-zinc-500">
-                Suitable for early-stage projects and testing.
-              </p>
-            </div>
-            <span className="rounded-full border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-700">
-              Active
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-zinc-900">Deployment readiness</h3>
         <p className="mt-1 text-sm text-zinc-500">
           Your setup is compatible with branded domains such as `app.yourdomain.com` and

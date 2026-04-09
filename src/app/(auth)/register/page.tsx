@@ -89,9 +89,9 @@ export default function RegisterPage() {
       <section className="mx-auto grid w-full max-w-5xl gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
         <div className="rounded-md border border-zinc-200 bg-white p-8 shadow-sm">
           <h1 className="text-[40px] font-semibold tracking-tight text-zinc-900">
-            Try Statsupal free for 14 days
+            Create your Statsupal account
           </h1>
-          <p className="mt-1 text-[20px] text-zinc-700">No credit card required</p>
+          <p className="mt-1 text-[20px] text-zinc-700">Monitoring and status pages in one place</p>
 
           {!supabase && (
             <p className="mt-5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -193,7 +193,7 @@ export default function RegisterPage() {
               disabled={isSubmitting || !supabase}
               className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#5f58f7] px-4 text-base font-medium text-white transition hover:bg-[#544df1] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? "Please wait..." : "Start your free trial"}
+              {isSubmitting ? "Please wait..." : "Create account"}
             </button>
           </form>
 

@@ -29,7 +29,7 @@ export default function IntegrationsPage() {
               href="/register"
               className="inline-flex h-11 items-center rounded-full bg-[#5f58f7] px-6 text-sm font-medium text-white hover:bg-[#544df1]"
             >
-              Start free
+              Get started
             </Link>
             <Link
               href="/"

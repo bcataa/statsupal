@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navigationItems } from "@/lib/navigation";
+import { loggedInStatusPageHref } from "@/lib/utils/status-slug";
 import { useAppData } from "@/state/app-data-provider";
 
 type SidebarNavProps = {
@@ -34,15 +35,14 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
 
       <nav className="space-y-1.5">
         {navigationItems.map((item) => {
-          const statusSlug =
-            currentProject?.slug ||
-            workspace.projects[0]?.slug ||
-            workspace.domainSettings.statusPageSlug;
           const href =
             item.label === "Status Page"
-              ? `/status/${encodeURIComponent(statusSlug)}`
+              ? loggedInStatusPageHref(workspace, currentProject)
               : item.href;
-          const active = isActive(pathname, href);
+          const active =
+            item.label === "Status Page"
+              ? pathname.startsWith("/dashboard/status")
+              : isActive(pathname, href);
 
           return (
             <Link
@@ -64,13 +64,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       </nav>
 
       <div className="mt-auto space-y-3">
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-          <p className="text-xs font-medium text-zinc-500">Current plan</p>
-          <p className="mt-1 text-sm font-semibold text-zinc-900">Free</p>
-          <p className="mt-2 text-xs leading-5 text-zinc-500">
-            Full monitoring and public status page. Visit the marketing site for plan updates.
-          </p>
-        </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 text-xs text-zinc-500">
           <Link href="/privacy" className="hover:text-zinc-800">
             Privacy

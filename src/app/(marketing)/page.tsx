@@ -113,7 +113,6 @@ export default function MarketingPage() {
               <Link href="/product" className="hover:text-zinc-900">Product</Link>
               <Link href="/how-it-works" className="hover:text-zinc-900">How it works</Link>
               <Link href="/status/main-status-page" className="hover:text-zinc-900">Showcase</Link>
-              <Link href="/register" className="hover:text-zinc-900">Free</Link>
               <Link href="/integrations" className="hover:text-zinc-900">Integrations</Link>
               <Link href="/privacy" className="hover:text-zinc-900">Privacy</Link>
               <Link href="/terms" className="hover:text-zinc-900">Terms</Link>
@@ -252,60 +251,6 @@ export default function MarketingPage() {
             </div>
           </div>
         </RevealSection>
-      </section>
-
-      <section className="mx-auto w-full max-w-7xl px-5 py-8 sm:px-8">
-        <RevealSection>
-          <div className="mb-6">
-            <h2 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">Plans</h2>
-            <p className="mt-2 max-w-3xl text-base leading-7 text-zinc-600">
-              Start free while you validate monitoring and your public page. Paid tiers may arrive later;
-              we will never surprise-charge existing workspaces without notice.
-            </p>
-          </div>
-        </RevealSection>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <RevealSection>
-            <article className="flex h-full flex-col rounded-2xl border border-violet-200 bg-violet-50/40 p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Current</p>
-              <h3 className="mt-2 text-xl font-semibold text-zinc-900">Free</h3>
-              <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
-                Core monitoring, incidents, public status page, and notification hooks for early teams.
-              </p>
-              <Link
-                href="/register"
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-[#5f58f7] px-4 text-sm font-medium text-white hover:bg-[#544df1]"
-              >
-                Get started
-              </Link>
-            </article>
-          </RevealSection>
-          <RevealSection>
-            <article className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Coming later</p>
-              <h3 className="mt-2 text-xl font-semibold text-zinc-900">Pro</h3>
-              <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
-                Higher limits, advanced workflows, and team features as the product matures.
-              </p>
-              <p className="mt-4 text-xs text-zinc-500">Not on sale yet—use Free for launch.</p>
-            </article>
-          </RevealSection>
-          <RevealSection>
-            <article className="flex h-full flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Custom</p>
-              <h3 className="mt-2 text-xl font-semibold text-zinc-900">Organization</h3>
-              <p className="mt-2 flex-1 text-sm leading-6 text-zinc-600">
-                Security reviews, custom terms, or dedicated support—tell us what you need.
-              </p>
-              <Link
-                href="/contact"
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
-              >
-                Contact
-              </Link>
-            </article>
-          </RevealSection>
-        </div>
       </section>
 
       <section className="mx-auto w-full max-w-7xl px-5 pt-2 pb-14 sm:px-8">
