@@ -38,25 +38,7 @@ const highlights = [
 
 export default function HowItWorksPage() {
   return (
-    <div className="min-h-screen bg-[#f5f5f8] text-zinc-900">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-6 sm:px-8">
-        <Link href="/" className="text-base font-semibold text-zinc-900">
-          Statsupal
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="text-sm font-medium text-zinc-700">
-            Log in
-          </Link>
-          <Link
-            href="/register"
-            className="inline-flex h-9 items-center rounded-full bg-[#5f58f7] px-4 text-sm font-medium text-white hover:bg-[#544df1]"
-          >
-            Get started
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl space-y-14 px-5 pb-16 sm:px-8">
+    <main className="mx-auto w-full max-w-6xl space-y-14 px-5 py-8 pb-16 sm:px-8">
         <RevealSection>
           <section className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm sm:p-10">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
@@ -117,7 +99,7 @@ export default function HowItWorksPage() {
                 Start your own status server
               </Link>
               <Link
-                href="/status/main-status-page"
+                href="/showcase"
                 className="inline-flex h-11 items-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
               >
                 View public status example
@@ -125,7 +107,6 @@ export default function HowItWorksPage() {
             </div>
           </section>
         </RevealSection>
-      </main>
-    </div>
+    </main>
   );
 }

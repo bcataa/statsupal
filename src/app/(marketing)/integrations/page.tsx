@@ -11,7 +11,7 @@ const integrations = [
 
 export default function IntegrationsPage() {
   return (
-    <main className="min-h-screen bg-[#f5f5f8] px-5 py-10 text-zinc-900 sm:px-8">
+    <main className="px-5 py-10 text-zinc-900 sm:px-8">
       <div className="mx-auto w-full max-w-6xl">
         <header className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm sm:p-10">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">

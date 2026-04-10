@@ -97,43 +97,11 @@ function StatusPreviewCard() {
 
 export default function MarketingPage() {
   return (
-    <div className="min-h-screen bg-[#f5f5f8] text-zinc-900">
+    <div className="relative">
       <div className="pointer-events-none absolute top-0 left-0 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-24 h-96 w-96 rounded-full bg-indigo-200/30 blur-3xl" />
-      <header className="mx-auto w-full max-w-7xl px-5 pt-5 sm:px-8">
-        <div className="flex items-center justify-between rounded-full px-1 py-2">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 text-[22px] font-semibold text-zinc-900">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-indigo-300 text-[10px] text-indigo-600">
-                S
-              </span>
-              <span className="text-base font-semibold">Statsupal</span>
-            </Link>
-            <nav className="hidden items-center gap-6 text-sm text-zinc-700 lg:flex">
-              <Link href="/product" className="hover:text-zinc-900">Product</Link>
-              <Link href="/how-it-works" className="hover:text-zinc-900">How it works</Link>
-              <Link href="/status/main-status-page" className="hover:text-zinc-900">Showcase</Link>
-              <Link href="/integrations" className="hover:text-zinc-900">Integrations</Link>
-              <Link href="/privacy" className="hover:text-zinc-900">Privacy</Link>
-              <Link href="/terms" className="hover:text-zinc-900">Terms</Link>
-            </nav>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <Link href="/login" className="hidden text-sm font-medium text-zinc-700 sm:inline-flex">
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex h-9 items-center rounded-full bg-[#5f58f7] px-4 text-sm font-medium text-white shadow-sm shadow-indigo-500/40 transition hover:bg-[#544df1]"
-            >
-              Get started
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 pt-12 pb-14 sm:px-8 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-16">
+      <main className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 pt-8 pb-14 sm:px-8 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-12">
         <section className="max-w-[540px]">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
             <span className="h-2 w-2 rounded-full bg-indigo-500" />
@@ -299,3 +267,4 @@ export default function MarketingPage() {
     </div>
   );
 }
+
