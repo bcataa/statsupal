@@ -70,7 +70,7 @@ export function IncidentCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 text-xs text-zinc-500 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-2 text-xs text-zinc-500 sm:grid-cols-3">
         <p>Started: {formatDateTime(incident.startedAt)}</p>
         <p>Updated: {formatDateTime(incident.updatedAt)}</p>
         <p>

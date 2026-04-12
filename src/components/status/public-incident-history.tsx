@@ -1,10 +1,11 @@
-import type { Incident, Service } from "@/lib/models/monitoring";
+import type { Incident } from "@/lib/models/monitoring";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { StatusBadge } from "@/components/ui/status-badge";
 
 type PublicIncidentHistoryProps = {
   incidents: Incident[];
-  services: Service[];
+  /** Id + name only; used to label affected services. */
+  services: { id: string; name: string }[];
 };
 
 export function PublicIncidentHistory({
@@ -20,10 +21,12 @@ export function PublicIncidentHistory({
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-zinc-900">Incident History</h2>
-        <p className="text-sm text-zinc-500">Recent incident updates and ongoing investigations.</p>
+        <h2 className="text-lg font-semibold text-zinc-900 sm:text-xl">Incident history</h2>
+        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
+          Recent and resolved incidents for this workspace (timestamps in UTC).
+        </p>
       </div>
 
       {incidents.length === 0 ? (
@@ -50,11 +53,11 @@ export function PublicIncidentHistory({
               {activeIncidents.map((incident) => (
                 <article
                   key={incident.id}
-                  className="rounded-xl border border-zinc-200 px-4 py-4"
+                  className="rounded-xl border border-zinc-200 px-3 py-4 sm:px-4"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="font-medium text-zinc-900">{incident.title}</p>
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium text-zinc-900">{incident.title}</p>
                       <p className="mt-1 text-sm text-zinc-600">
                         Affected service:{" "}
                         {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}
@@ -84,11 +87,11 @@ export function PublicIncidentHistory({
               {resolvedIncidents.map((incident) => (
                 <article
                   key={incident.id}
-                  className="rounded-xl border border-zinc-200/80 bg-zinc-50 px-4 py-4"
+                  className="rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-4 sm:px-4"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="font-medium text-zinc-800">{incident.title}</p>
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium text-zinc-800">{incident.title}</p>
                       <p className="mt-1 text-sm text-zinc-600">
                         Affected service:{" "}
                         {serviceNameById.get(incident.affectedServiceId) ?? "Unknown service"}

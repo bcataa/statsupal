@@ -8,7 +8,7 @@ export default function MarketingLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="min-h-screen bg-[#f5f5f8] text-zinc-900">
+    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-[#f5f5f8] text-zinc-900">
       <MarketingNavbar />
       {children}
     </div>

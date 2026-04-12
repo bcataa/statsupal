@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { PublicIncidentHistory } from "@/components/status/public-incident-history";
 import { PublicUptimeSection } from "@/components/status/public-uptime-section";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { logApi } from "@/lib/logging/server-log";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicSupportEmail, getPublicSupportMailto } from "@/lib/support/contact-info";
-import type { Service } from "@/lib/models/monitoring";
+import type { Incident, Service } from "@/lib/models/monitoring";
 import {
   loadPublicUptimeBars24h,
   loadPublicWorkspaceUptime,
@@ -62,11 +63,42 @@ function getStatusTone(status: OverallStatus): string {
   return "border-emerald-200 bg-emerald-50/80 text-emerald-900";
 }
 
-function getLastUpdated(services: Service[]): string {
+function getLastUpdated(services: Service[]): string | null {
   const timestamps = services.map((s) => s.lastChecked || s.createdAt).filter(Boolean);
-  return timestamps.length === 0
-    ? new Date().toISOString()
-    : timestamps.reduce((latest, current) => (current > latest ? current : latest));
+  if (timestamps.length === 0) {
+    return null;
+  }
+  return timestamps.reduce((latest, current) => (current > latest ? current : latest));
+}
+
+type IncidentDbRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  source: string | null;
+  affected_service_id: string;
+  status: Incident["status"];
+  severity: Incident["severity"];
+  started_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  resolution_summary: string | null;
+};
+
+function mapIncidentRow(row: IncidentDbRow): Incident {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description ?? undefined,
+    source: (row.source as Incident["source"]) ?? "manual",
+    affectedServiceId: row.affected_service_id,
+    status: row.status,
+    severity: row.severity,
+    startedAt: row.started_at,
+    updatedAt: row.updated_at,
+    resolvedAt: row.resolved_at ?? undefined,
+    resolutionSummary: row.resolution_summary ?? undefined,
+  };
 }
 
 function StatusNotFound({ slugLabel }: { slugLabel: string }) {
@@ -122,6 +154,34 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
     .order("created_at", { ascending: false });
 
   const serviceRows = (servicesResult.data ?? []) as ServiceRow[];
+
+  const incidentsResult = await (
+    admin as unknown as {
+      from: (t: string) => {
+        select: (s: string) => {
+          eq: (a: string, b: string) => {
+            order: (c: string, o: { ascending: boolean }) => {
+              limit: (n: number) => Promise<{ data: unknown; error: unknown }>;
+            };
+          };
+        };
+      };
+    }
+  )
+    .from("incidents")
+    .select(
+      "id,title,description,source,affected_service_id,status,severity,started_at,updated_at,resolved_at,resolution_summary",
+    )
+    .eq("workspace_id", workspace.id)
+    .order("updated_at", { ascending: false })
+    .limit(40);
+
+  const incidentModels: Incident[] = incidentsResult.error
+    ? []
+    : ((incidentsResult.data ?? []) as IncidentDbRow[]).map(mapIncidentRow);
+
+  const serviceLabels = serviceRows.map((r) => ({ id: r.id, name: r.name }));
+
   const publishedServices = serviceRows
     .map((row) => ({ ...row, is_published: row.is_published ?? true }))
     .filter((row) => row.is_published === true)
@@ -161,25 +221,37 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   ]);
 
   return (
-    <main className="px-4 py-10 sm:px-6 sm:py-14">
-      <div className="mx-auto w-full max-w-5xl space-y-8">
+    <main className="min-w-0 overflow-x-hidden px-3 py-8 sm:px-6 sm:py-14">
+      <div className="mx-auto w-full max-w-5xl space-y-6 sm:space-y-8">
         <header className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:text-xs">
             {workspace.name}
           </p>
-          <p className="mt-1 text-[11px] font-medium text-violet-600">Powered by Statsupal</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
+          <p className="mt-1 text-[10px] font-medium text-violet-600 sm:text-[11px]">
+            Powered by Statsupal
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900 sm:text-4xl md:text-5xl">
             Status page
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 px-1 text-sm text-zinc-600 sm:px-0">
             {workspace.public_description || "Real-time system status and incident updates."}
           </p>
-          <p className="mt-2 text-xs text-zinc-500">Last updated {formatDateTime(lastUpdated)}</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            {lastUpdated ? (
+              <>Last updated {formatDateTime(lastUpdated)}</>
+            ) : (
+              <>Publish services to show live check timestamps.</>
+            )}
+          </p>
         </header>
 
-        <section className={`rounded-2xl border p-6 shadow-sm sm:p-8 ${getStatusTone(overallStatus)}`}>
-          <h2 className="text-3xl font-semibold tracking-tight">{getStatusHeadline(overallStatus)}</h2>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 sm:text-sm">
+        <section
+          className={`rounded-2xl border p-4 shadow-sm sm:p-8 ${getStatusTone(overallStatus)}`}
+        >
+          <h2 className="text-xl font-semibold tracking-tight sm:text-3xl">
+            {getStatusHeadline(overallStatus)}
+          </h2>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4 sm:text-sm">
             <div className="rounded-xl border border-current/20 bg-white/60 px-3 py-2">
               <p className="font-semibold">{operationalCount}</p>
               <p className="opacity-80">Up</p>
@@ -203,8 +275,8 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
           <PublicUptimeSection uptime={uptime} bars24h={bars24h} />
         ) : null}
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold text-zinc-900">Services</h2>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-8">
+          <h2 className="text-lg font-semibold text-zinc-900 sm:text-xl">Services</h2>
           {publishedServices.length === 0 ? (
             <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center">
               <p className="text-sm font-medium text-zinc-700">No public services published yet</p>
@@ -213,21 +285,26 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
               </p>
             </div>
           ) : (
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
               {publishedServices.map((service) => (
-                <article key={service.id} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-base font-semibold text-zinc-900">{service.name}</p>
+                <article
+                  key={service.id}
+                  className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5"
+                >
+                  <div className="flex min-w-0 items-start justify-between gap-2 sm:gap-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-base font-semibold text-zinc-900">{service.name}</p>
                       {service.description ? (
                         <p className="mt-1 text-sm text-zinc-600">{service.description}</p>
                       ) : null}
                     </div>
                     <StatusBadge value={service.status} />
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-zinc-600">
-                    <p>Last checked: {formatTimestampOrText(service.lastChecked || "Unknown")}</p>
-                    <p>
+                  <div className="mt-4 grid grid-cols-1 gap-2 text-xs text-zinc-600 sm:grid-cols-2">
+                    <p className="min-w-0 break-words">
+                      Last checked: {formatTimestampOrText(service.lastChecked || "Unknown")}
+                    </p>
+                    <p className="min-w-0 break-words">
                       Response:{" "}
                       {formatServiceResponse({
                         status: service.status,
@@ -242,7 +319,9 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
           )}
         </section>
 
-        <footer className="border-t border-zinc-200 pt-8 pb-4 text-center text-xs text-zinc-500">
+        <PublicIncidentHistory incidents={incidentModels} services={serviceLabels} />
+
+        <footer className="border-t border-zinc-200 pt-6 pb-4 text-center text-[11px] text-zinc-500 sm:text-xs">
           {workspace.support_email ? (
             <p>
               Contact this team:{" "}
@@ -254,17 +333,22 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
               </a>
             </p>
           ) : null}
-          <p className={workspace.support_email ? "mt-3" : ""}>
+          <p
+            className={[
+              "flex flex-wrap items-center justify-center gap-x-2 gap-y-1",
+              workspace.support_email ? "mt-3" : "",
+            ].join(" ")}
+          >
             <span className="text-zinc-600">Statsupal</span>
-            {" · "}
+            <span className="hidden sm:inline">·</span>
             <a className="text-violet-700 underline underline-offset-2" href={getPublicSupportMailto()}>
               {getPublicSupportEmail()}
             </a>
-            {" · "}
+            <span className="hidden sm:inline">·</span>
             <Link href="/privacy" className="text-zinc-600 hover:text-zinc-900">
               Privacy
             </Link>
-            {" · "}
+            <span className="hidden sm:inline">·</span>
             <Link href="/terms" className="text-zinc-600 hover:text-zinc-900">
               Terms
             </Link>

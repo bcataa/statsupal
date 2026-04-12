@@ -9,7 +9,7 @@ type ServicesHealthSectionProps = {
 
 export function ServicesHealthSection({ services }: ServicesHealthSectionProps) {
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6">
       <div className="mb-5 flex items-end justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-zinc-900">Services Health</h2>
@@ -19,8 +19,8 @@ export function ServicesHealthSection({ services }: ServicesHealthSectionProps) 
         </div>
       </div>
 
-      <div className="hidden overflow-hidden rounded-xl border border-zinc-200 md:block">
-        <table className="w-full border-collapse text-left text-sm">
+      <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 md:block">
+        <table className="w-full min-w-[720px] border-collapse text-left text-sm">
           <thead className="bg-zinc-50">
             <tr className="text-xs uppercase tracking-wide text-zinc-500">
               <th className="px-4 py-3 font-medium">Service</th>
@@ -63,10 +63,10 @@ export function ServicesHealthSection({ services }: ServicesHealthSectionProps) 
               <p className="font-medium text-zinc-900">{service.name}</p>
               <StatusBadge value={service.status} />
             </div>
-            <p className="mt-2 text-sm text-zinc-500">{service.url}</p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-zinc-600">
-              <p>Checked: {formatTimestampOrText(service.lastChecked)}</p>
-              <p>
+            <p className="mt-2 break-all text-sm text-zinc-500">{service.url}</p>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-zinc-600 sm:grid-cols-3">
+              <p className="min-w-0">Checked: {formatTimestampOrText(service.lastChecked)}</p>
+              <p className="min-w-0">
                 Response:{" "}
                 {formatServiceResponse({
                   status: service.status,
@@ -74,7 +74,7 @@ export function ServicesHealthSection({ services }: ServicesHealthSectionProps) 
                   lastChecked: service.lastChecked,
                 })}
               </p>
-              <p>Interval: {service.checkInterval}</p>
+              <p className="min-w-0">Interval: {service.checkInterval}</p>
             </div>
           </article>
         ))}

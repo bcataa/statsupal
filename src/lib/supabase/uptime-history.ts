@@ -1,4 +1,5 @@
 import type { Service, ServiceStatus, UptimeDayPoint, UptimeSummary } from "@/lib/models/monitoring";
+import { formatWeekdayShortUtc } from "@/lib/utils/date-time";
 
 type SupabaseClientLike = unknown;
 
@@ -24,30 +25,33 @@ function getDb(client: SupabaseClientLike): DbClient {
   return client as DbClient;
 }
 
-function dayKey(date: Date): string {
+function dayKeyUtc(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function getLastSevenDays(): Date[] {
-  const today = new Date();
+/** Last 7 calendar days in UTC (aligned with stored ISO timestamps). */
+function getLastSevenUtcDays(): Date[] {
   const days: Date[] = [];
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const d = now.getUTCDate();
   for (let offset = 6; offset >= 0; offset -= 1) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - offset);
-    days.push(date);
+    const t = Date.UTC(y, m, d - offset, 0, 0, 0, 0);
+    days.push(new Date(t));
   }
   return days;
 }
 
 export function buildFallbackUptimeSummary(services: Service[]): UptimeSummary {
   const today = new Date();
-  const points: UptimeDayPoint[] = getLastSevenDays().map((date) => {
-    const day = date.toLocaleDateString("en-US", { weekday: "short" });
+  const points: UptimeDayPoint[] = getLastSevenUtcDays().map((date) => {
+    const day = formatWeekdayShortUtc(date);
     const downServices = services.filter((service) => service.status === "down").length;
     const degradedServices = services.filter((service) => service.status === "degraded").length;
     const total = Math.max(services.length, 1);
     const penalty = (downServices * 5 + degradedServices * 2) / total;
-    const jitter = (today.getDate() + date.getDate()) % 3;
+    const jitter = (today.getUTCDate() + date.getUTCDate()) % 3;
     const uptimePercentage = Math.max(96, 100 - penalty - jitter * 0.15);
     return {
       day,
@@ -76,9 +80,8 @@ export async function loadSevenDayUptimeSummary(
   services: Service[],
 ): Promise<UptimeSummary> {
   const db = getDb(client);
-  const days = getLastSevenDays();
-  const since = new Date(days[0]);
-  since.setHours(0, 0, 0, 0);
+  const days = getLastSevenUtcDays();
+  const since = days[0];
 
   try {
     const result = await db
@@ -99,14 +102,14 @@ export async function loadSevenDayUptimeSummary(
 
     const rowsByDay = new Map<string, ServiceHistoryRow[]>();
     for (const row of rows) {
-      const key = dayKey(new Date(row.checked_at));
+      const key = dayKeyUtc(new Date(row.checked_at));
       const existing = rowsByDay.get(key) ?? [];
       existing.push(row);
       rowsByDay.set(key, existing);
     }
 
     const points: UptimeDayPoint[] = days.map((date) => {
-      const key = dayKey(date);
+      const key = dayKeyUtc(date);
       const rowsForDay = rowsByDay.get(key) ?? [];
       const healthyChecks = rowsForDay.filter(
         (row) => row.status === "operational" || row.status === "degraded",
@@ -115,7 +118,7 @@ export async function loadSevenDayUptimeSummary(
         rowsForDay.length > 0 ? (healthyChecks / rowsForDay.length) * 100 : 100;
 
       return {
-        day: date.toLocaleDateString("en-US", { weekday: "short" }),
+        day: formatWeekdayShortUtc(date),
         uptimePercentage: Number(uptimePercentage.toFixed(2)),
       };
     });
@@ -130,18 +133,14 @@ export async function loadSevenDayUptimeSummary(
         : 0;
 
     const averageUptimePercentage =
-      points.reduce((sum, point) => sum + point.uptimePercentage, 0) /
-      Math.max(points.length, 1);
+      points.reduce((sum, point) => sum + point.uptimePercentage, 0) / Math.max(points.length, 1);
 
     return {
       points,
       averageUptimePercentage: Number(averageUptimePercentage.toFixed(2)),
       averageResponseTimeMs,
     };
-  } catch (error) {
-    console.warn("[uptime] fallback summary used", {
-      reason: error instanceof Error ? error.message : String(error),
-    });
+  } catch {
     return buildFallbackUptimeSummary(services);
   }
 }

@@ -1085,7 +1085,7 @@ export default function SettingsPage() {
               >
                 <p className="font-medium">{window.title}</p>
                 <p className="text-xs text-zinc-500">
-                  {new Date(window.startsAt).toLocaleString()} - {new Date(window.endsAt).toLocaleString()} ({window.status})
+                  {formatDateTime(window.startsAt)} – {formatDateTime(window.endsAt)} ({window.status})
                 </p>
               </div>
             ))

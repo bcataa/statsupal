@@ -69,7 +69,7 @@ export default function OverviewPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
+    <div className="mx-auto w-full max-w-7xl space-y-4 sm:space-y-6">
       <DashboardHeader
         workspaceName={workspace.name}
         projectName={currentProject?.name ?? "Main Project"}
@@ -77,11 +77,11 @@ export default function OverviewPage() {
       />
 
       {isFirstRun ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
             Welcome
           </p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
+          <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
             Add a service to start monitoring
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-zinc-600">
@@ -97,7 +97,7 @@ export default function OverviewPage() {
         <>
           <MetricsGrid metrics={dashboardMetrics} />
 
-          <section className="grid gap-6 xl:grid-cols-3">
+          <section className="grid gap-4 sm:gap-6 xl:grid-cols-3">
             <div className="space-y-6 xl:col-span-2">
               <ServicesHealthSection services={services} />
               <IncidentsSummarySection incidents={incidents} services={services} />

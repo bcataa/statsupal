@@ -13,13 +13,13 @@ export function DashboardHeader({
   showCreateIncidentButton = true,
 }: DashboardHeaderProps) {
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
             {workspaceName}
           </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-900">
+          <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
             {projectName} Overview
           </h2>
           <p className="mt-1 text-sm text-zinc-500">
@@ -27,7 +27,7 @@ export function DashboardHeader({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-stretch gap-2 sm:items-center">
           <AddServiceButton />
           {showCreateIncidentButton ? (
             <CreateIncidentButton className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50" />

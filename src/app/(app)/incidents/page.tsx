@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CreateIncidentButton } from "@/components/incidents/create-incident-button";
 import { IncidentsList } from "@/components/incidents/incidents-list";
+import { ResolvedIncidentsArchive } from "@/components/incidents/resolved-incidents-archive";
 import { useAppData } from "@/state/app-data-provider";
 
 export default function IncidentsPage() {
@@ -48,42 +49,52 @@ export default function IncidentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Incidents</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+              Incidents
+            </h2>
             <p className="mt-1 text-sm text-zinc-500">
               Create, track, and resolve incidents across your monitored services.
             </p>
           </div>
-          <CreateIncidentButton />
+          <div className="shrink-0">
+            <CreateIncidentButton />
+          </div>
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Active incidents
           </p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900">{activeIncidents.length}</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-900 sm:text-2xl">
+            {activeIncidents.length}
+          </p>
         </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Resolved incidents
           </p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900">{resolvedIncidents.length}</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-900 sm:text-2xl">
+            {resolvedIncidents.length}
+          </p>
         </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Monitoring-generated
           </p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900">{monitoringIncidents}</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-900 sm:text-2xl">
+            {monitoringIncidents}
+          </p>
         </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Active maintenance
           </p>
-          <p className="mt-1 text-2xl font-semibold text-zinc-900">
+          <p className="mt-1 text-xl font-semibold tabular-nums text-zinc-900 sm:text-2xl">
             {
               maintenanceWindows.filter(
                 (window) => window.status === "active",
@@ -100,7 +111,7 @@ export default function IncidentsPage() {
       ) : null}
 
       {incidents.length === 0 ? (
-        <section className="rounded-2xl border border-dashed border-zinc-300 bg-gradient-to-b from-white to-zinc-50/80 p-10 text-center shadow-sm">
+        <section className="rounded-2xl border border-dashed border-zinc-300 bg-gradient-to-b from-white to-zinc-50/80 p-6 text-center shadow-sm sm:p-10">
           <p className="text-3xl" aria-hidden>
             ◆
           </p>
@@ -116,9 +127,9 @@ export default function IncidentsPage() {
       ) : (
         <div className="space-y-6">
           <section className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
-                Active Incidents
+                Active incidents
               </h3>
               <p className="text-sm text-zinc-500">{activeIncidents.length} active</p>
             </div>
@@ -147,13 +158,7 @@ export default function IncidentsPage() {
             />
           </section>
 
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
-                Resolved Incidents
-              </h3>
-              <p className="text-sm text-zinc-500">{resolvedIncidents.length} resolved</p>
-            </div>
+          <ResolvedIncidentsArchive count={resolvedIncidents.length}>
             <IncidentsList
               incidents={resolvedIncidents}
               incidentEvents={incidentEvents}
@@ -177,7 +182,7 @@ export default function IncidentsPage() {
               }}
               deletingIncidentId={deletingIncidentId}
             />
-          </section>
+          </ResolvedIncidentsArchive>
         </div>
       )}
     </div>

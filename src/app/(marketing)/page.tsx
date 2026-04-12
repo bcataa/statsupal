@@ -101,34 +101,37 @@ export default function MarketingPage() {
       <div className="pointer-events-none absolute top-0 left-0 h-80 w-80 rounded-full bg-violet-300/25 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-24 h-96 w-96 rounded-full bg-indigo-200/30 blur-3xl" />
 
-      <main className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 pt-8 pb-14 sm:px-8 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-12">
+      <main className="relative mx-auto grid w-full max-w-7xl gap-8 px-4 pt-6 pb-12 sm:gap-10 sm:px-8 sm:pt-8 sm:pb-14 lg:grid-cols-2 lg:items-center lg:gap-16 lg:pt-12">
         <section className="max-w-[540px]">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-            <span className="h-2 w-2 rounded-full bg-indigo-500" />
+          <div className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-[11px] font-medium text-indigo-700 sm:text-xs">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-indigo-500" />
             Built for clear uptime communication
             <span className="text-indigo-500">→</span>
           </div>
 
-          <h1 className="mt-5 text-5xl font-semibold leading-[0.95] tracking-tight text-zinc-900 sm:text-6xl">
+          <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-tight text-zinc-900 sm:mt-5 sm:text-5xl sm:leading-[0.95] md:text-6xl">
             Incident communication made easy
           </h1>
 
-          <p className="mt-5 text-sm font-medium text-zinc-600">
+          <p className="mt-4 text-xs font-medium text-zinc-600 sm:mt-5 sm:text-sm">
             CTOs • DevOps/SRE • Support Engineers
           </p>
-          <p className="mt-4 max-w-lg text-xl leading-8 text-zinc-700">
+          <p className="mt-3 max-w-lg text-base leading-7 text-zinc-700 sm:mt-4 sm:text-xl sm:leading-8">
             Save time and maintain user trust during the most critical times.
             Communicate about incidents &amp; maintenance effectively.
           </p>
 
-          <div className="mt-8 flex items-center gap-3">
+          <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center">
             <Link
               href="/register"
-              className="inline-flex h-12 items-center rounded-full bg-[#5f58f7] px-7 text-base font-medium text-white shadow-md shadow-indigo-400/30 transition hover:bg-[#544df1]"
+              className="inline-flex h-11 min-h-[44px] items-center justify-center rounded-full bg-[#5f58f7] px-6 text-sm font-medium text-white shadow-md shadow-indigo-400/30 transition hover:bg-[#544df1] sm:h-12 sm:px-7 sm:text-base"
             >
               Get started
             </Link>
-            <Link href="/contact" className="inline-flex h-12 items-center rounded-full border border-zinc-300 bg-white px-7 text-base font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50">
+            <Link
+              href="/contact"
+              className="inline-flex h-11 min-h-[44px] items-center justify-center rounded-full border border-zinc-300 bg-white px-6 text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:h-12 sm:px-7 sm:text-base"
+            >
               Contact support
             </Link>
           </div>

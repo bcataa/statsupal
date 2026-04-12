@@ -14,7 +14,7 @@ export function AppShell({ children }: AppShellProps) {
   const { dataError, isHydrated, isHydrating } = useAppData();
 
   return (
-    <div className="min-h-screen bg-zinc-100">
+    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100">
       <aside className="fixed top-0 left-0 z-30 hidden h-screen w-64 border-r border-zinc-200 bg-white md:block">
         <SidebarNav />
       </aside>
@@ -35,7 +35,7 @@ export function AppShell({ children }: AppShellProps) {
 
       <div className="md:pl-64">
         <TopHeader onOpenSidebar={() => setIsSidebarOpen(true)} />
-        <main className="px-4 pt-24 pb-8 sm:px-6">
+        <main className="min-w-0 px-3 pt-24 pb-8 sm:px-6">
           {!isHydrated || isHydrating ? (
             <div className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center">
               <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-5 text-sm text-zinc-600 shadow-sm">

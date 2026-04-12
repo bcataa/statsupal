@@ -147,8 +147,8 @@ export function ServicesTable({ services }: ServicesTableProps) {
           {errorMessage}
         </div>
       ) : null}
-      <div className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm lg:block">
-        <table className="w-full border-collapse text-left text-sm">
+      <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm lg:block">
+        <table className="w-full min-w-[920px] border-collapse text-left text-sm">
           <thead className="bg-zinc-50">
             <tr className="text-xs uppercase tracking-wide text-zinc-500">
               <th className="px-4 py-3 font-medium">Service</th>
