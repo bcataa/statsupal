@@ -56,7 +56,8 @@ export default function IncidentsPage() {
               Incidents
             </h2>
             <p className="mt-1 text-sm text-zinc-500">
-              Create, track, and resolve incidents across your monitored services.
+              Create, track, and resolve incidents across your monitored services. Timestamps use your
+              local timezone.
             </p>
           </div>
           <div className="shrink-0">
@@ -65,8 +66,8 @@ export default function IncidentsPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Active incidents
           </p>
@@ -74,7 +75,7 @@ export default function IncidentsPage() {
             {activeIncidents.length}
           </p>
         </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Resolved incidents
           </p>
@@ -82,7 +83,7 @@ export default function IncidentsPage() {
             {resolvedIncidents.length}
           </p>
         </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Monitoring-generated
           </p>
@@ -90,7 +91,7 @@ export default function IncidentsPage() {
             {monitoringIncidents}
           </p>
         </article>
-        <article className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
+        <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             Active maintenance
           </p>
@@ -125,13 +126,13 @@ export default function IncidentsPage() {
           </div>
         </section>
       ) : (
-        <div className="space-y-6">
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-600">
+        <div className="space-y-8">
+          <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-800">
                 Active incidents
               </h3>
-              <p className="text-sm text-zinc-500">{activeIncidents.length} active</p>
+              <p className="text-sm font-medium text-zinc-600">{activeIncidents.length} active</p>
             </div>
             <IncidentsList
               incidents={activeIncidents}

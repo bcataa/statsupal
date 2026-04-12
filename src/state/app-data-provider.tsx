@@ -42,6 +42,7 @@ import {
   buildFallbackUptimeSummary,
   loadSevenDayUptimeSummary,
 } from "@/lib/supabase/uptime-history";
+import { getDefaultTimeZone } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 
 type AddServiceInput = {
@@ -314,7 +315,7 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       maintenanceWindows: [],
       incidentEvents: [],
       alertSubscribers: [],
-      uptimeSummary: buildFallbackUptimeSummary([]),
+      uptimeSummary: buildFallbackUptimeSummary([], getDefaultTimeZone()),
       workspace: defaultWorkspace,
       currentProjectId: defaultWorkspace.projects[0]?.id ?? "",
     };
@@ -713,7 +714,7 @@ const initialState: AppDataState = {
   maintenanceWindows: [],
   incidentEvents: [],
   alertSubscribers: [],
-  uptimeSummary: buildFallbackUptimeSummary([]),
+  uptimeSummary: buildFallbackUptimeSummary([], getDefaultTimeZone()),
 };
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -767,6 +768,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           supabase,
           userId,
           appData.services,
+          getDefaultTimeZone(),
         );
         dispatch({
           type: "SET_HYDRATED_DATA",
@@ -1087,6 +1089,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           supabase,
           user.id,
           appData.services,
+          getDefaultTimeZone(),
         );
         console.info("[AppData] workspace loaded", {
           workspaceId: appData.workspace.id,

@@ -1,3 +1,5 @@
+"use client";
+
 import type { Incident } from "@/lib/models/monitoring";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -25,7 +27,7 @@ export function PublicIncidentHistory({
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-zinc-900 sm:text-xl">Incident history</h2>
         <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
-          Recent and resolved incidents for this workspace (timestamps in UTC).
+          Recent and resolved incidents for this workspace. Times are shown in your local timezone.
         </p>
       </div>
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PublicIncidentHistory } from "@/components/status/public-incident-history";
 import { PublicUptimeSection } from "@/components/status/public-uptime-section";
+import { LocalDateTime, LocalTimestampOrText } from "@/components/ui/local-datetime";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { logApi } from "@/lib/logging/server-log";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,7 +11,6 @@ import {
   loadPublicUptimeBars24h,
   loadPublicWorkspaceUptime,
 } from "@/lib/status/public-uptime";
-import { formatDateTime, formatTimestampOrText } from "@/lib/utils/date-time";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 
 type OverallStatus = "all-operational" | "partial-outage" | "major-outage";
@@ -238,7 +238,9 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
           </p>
           <p className="mt-2 text-xs text-zinc-500">
             {lastUpdated ? (
-              <>Last updated {formatDateTime(lastUpdated)}</>
+              <>
+                Last updated <LocalDateTime iso={lastUpdated} />
+              </>
             ) : (
               <>Publish services to show live check timestamps.</>
             )}
@@ -302,7 +304,12 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
                   </div>
                   <div className="mt-4 grid grid-cols-1 gap-2 text-xs text-zinc-600 sm:grid-cols-2">
                     <p className="min-w-0 break-words">
-                      Last checked: {formatTimestampOrText(service.lastChecked || "Unknown")}
+                      Last checked:{" "}
+                      {service.lastChecked ? (
+                        <LocalTimestampOrText value={service.lastChecked} />
+                      ) : (
+                        "Unknown"
+                      )}
                     </p>
                     <p className="min-w-0 break-words">
                       Response:{" "}

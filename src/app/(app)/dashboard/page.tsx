@@ -109,6 +109,7 @@ export default function OverviewPage() {
                 resolvedIncidents={resolvedIncidentCount}
                 averageResponseTimeMs={uptimeSummary.averageResponseTimeMs}
                 averageUptimePercentage={uptimeSummary.averageUptimePercentage}
+                hasCheckHistory={uptimeSummary.hasCheckHistory}
               />
             </div>
           </section>

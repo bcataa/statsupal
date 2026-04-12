@@ -48,13 +48,16 @@ export type DashboardMetric = {
 
 export type UptimeDayPoint = {
   day: string;
-  uptimePercentage: number;
+  /** Null when there were no checks on that local calendar day. */
+  uptimePercentage: number | null;
 };
 
 export type UptimeSummary = {
   points: UptimeDayPoint[];
   averageUptimePercentage: number;
   averageResponseTimeMs: number;
+  /** True when percentages are derived from service_check_history (not the synthetic fallback). */
+  hasCheckHistory: boolean;
 };
 
 export type MaintenanceWindowStatus = "scheduled" | "active" | "completed" | "cancelled";

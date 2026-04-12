@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { TopHeader } from "@/components/layout/top-header";
 import { useAppData } from "@/state/app-data-provider";
@@ -20,14 +21,14 @@ export function AppShell({ children }: AppShellProps) {
       </aside>
 
       {isSidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-50 md:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-zinc-900/25"
             onClick={() => setIsSidebarOpen(false)}
             aria-label="Close navigation menu"
           />
-          <aside className="relative h-full w-64 border-r border-zinc-200 bg-white shadow-xl">
+          <aside className="relative h-full w-[min(20rem,calc(100vw-2.5rem))] border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl">
             <SidebarNav onNavigate={() => setIsSidebarOpen(false)} />
           </aside>
         </div>
@@ -35,7 +36,7 @@ export function AppShell({ children }: AppShellProps) {
 
       <div className="md:pl-64">
         <TopHeader onOpenSidebar={() => setIsSidebarOpen(true)} />
-        <main className="min-w-0 px-3 pt-24 pb-8 sm:px-6">
+        <main className="min-w-0 px-4 pt-[calc(6.75rem+env(safe-area-inset-top,0px))] pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:px-6 md:pt-24 md:pb-8">
           {!isHydrated || isHydrating ? (
             <div className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center">
               <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-5 text-sm text-zinc-600 shadow-sm">
@@ -58,6 +59,7 @@ export function AppShell({ children }: AppShellProps) {
             children
           )}
         </main>
+        <MobileTabBar />
       </div>
     </div>
   );

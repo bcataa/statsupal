@@ -5,6 +5,7 @@ type PerformanceSummaryCardProps = {
   resolvedIncidents: number;
   averageResponseTimeMs: number;
   averageUptimePercentage: number;
+  hasCheckHistory: boolean;
 };
 
 export function PerformanceSummaryCard({
@@ -12,6 +13,7 @@ export function PerformanceSummaryCard({
   resolvedIncidents,
   averageResponseTimeMs,
   averageUptimePercentage,
+  hasCheckHistory,
 }: PerformanceSummaryCardProps) {
   const measuredServices = services.filter((service) => service.responseTimeMs > 0);
   const avgResponse =
@@ -41,7 +43,17 @@ export function PerformanceSummaryCard({
               : "No data yet"}
         </p>
         <p className="rounded-lg bg-zinc-50 px-3 py-2">
-          7-day uptime: {averageUptimePercentage.toFixed(2)}%
+          7-day uptime:{" "}
+          {hasCheckHistory ? (
+            `${averageUptimePercentage.toFixed(2)}%`
+          ) : averageUptimePercentage > 0 ? (
+            <>
+              ~{averageUptimePercentage.toFixed(2)}% (estimated from current status — not from stored
+              checks)
+            </>
+          ) : (
+            "No check history in this window yet"
+          )}
         </p>
         <p className="rounded-lg bg-zinc-50 px-3 py-2">Slow services (&gt;=800 ms): {slowServices}</p>
         <p className="rounded-lg bg-zinc-50 px-3 py-2">Resolved incidents: {resolvedIncidents}</p>

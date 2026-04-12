@@ -1,9 +1,17 @@
 import type { ServiceStatus } from "@/lib/models/monitoring";
 
 export type PublicUptimeWindows = {
-  hours24: number;
-  days7: number;
-  days30: number;
+  /** Null when there are no checks in that rolling window. */
+  hours24: number | null;
+  days7: number | null;
+  days30: number | null;
+};
+
+export type PublicUptimeBars24hResult = {
+  /** One value per hour for the last 24h: 0–100 uptime %, or -1 if no checks in that hour. */
+  values: number[];
+  /** Epoch ms at the start of bucket 0 (rolling window). */
+  windowStartMs: number;
 };
 
 type HistoryRow = {
@@ -39,7 +47,7 @@ export async function loadPublicWorkspaceUptime(
   serviceIds: string[],
 ): Promise<PublicUptimeWindows> {
   if (serviceIds.length === 0) {
-    return { hours24: 100, days7: 100, days30: 100 };
+    return { hours24: null, days7: null, days30: null };
   }
 
   const db = admin as AdminLike;
@@ -53,7 +61,7 @@ export async function loadPublicWorkspaceUptime(
     .gte("checked_at", since30);
 
   if (result.error) {
-    return { hours24: 100, days7: 100, days30: 100 };
+    return { hours24: null, days7: null, days30: null };
   }
 
   const rows = (result.data ?? []) as HistoryRow[];
@@ -66,18 +74,21 @@ export async function loadPublicWorkspaceUptime(
   const r30 = rows.filter((r) => new Date(r.checked_at).getTime() >= cutoff30);
 
   return {
-    hours24: computeUptime(r24),
-    days7: computeUptime(r7),
-    days30: computeUptime(r30),
+    hours24: r24.length === 0 ? null : computeUptime(r24),
+    days7: r7.length === 0 ? null : computeUptime(r7),
+    days30: r30.length === 0 ? null : computeUptime(r30),
   };
 }
 
-/** One value per hour for the last 24h: 0–100 uptime %, or -1 if no checks in that hour. */
 export async function loadPublicUptimeBars24h(
   admin: unknown,
   serviceIds: string[],
-): Promise<number[]> {
-  const empty = () => Array.from({ length: 24 }, () => -1);
+): Promise<PublicUptimeBars24hResult> {
+  const empty = (): PublicUptimeBars24hResult => ({
+    values: Array.from({ length: 24 }, () => -1),
+    windowStartMs: Date.now() - 24 * 60 * 60 * 1000,
+  });
+
   if (serviceIds.length === 0) {
     return empty();
   }
@@ -105,9 +116,12 @@ export async function loadPublicUptimeBars24h(
     if (t < windowStart || t > now) {
       continue;
     }
-    const hourIndex = Math.min(23, Math.floor((t - windowStart) / (60 * 60 * 1000)));
+    const hourIndex = Math.min(23, Math.max(0, Math.floor((t - windowStart) / (60 * 60 * 1000))));
     buckets[hourIndex]?.push(row);
   }
 
-  return buckets.map((list) => (list.length === 0 ? -1 : computeUptime(list)));
+  return {
+    values: buckets.map((list) => (list.length === 0 ? -1 : computeUptime(list))),
+    windowStartMs: windowStart,
+  };
 }

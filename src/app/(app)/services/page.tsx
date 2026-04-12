@@ -27,10 +27,10 @@ export default function ServicesPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-zinc-900">Services</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">Services</h2>
             <p className="mt-1 text-sm text-zinc-500">
               Add each website or API you want to watch. This is the main action in Statsupal—without a
               service, checks do not run.

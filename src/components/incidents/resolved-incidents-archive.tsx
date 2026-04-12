@@ -57,7 +57,16 @@ export function ResolvedIncidentsArchive({ count, children }: ResolvedIncidentsA
         </span>
       </button>
       {open ? (
-        <div className="border-t border-zinc-200 bg-white/80 px-3 pb-4 pt-2 sm:px-4">{children}</div>
+        <div
+          className={[
+            "border-t border-zinc-200 bg-white/80 px-3 pb-4 pt-2 sm:px-4",
+            count > 8
+              ? "max-h-[min(70vh,36rem)] overflow-y-auto overflow-x-hidden overscroll-y-contain"
+              : "",
+          ].join(" ")}
+        >
+          {children}
+        </div>
       ) : null}
     </section>
   );

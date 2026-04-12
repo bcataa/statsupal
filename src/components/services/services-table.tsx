@@ -283,11 +283,11 @@ export function ServicesTable({ services }: ServicesTableProps) {
               </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => openEdit(service)}
-                className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                className="inline-flex min-h-10 min-w-[4.5rem] items-center justify-center rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100"
               >
                 Edit
               </button>
@@ -295,7 +295,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
                 type="button"
                 onClick={() => void handleDelete(service.id)}
                 disabled={deletingServiceId === service.id}
-                className="rounded-lg border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50"
+                className="inline-flex min-h-10 min-w-[4.5rem] items-center justify-center rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 disabled:opacity-60"
               >
                 {deletingServiceId === service.id ? "Deleting..." : "Delete"}
               </button>
