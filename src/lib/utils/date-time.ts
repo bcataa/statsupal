@@ -66,12 +66,22 @@ export function formatDateLocal(iso: string | Date | null | undefined): string {
 
 /** `YYYY-MM-DD` for the calendar day of `date` in `timeZone` (IANA), e.g. America/New_York. */
 export function dayKeyInTimeZone(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(date);
+  }).formatToParts(date);
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const d = parts.find((p) => p.type === "day")?.value;
+  if (!y || !m || !d) {
+    return "";
+  }
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
 /**
@@ -91,7 +101,8 @@ export function getLastNLocalDayKeysOldestFirst(
   keysNewestFirst.push(dayKeyInTimeZone(cursor, timeZone));
 
   let guard = 0;
-  while (keysNewestFirst.length < count && guard < count * 48) {
+  /* Up to ~25h per new calendar day during DST; allow extra margin. */
+  while (keysNewestFirst.length < count && guard < count * 30 * 24) {
     cursor = new Date(cursor.getTime() - 60 * 60 * 1000);
     const key = dayKeyInTimeZone(cursor, timeZone);
     const last = keysNewestFirst[keysNewestFirst.length - 1];

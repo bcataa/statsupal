@@ -9,10 +9,24 @@ type SupabaseClientLike = unknown;
 
 type DbClient = {
   from: (table: string) => {
-    select: (...args: unknown[]) => {
-      eq: (...args: unknown[]) => {
-        gte: (...args: unknown[]) => {
-          order: (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>;
+    select: (columns: string) => {
+      eq: (
+        col: string,
+        val: string,
+      ) => {
+        in: (
+          col: string,
+          vals: string[],
+        ) => {
+          gte: (
+            col: string,
+            val: string,
+          ) => {
+            order: (
+              col: string,
+              opts: { ascending: boolean },
+            ) => Promise<{ data: unknown; error: unknown }>;
+          };
         };
       };
     };
@@ -78,8 +92,25 @@ export async function loadSevenDayUptimeSummary(
 ): Promise<UptimeSummary> {
   const db = getDb(client);
   const tz = timeZone || "UTC";
-  const dayKeys = getLastNLocalDayKeysOldestFirst(tz, 7, new Date());
-  const fetchSinceMs = Date.now() - 10 * 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const dayKeys = getLastNLocalDayKeysOldestFirst(tz, 7, now);
+
+  if (services.length === 0) {
+    return {
+      points: dayKeys.map((key) => ({
+        day: weekdayShortForLocalDayKey(key, tz),
+        uptimePercentage: null,
+      })),
+      averageUptimePercentage: 0,
+      averageResponseTimeMs: 0,
+      hasCheckHistory: false,
+    };
+  }
+
+  const serviceIds = services.map((s) => s.id);
+  /** Pull enough history to cover the seven displayed local days plus slack (DST, clock skew). */
+  const fetchDays = 45;
+  const fetchSinceMs = Date.now() - fetchDays * 24 * 60 * 60 * 1000;
   const since = new Date(fetchSinceMs).toISOString();
 
   try {
@@ -87,6 +118,7 @@ export async function loadSevenDayUptimeSummary(
       .from("service_check_history")
       .select("status,response_time_ms,checked_at")
       .eq("user_id", userId)
+      .in("service_id", serviceIds)
       .gte("checked_at", since)
       .order("checked_at", { ascending: true });
 
@@ -110,6 +142,9 @@ export async function loadSevenDayUptimeSummary(
     const rowsByDay = new Map<string, ServiceHistoryRow[]>();
     for (const row of rows) {
       const key = dayKeyInTimeZone(new Date(row.checked_at), tz);
+      if (!key) {
+        continue;
+      }
       const existing = rowsByDay.get(key) ?? [];
       existing.push(row);
       rowsByDay.set(key, existing);
@@ -146,11 +181,13 @@ export async function loadSevenDayUptimeSummary(
           )
         : 0;
 
+    const hasCheckHistory = points.some((p) => p.uptimePercentage !== null);
+
     return {
       points,
       averageUptimePercentage: Number(averageUptimePercentage.toFixed(2)),
       averageResponseTimeMs,
-      hasCheckHistory: true,
+      hasCheckHistory,
     };
   } catch {
     return buildFallbackUptimeSummary(services, tz);

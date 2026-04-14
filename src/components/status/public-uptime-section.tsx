@@ -27,9 +27,13 @@ function formatUptimeCell(value: number | null): { main: string; sub?: string } 
 
 export function PublicUptimeSection({ uptime, bars24h }: Props) {
   const { values: bars, windowStartMs } = bars24h;
-  const hasHourlyData = bars.some((b) => b >= 0);
+  const hasHourlyData = bars.some((b) => b !== -1);
   const hasAnyWindowData =
     uptime.hours24 !== null || uptime.days7 !== null || uptime.days30 !== null;
+  const onlyLongerWindowHasChecks =
+    uptime.hours24 === null &&
+    uptime.days7 === null &&
+    uptime.days30 !== null;
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-8">
@@ -63,6 +67,14 @@ export function PublicUptimeSection({ uptime, bars24h }: Props) {
           );
         })}
       </div>
+
+      {onlyLongerWindowHasChecks ? (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950">
+          The 30-day figure includes older checks. There have been no checks in the last 7 days, so 24h
+          and 7d stay empty until your monitors run again. The hourly chart only covers the last 24
+          hours.
+        </p>
+      ) : null}
 
       {!hasAnyWindowData ? (
         <div className="mt-6 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-5 text-center sm:mt-8">
