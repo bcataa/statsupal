@@ -58,3 +58,25 @@ export const logDiscord = {
   warn: (msg: string, payload?: LogPayload) => discord("warn", msg, payload),
   error: (msg: string, payload?: LogPayload) => discord("error", msg, payload),
 };
+
+function developerApi(level: "info" | "warn" | "error", msg: string, payload?: LogPayload) {
+  const line = formatMessage("[developer-api]", msg, payload);
+  console[level](line);
+}
+
+function aiAssistant(level: "info" | "warn" | "error", msg: string, payload?: LogPayload) {
+  const line = formatMessage("[ai-assistant]", msg, payload);
+  console[level](line);
+}
+
+export const logDeveloperApi = {
+  info: (msg: string, payload?: LogPayload) => developerApi("info", msg, payload),
+  warn: (msg: string, payload?: LogPayload) => developerApi("warn", msg, payload),
+  error: (msg: string, payload?: LogPayload) => developerApi("error", msg, payload),
+};
+
+export const logAiAssistant = {
+  info: (msg: string, payload?: LogPayload) => aiAssistant("info", msg, payload),
+  warn: (msg: string, payload?: LogPayload) => aiAssistant("warn", msg, payload),
+  error: (msg: string, payload?: LogPayload) => aiAssistant("error", msg, payload),
+};

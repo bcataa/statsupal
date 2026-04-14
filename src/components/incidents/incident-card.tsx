@@ -1,6 +1,7 @@
 import type { Incident, IncidentEvent, IncidentStatus } from "@/lib/models/monitoring";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { StatusBadge } from "@/components/ui/status-badge";
+import Link from "next/link";
 import { useState } from "react";
 
 type IncidentCardProps = {
@@ -37,6 +38,54 @@ export function IncidentCard({
   const nextStatus = getNextStatus(incident.status);
   const isResolved = incident.status === "resolved";
   const [showDetails, setShowDetails] = useState(false);
+  const [aiBusy, setAiBusy] = useState<"summarize" | "draft" | null>(null);
+  const [aiOutput, setAiOutput] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiErrorCode, setAiErrorCode] = useState<string | null>(null);
+
+  const runIncidentAi = async (action: "summarize" | "draft_public_update") => {
+    setAiError(null);
+    setAiErrorCode(null);
+    setAiBusy(action === "summarize" ? "summarize" : "draft");
+    try {
+      const res = await fetch("/api/ai/incident-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ incidentId: incident.id, action }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        text?: string;
+        error?: string;
+        code?: string;
+      };
+      if (!res.ok || !data.ok || !data.text) {
+        setAiOutput(null);
+        const base = data.error ?? "Something went wrong with the AI request.";
+        setAiErrorCode(data.code ?? null);
+        if (data.code === "ai_not_configured") {
+          setAiError(
+            `${base} Your team can enable it under Settings → AI assistant, or use the links below.`,
+          );
+        } else if (data.code === "ai_error") {
+          setAiError(`${base} If this keeps happening, try again in a few minutes.`);
+        } else {
+          setAiError(base);
+        }
+        return;
+      }
+      setAiError(null);
+      setAiErrorCode(null);
+      setAiOutput(data.text);
+    } catch {
+      setAiOutput(null);
+      setAiErrorCode(null);
+      setAiError("We could not reach the server. Check your connection and try again.");
+    } finally {
+      setAiBusy(null);
+    }
+  };
 
   const resolveWithSummary = () => {
     const summary = window.prompt(
@@ -83,6 +132,71 @@ export function IncidentCard({
           Resolution: {incident.resolutionSummary}
         </p>
       )}
+
+      <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/40 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+          AI assistance (drafts only)
+        </p>
+        <p className="mt-1 text-[11px] leading-snug text-violet-900/80">
+          Suggestions only—does not change monitoring or status.{" "}
+          <Link href="/developer-docs#ai-assistant" className="font-medium underline-offset-2 hover:underline">
+            API &amp; AI guide
+          </Link>
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void runIncidentAi("summarize")}
+            disabled={aiBusy !== null}
+            className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-900 hover:bg-violet-50 disabled:opacity-60"
+          >
+            {aiBusy === "summarize" ? "Working…" : "Generate summary"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void runIncidentAi("draft_public_update")}
+            disabled={aiBusy !== null}
+            className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-900 hover:bg-violet-50 disabled:opacity-60"
+          >
+            {aiBusy === "draft" ? "Working…" : "Draft status update"}
+          </button>
+        </div>
+        {aiError ? (
+          <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-2 text-xs text-rose-900">
+            <p>{aiError}</p>
+            {aiErrorCode === "ai_not_configured" ? (
+              <p className="mt-2">
+                <Link
+                  href="/settings"
+                  className="font-medium text-rose-950 underline-offset-2 hover:underline"
+                >
+                  AI assistant settings
+                </Link>
+                <span className="text-rose-800/80"> · </span>
+                <Link
+                  href="/developer-docs#errors"
+                  className="font-medium text-rose-950 underline-offset-2 hover:underline"
+                >
+                  Error codes
+                </Link>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {aiOutput ? (
+          <div className="mt-2">
+            <label className="text-[10px] font-medium uppercase tracking-wide text-violet-800">
+              Output (copy and edit before use)
+            </label>
+            <textarea
+              readOnly
+              value={aiOutput}
+              className="mt-1 min-h-24 w-full rounded-lg border border-violet-200 bg-white px-2 py-2 text-xs text-zinc-800"
+              rows={6}
+            />
+          </div>
+        ) : null}
+      </div>
 
       {!isResolved && (
         <div className="mt-4 flex flex-wrap items-center gap-2">

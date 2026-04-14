@@ -8,6 +8,7 @@ export const navigationItems: NavItem[] = [
   { label: "Services", href: "/services" },
   { label: "Incidents", href: "/incidents" },
   { label: "Status Page", href: "/dashboard/status" },
+  { label: "API docs", href: "/developer-docs" },
   { label: "Settings", href: "/settings" },
 ];
 
@@ -15,6 +16,7 @@ const titleMap: Record<string, string> = {
   "/dashboard": "Overview",
   "/services": "Services",
   "/incidents": "Incidents",
+  "/developer-docs": "API & AI guide",
   "/settings": "Settings",
 };
 

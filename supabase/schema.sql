@@ -141,6 +141,27 @@ create table if not exists public.workspace_notification_secrets (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.developer_api_keys (
+  id text primary key,
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  key_hash text not null,
+  key_prefix text not null,
+  scopes text[] not null default '{}',
+  last_used_at timestamptz,
+  created_at timestamptz not null default now(),
+  revoked_at timestamptz
+);
+
+create index if not exists developer_api_keys_workspace_idx
+  on public.developer_api_keys (workspace_id)
+  where revoked_at is null;
+
+create unique index if not exists developer_api_keys_active_hash_uidx
+  on public.developer_api_keys (key_hash)
+  where revoked_at is null;
+
 create table if not exists public.monitor_heartbeat (
   id text primary key,
   last_started_at timestamptz,
@@ -223,6 +244,7 @@ alter table public.maintenance_windows enable row level security;
 alter table public.incident_events enable row level security;
 alter table public.alert_subscribers enable row level security;
 alter table public.workspace_notification_secrets enable row level security;
+alter table public.developer_api_keys enable row level security;
 alter table public.monitor_heartbeat enable row level security;
 
 drop policy if exists "Users can read own workspaces" on public.workspaces;
@@ -402,6 +424,13 @@ create policy "Users can read own workspace subscribers"
 drop policy if exists "Users can manage own workspace notification secrets" on public.workspace_notification_secrets;
 create policy "Users can manage own workspace notification secrets"
   on public.workspace_notification_secrets
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users manage own developer API keys" on public.developer_api_keys;
+create policy "Users manage own developer API keys"
+  on public.developer_api_keys
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
+import { AiAssistantSettings } from "@/components/settings/ai-assistant-settings";
+import { DeveloperApiSettings } from "@/components/settings/developer-api-settings";
 import { useAppData } from "@/state/app-data-provider";
 
 type SaveState = {
@@ -640,6 +642,9 @@ export default function SettingsPage() {
           </p>
         </div>
       </section>
+
+      <DeveloperApiSettings />
+      <AiAssistantSettings />
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
