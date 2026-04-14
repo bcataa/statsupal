@@ -1,5 +1,10 @@
--- Canonical snapshot of the full schema. For incremental deploys, prefer
--- applying files in `supabase/migrations/` in timestamp order (see migrations/README.md).
+-- Statsupal: full schema in one file (tables, indexes, RLS, policies, upgrades).
+--
+-- Supabase SQL Editor: you can paste and run this entire file for a new project, or use it
+-- as the single reference for what the database should contain. It matches the combined
+-- outcome of `supabase/migrations/*.sql` in timestamp order.
+--
+-- Incremental deploys: still use `supabase/migrations/` or `supabase db push` if you prefer.
 
 create extension if not exists "pgcrypto";
 
@@ -148,6 +153,33 @@ create table if not exists public.monitor_heartbeat (
 
 insert into public.monitor_heartbeat (id) values ('default')
   on conflict (id) do nothing;
+
+-- Legacy monitor_heartbeat: older migrations used last_cycle_* names.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'monitor_heartbeat'
+      and column_name = 'last_cycle_started_at'
+  ) then
+    alter table public.monitor_heartbeat rename column last_cycle_started_at to last_started_at;
+  end if;
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'monitor_heartbeat'
+      and column_name = 'last_cycle_completed_at'
+  ) then
+    alter table public.monitor_heartbeat rename column last_cycle_completed_at to last_finished_at;
+  end if;
+end $$;
+
+alter table public.monitor_heartbeat
+  add column if not exists created_at timestamptz not null default now();
+
+comment on table public.monitor_heartbeat is
+  'Updated by the Statsupal monitor (single instance). Used by /api/health/monitoring. Service role only.';
 
 create index if not exists incidents_user_id_idx on public.incidents(user_id);
 create unique index if not exists incidents_one_active_per_service_idx
