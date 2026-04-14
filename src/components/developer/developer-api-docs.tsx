@@ -29,7 +29,23 @@ function CodeBlock({ code, label }: { code: string; label: string }) {
   );
 }
 
+const QUICK_TEST_SUCCESS = `{
+  "ok": true,
+  "services": [
+    {
+      "id": "9b2f…",
+      "name": "Website",
+      "status": "operational",
+      "is_published": true,
+      "last_checked": "2026-04-07T10:15:00.000Z"
+    }
+  ]
+}`;
+
 export function DeveloperApiDocs({ baseUrl }: DeveloperApiDocsProps) {
+  const quickTestCurl = `curl "${baseUrl}/api/public/status" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`;
+
   const curlStatus = `curl -sS "${baseUrl}/api/public/status" \\
   -H "Authorization: Bearer YOUR_API_KEY_HERE"`;
 
@@ -82,6 +98,28 @@ else console.log(data.text);`;
           Connect scripts and tools to your workspace, and use optional AI for incident wording. Nothing
           here changes how monitoring runs. API keys only read or write data you allow.
         </p>
+      </header>
+
+      <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+        <h2 className="text-base font-semibold text-zinc-900">Quick test</h2>
+        <p className="mt-3 text-sm text-zinc-600">
+          Replace <code className="rounded bg-white/80 px-1 font-mono text-xs">YOUR_API_KEY</code> (needs{" "}
+          <code className="rounded bg-white/80 px-1 text-xs">read:status</code>):
+        </p>
+        <div className="mt-3">
+          <CodeBlock label="Terminal" code={quickTestCurl} />
+        </div>
+        <p className="mt-3 text-sm text-zinc-700">
+          If this returns JSON, your API key works.
+        </p>
+        <p className="mt-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Example success</p>
+        <pre className="mt-2 overflow-x-auto rounded-xl border border-emerald-200/80 bg-white p-3 text-[11px] leading-relaxed text-zinc-800">
+          <code>{QUICK_TEST_SUCCESS}</code>
+        </pre>
+        <p className="mt-3 text-xs text-zinc-500">Takes about 5 seconds to test.</p>
+      </section>
+
+      <div className="space-y-3">
         <p className="text-sm">
           <Link
             href="/settings"
@@ -97,7 +135,7 @@ else console.log(data.text);`;
             Incidents
           </Link>
         </p>
-      </header>
+      </div>
 
       <section
         id="getting-started"
