@@ -9,8 +9,8 @@ function hasErrorCode(error: unknown, code: string): boolean {
 }
 
 type HeartbeatPatch = {
-  last_cycle_started_at?: string | null;
-  last_cycle_completed_at?: string | null;
+  last_started_at?: string | null;
+  last_finished_at?: string | null;
   services_checked?: number | null;
   last_error?: string | null;
 };
@@ -85,6 +85,8 @@ export async function readMonitorHeartbeatFromDb(): Promise<{
       return null;
     }
     const d = res.data as {
+      last_started_at?: string | null;
+      last_finished_at?: string | null;
       last_cycle_started_at?: string | null;
       last_cycle_completed_at?: string | null;
       services_checked?: number | null;
@@ -92,8 +94,8 @@ export async function readMonitorHeartbeatFromDb(): Promise<{
       updated_at?: string | null;
     };
     return {
-      lastCycleStartedAt: d.last_cycle_started_at ?? null,
-      lastCycleCompletedAt: d.last_cycle_completed_at ?? null,
+      lastCycleStartedAt: d.last_started_at ?? d.last_cycle_started_at ?? null,
+      lastCycleCompletedAt: d.last_finished_at ?? d.last_cycle_completed_at ?? null,
       servicesChecked: d.services_checked ?? null,
       lastError: d.last_error ?? null,
       updatedAt: d.updated_at ?? null,

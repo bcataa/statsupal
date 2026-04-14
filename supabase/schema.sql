@@ -138,10 +138,11 @@ create table if not exists public.workspace_notification_secrets (
 
 create table if not exists public.monitor_heartbeat (
   id text primary key,
-  last_cycle_started_at timestamptz,
-  last_cycle_completed_at timestamptz,
+  last_started_at timestamptz,
+  last_finished_at timestamptz,
   services_checked integer,
   last_error text,
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 

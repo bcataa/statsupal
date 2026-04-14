@@ -178,7 +178,7 @@ export async function runServerMonitoringCycle({
   const cycleStartedAt = new Date().toISOString();
   recordMonitorCycleStartInMemory(cycleStartedAt);
   await updateMonitorHeartbeatRow({
-    last_cycle_started_at: cycleStartedAt,
+    last_started_at: cycleStartedAt,
     last_error: null,
   });
 
@@ -196,8 +196,8 @@ export async function runServerMonitoringCycle({
       input.lastError ?? undefined,
     );
     await updateMonitorHeartbeatRow({
-      last_cycle_started_at: cycleStartedAt,
-      last_cycle_completed_at: completedAt,
+      last_started_at: cycleStartedAt,
+      last_finished_at: completedAt,
       services_checked: input.servicesChecked,
       last_error: input.lastError,
     });
