@@ -1,3 +1,4 @@
+import { dispatchAutomationWebhooks } from "@/lib/automations/dispatch";
 import { logMonitoring } from "@/lib/logging/server-log";
 import { fireOptionalMonitorWebhook, updateMonitorHeartbeatRow } from "@/lib/monitoring/monitor-heartbeat";
 import { runHttpCheck } from "@/lib/monitoring/monitor";
@@ -527,6 +528,25 @@ export async function runServerMonitoringCycle({
           message: `Monitoring detected ${nextFailureCount} consecutive failures.`,
           created_at: now,
         });
+        void dispatchAutomationWebhooks({
+          trigger: "service_down",
+          workspaceId: service.workspace_id,
+          userId: service.user_id,
+          serviceId: service.id,
+          serviceName: service.name,
+          status: "down",
+          incidentId,
+        }).catch(() => {});
+        void dispatchAutomationWebhooks({
+          trigger: "incident_created",
+          workspaceId: service.workspace_id,
+          userId: service.user_id,
+          serviceId: service.id,
+          serviceName: service.name,
+          status: "investigating",
+          incidentId,
+        }).catch(() => {});
+
         if (workspaceSettings) {
           await safeNotifyIncidentEvent({
             event: "created",
@@ -606,6 +626,16 @@ export async function runServerMonitoringCycle({
           message: `Monitoring confirmed recovery at ${result.responseTimeMs} ms.`,
           created_at: now,
         });
+        void dispatchAutomationWebhooks({
+          trigger: "incident_resolved",
+          workspaceId: service.workspace_id,
+          userId: service.user_id,
+          serviceId: service.id,
+          serviceName: service.name,
+          status: "resolved",
+          incidentId: activeIncident.id,
+        }).catch(() => {});
+
         if (workspaceSettings) {
           await safeNotifyIncidentEvent({
             event: "resolved",

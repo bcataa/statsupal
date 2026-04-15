@@ -80,3 +80,14 @@ export const logAiAssistant = {
   warn: (msg: string, payload?: LogPayload) => aiAssistant("warn", msg, payload),
   error: (msg: string, payload?: LogPayload) => aiAssistant("error", msg, payload),
 };
+
+function automations(level: "info" | "warn" | "error", msg: string, payload?: LogPayload) {
+  const line = formatMessage("[automations]", msg, payload);
+  console[level](line);
+}
+
+export const logAutomations = {
+  info: (msg: string, payload?: LogPayload) => automations("info", msg, payload),
+  warn: (msg: string, payload?: LogPayload) => automations("warn", msg, payload),
+  error: (msg: string, payload?: LogPayload) => automations("error", msg, payload),
+};

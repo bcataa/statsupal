@@ -78,6 +78,8 @@ type CreateMaintenanceInput = {
 };
 
 type CreateIncidentInput = {
+  /** If omitted, a new id is generated when dispatching CREATE_INCIDENT. */
+  id?: string;
   title: string;
   description?: string;
   source?: "manual" | "monitoring";
@@ -165,7 +167,7 @@ type AppDataAction =
   | { type: "ADD_SERVICE"; payload: Service }
   | { type: "UPDATE_SERVICE"; payload: UpdateServiceInput }
   | { type: "DELETE_SERVICE"; payload: { serviceId: string } }
-  | { type: "CREATE_INCIDENT"; payload: CreateIncidentInput }
+  | { type: "CREATE_INCIDENT"; payload: CreateIncidentInput & { id: string } }
   | {
       type: "UPDATE_INCIDENT_STATUS";
       payload: { incidentId: string; status: IncidentStatus };
@@ -542,7 +544,7 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
   if (action.type === "CREATE_INCIDENT") {
     const now = new Date().toISOString();
     const incident: Incident = {
-      id: createIncidentId(),
+      id: action.payload.id,
       title: action.payload.title,
       description: action.payload.description || undefined,
       source: action.payload.source ?? "manual",
@@ -958,29 +960,49 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [state.authUserId, supabase],
   );
 
-  const createIncident = useCallback(
-    (input: CreateIncidentInput) =>
-      dispatch({ type: "CREATE_INCIDENT", payload: input }),
-    [],
-  );
+  const createIncident = useCallback((input: CreateIncidentInput) => {
+    const id = input.id ?? createIncidentId();
+    dispatch({ type: "CREATE_INCIDENT", payload: { ...input, id } });
+    void fetch("/api/automations/trigger", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ trigger: "incident_created", incidentId: id }),
+    }).catch(() => {});
+  }, []);
 
-  const updateIncidentStatus = useCallback(
-    (incidentId: string, status: IncidentStatus) =>
-      dispatch({
-        type: "UPDATE_INCIDENT_STATUS",
-        payload: { incidentId, status },
-      }),
-    [],
-  );
+  const updateIncidentStatus = useCallback((incidentId: string, status: IncidentStatus) => {
+    dispatch({
+      type: "UPDATE_INCIDENT_STATUS",
+      payload: { incidentId, status },
+    });
+    if (status === "resolved") {
+      window.setTimeout(() => {
+        void fetch("/api/automations/trigger", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ trigger: "incident_resolved", incidentId }),
+        }).catch(() => {});
+      }, 400);
+    }
+  }, []);
 
-  const resolveIncident = useCallback(
-    (incidentId: string, resolutionSummary?: string) =>
-      dispatch({
-        type: "RESOLVE_INCIDENT",
-        payload: { incidentId, resolutionSummary },
-      }),
-    [],
-  );
+  const resolveIncident = useCallback((incidentId: string, resolutionSummary?: string) => {
+    dispatch({
+      type: "RESOLVE_INCIDENT",
+      payload: { incidentId, resolutionSummary },
+    });
+    const schedule = () => {
+      void fetch("/api/automations/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ trigger: "incident_resolved", incidentId }),
+      }).catch(() => {});
+    };
+    window.setTimeout(schedule, 400);
+  }, []);
 
   const updateServiceStatus = useCallback(
     (

@@ -272,6 +272,79 @@ else console.log(data.text);`;
       </section>
 
       <section
+        id="restart-agent"
+        className="scroll-mt-24 rounded-2xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm"
+      >
+        <h2 className="text-lg font-semibold text-zinc-900">Server restart agent (your infrastructure)</h2>
+        <p className="mt-2 text-sm text-zinc-700">
+          Configure outbound webhooks under <strong>Settings → Automations</strong>. Statsupal sends JSON{" "}
+          POSTs only—it never runs SSH, Docker, or PM2 on your machines. To auto-restart after a{" "}
+          <code className="rounded bg-white/80 px-1 text-xs">service_down</code> event, run a tiny HTTP
+          listener on your server that verifies <code className="rounded bg-white/80 px-1 text-xs">x-statsupal-signature</code>{" "}
+          and then executes your restart command locally.
+        </p>
+        <p className="mt-2 text-sm text-zinc-600">
+          Use the same shared secret in Statsupal and in your agent. Signature = hex(HMAC-SHA256(raw body,
+          secret)). Add a local cooldown so overlapping webhooks do not restart in a tight loop.
+        </p>
+        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-amber-900/80">Example (Node.js + Express)</p>
+        <div className="mt-2">
+          <CodeBlock
+            label="restart-agent.example.cjs"
+            code={`// Run on YOUR server only. Set STATSUPAL_WEBHOOK_SECRET to match Automations secret.
+const crypto = require("crypto");
+const express = require("express");
+const { exec } = require("child_process");
+
+const SECRET = process.env.STATSUPAL_WEBHOOK_SECRET || "";
+const PORT = process.env.PORT || 8787;
+let lastRestart = 0;
+const COOLDOWN_MS = 5 * 60 * 1000;
+
+function verifySig(rawBody, sigHeader) {
+  if (!SECRET || !sigHeader) return false;
+  const h = crypto.createHmac("sha256", SECRET).update(rawBody, "utf8").digest("hex");
+  try {
+    const a = Buffer.from(h, "utf8");
+    const b = Buffer.from(String(sigHeader).trim(), "utf8");
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch { return false; }
+}
+
+const app = express();
+app.use(express.raw({ type: "application/json" }));
+
+app.post("/statsupal-webhook", (req, res) => {
+  const raw = req.body instanceof Buffer ? req.body.toString("utf8") : String(req.body || "");
+  const sig = req.headers["x-statsupal-signature"];
+  if (!verifySig(raw, sig)) return res.status(401).send("bad signature");
+  let body;
+  try { body = JSON.parse(raw); } catch { return res.status(400).send("bad json"); }
+  if (body.event !== "service_down") return res.status(200).send("ignored");
+
+  const now = Date.now();
+  if (now - lastRestart < COOLDOWN_MS) return res.status(200).send("cooldown");
+  lastRestart = now;
+
+  // Pick ONE: pm2, docker, systemd, etc. — runs on this machine only.
+  exec("pm2 restart all", (err) => { if (err) console.error(err); });
+  // exec("docker restart my_container", ...);
+
+  res.status(200).send("ok");
+});
+
+app.listen(PORT, () => console.log("restart agent on", PORT));`}
+          />
+        </div>
+        <p className="mt-3 text-xs text-zinc-600">
+          Expose <code className="rounded bg-white px-1">https://your-host/statsupal-webhook</code> (TLS
+          recommended) and paste that URL into an automation rule with trigger{" "}
+          <strong>Service goes down</strong>.
+        </p>
+      </section>
+
+      <section
         id="ai-assistant"
         className="scroll-mt-24 rounded-2xl border border-violet-100 bg-violet-50/40 p-6 shadow-sm"
       >

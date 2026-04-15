@@ -11,6 +11,22 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ success: false, message }, { status });
 }
 
+function isMissingDeveloperKeysTable(err: { code?: string; message?: string } | null): boolean {
+  if (!err) {
+    return false;
+  }
+  const code = err.code ?? "";
+  const msg = (err.message ?? "").toLowerCase();
+  if (code === "42P01" || code === "PGRST205") {
+    return true;
+  }
+  return (
+    msg.includes("does not exist") ||
+    msg.includes("could not find the table") ||
+    (msg.includes("relation") && msg.includes("developer_api_keys"))
+  );
+}
+
 export async function GET() {
   const supabase = await createClient();
   if (!supabase) {
@@ -35,8 +51,11 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (res.error) {
-      if ((res.error as { code?: string }).code === "42P01") {
-        return jsonError("developer_api_keys table is missing. Apply latest supabase/schema.sql.", 500);
+      if (isMissingDeveloperKeysTable(res.error as { code?: string; message?: string })) {
+        return jsonError(
+          "The developer_api_keys table is not in your database yet. In Supabase: SQL Editor → run the migration supabase/migrations/20260408120000_developer_api_keys.sql (or apply the full schema.sql), then refresh this page.",
+          500,
+        );
       }
       return jsonError("Could not load API keys.", 500);
     }
@@ -101,8 +120,11 @@ export async function POST(request: Request) {
     });
 
     if (insert.error) {
-      if ((insert.error as { code?: string }).code === "42P01") {
-        return jsonError("developer_api_keys table is missing. Apply latest supabase/schema.sql.", 500);
+      if (isMissingDeveloperKeysTable(insert.error as { code?: string; message?: string })) {
+        return jsonError(
+          "The developer_api_keys table is not in your database yet. In Supabase: SQL Editor → run supabase/migrations/20260408120000_developer_api_keys.sql, then try again.",
+          500,
+        );
       }
       return jsonError("Could not create API key.", 500);
     }

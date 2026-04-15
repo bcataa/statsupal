@@ -1,3 +1,4 @@
+import { dispatchAutomationWebhooks } from "@/lib/automations/dispatch";
 import { loadPublicUptimeBars24h, loadPublicWorkspaceUptime } from "@/lib/status/public-uptime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Incident, IncidentSeverity, IncidentStatus, Service } from "@/lib/models/monitoring";
@@ -178,7 +179,31 @@ export async function insertIncidentForWorkspace(
     throw new Error("insert_failed");
   }
 
-  return { id: (res.data as { id: string }).id };
+  const incidentId = (res.data as { id: string }).id;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const adb = asAdmin() as any;
+    const svcRes = await adb
+      .from("services")
+      .select("name")
+      .eq("id", body.affectedServiceId)
+      .eq("workspace_id", workspaceId)
+      .maybeSingle();
+    const serviceName = (svcRes.data as { name?: string } | null)?.name ?? "Service";
+    void dispatchAutomationWebhooks({
+      trigger: "incident_created",
+      workspaceId,
+      userId,
+      serviceId: body.affectedServiceId,
+      serviceName,
+      status: body.status ?? "investigating",
+      incidentId,
+    }).catch(() => {});
+  } catch {
+    /* automation is best-effort */
+  }
+
+  return { id: incidentId };
 }
 
 export async function insertMaintenanceForWorkspace(

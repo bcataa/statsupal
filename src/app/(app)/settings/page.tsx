@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 import { AiAssistantSettings } from "@/components/settings/ai-assistant-settings";
+import { AutomationsSettings } from "@/components/settings/automations-settings";
 import { DeveloperApiSettings } from "@/components/settings/developer-api-settings";
 import { useAppData } from "@/state/app-data-provider";
 
@@ -643,6 +644,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      <AutomationsSettings />
       <DeveloperApiSettings />
       <AiAssistantSettings />
 
