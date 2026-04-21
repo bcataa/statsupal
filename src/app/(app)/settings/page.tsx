@@ -1,12 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 import { AiAssistantSettings } from "@/components/settings/ai-assistant-settings";
 import { AutomationsSettings } from "@/components/settings/automations-settings";
-import { DeveloperApiSettings } from "@/components/settings/developer-api-settings";
 import { useAppData } from "@/state/app-data-provider";
 
 type SaveState = {
@@ -590,6 +590,14 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-zinc-500">
           Update the names shown across your dashboard and status page.
         </p>
+        <p className="mt-3">
+          <Link
+            href="/settings/status-design"
+            className="text-sm font-medium text-violet-700 underline underline-offset-2 hover:text-violet-900"
+          >
+            Customize status page appearance →
+          </Link>
+        </p>
         <form className="mt-5 space-y-4" onSubmit={onWorkspaceSave}>
           <div>
             <label className="mb-1 block text-sm font-medium text-zinc-700">Workspace name</label>
@@ -645,7 +653,6 @@ export default function SettingsPage() {
       </section>
 
       <AutomationsSettings />
-      <DeveloperApiSettings />
       <AiAssistantSettings />
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

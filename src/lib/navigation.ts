@@ -5,24 +5,26 @@ export type NavItem = {
 
 export const navigationItems: NavItem[] = [
   { label: "Overview", href: "/dashboard" },
-  { label: "Services", href: "/services" },
-  { label: "Incidents", href: "/incidents" },
-  { label: "Status Page", href: "/dashboard/status" },
-  { label: "API docs", href: "/developer-docs" },
+  { label: "Monitors", href: "/services" },
+  { label: "Issues", href: "/incidents" },
+  { label: "Page", href: "/dashboard/status" },
   { label: "Settings", href: "/settings" },
 ];
 
 const titleMap: Record<string, string> = {
   "/dashboard": "Overview",
-  "/services": "Services",
-  "/incidents": "Incidents",
-  "/developer-docs": "API & AI guide",
+  "/services": "Monitors",
+  "/incidents": "Issues",
   "/settings": "Settings",
 };
 
 export function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/dashboard/status")) {
-    return "Status Page";
+    return "Page";
+  }
+
+  if (pathname.startsWith("/settings/status-design")) {
+    return "Status design";
   }
 
   return titleMap[pathname] ?? "Dashboard";

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAppData } from "@/state/app-data-provider";
 
 type OnboardingChecklistCardProps = {
@@ -17,23 +18,25 @@ export function OnboardingChecklistCard({
   servicesCount,
   incidentsCount,
 }: OnboardingChecklistCardProps) {
-  const { onboarding, setOnboardingState } = useAppData();
+  const { onboarding, setOnboardingState, workspace } = useAppData();
+  const wizardStep = workspace.statusPage.onboardingWizardStep;
+  const wizardDone = wizardStep >= 6;
 
   const items: ChecklistItem[] = [
     {
-      id: "profile",
-      label: "Complete profile",
-      completed: onboarding.profileCompleted,
-    },
-    {
-      id: "status-page",
-      label: "Create status page",
-      completed: onboarding.statusPageCreated,
+      id: "wizard",
+      label: "Guided setup (monitor, page, design)",
+      completed: wizardDone,
     },
     {
       id: "first-service",
-      label: "Add first service",
+      label: "At least one monitor",
       completed: servicesCount > 0,
+    },
+    {
+      id: "status-page",
+      label: "Status page slug configured",
+      completed: Boolean(workspace.projects[0]?.slug),
     },
     {
       id: "first-incident",
@@ -53,9 +56,9 @@ export function OnboardingChecklistCard({
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-zinc-900">Onboarding Checklist</h2>
+          <h2 className="text-base font-semibold text-zinc-900">Setup checklist</h2>
           <p className="text-sm text-zinc-500">
-            The most important step is adding a service so checks can run. The rest is optional polish.
+            Finish the guided flow for a polished public page, or work from here at your own pace.
           </p>
         </div>
         <p className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">
@@ -93,15 +96,25 @@ export function OnboardingChecklistCard({
         ))}
       </ul>
 
-      {!onboarding.alertsConfigured && (
-        <button
-          type="button"
-          onClick={() => setOnboardingState({ alertsConfigured: true })}
-          className="mt-4 inline-flex h-9 items-center justify-center rounded-lg border border-zinc-300 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Mark alerts as configured
-        </button>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {!wizardDone ? (
+          <Link
+            href="/onboarding/wizard"
+            className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
+          >
+            Continue guided setup
+          </Link>
+        ) : null}
+        {!onboarding.alertsConfigured ? (
+          <button
+            type="button"
+            onClick={() => setOnboardingState({ alertsConfigured: true })}
+            className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-300 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            Mark alerts as configured
+          </button>
+        ) : null}
+      </div>
     </section>
   );
 }

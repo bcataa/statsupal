@@ -36,11 +36,11 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
       <nav className="space-y-1.5">
         {navigationItems.map((item) => {
           const href =
-            item.label === "Status Page"
+            item.label === "Page"
               ? loggedInStatusPageHref(workspace, currentProject)
               : item.href;
           const active =
-            item.label === "Status Page"
+            item.label === "Page"
               ? pathname.startsWith("/dashboard/status")
               : isActive(pathname, href);
 

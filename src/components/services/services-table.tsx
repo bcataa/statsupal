@@ -24,6 +24,7 @@ type EditFormState = {
 };
 
 function formatCheckType(checkType: Service["checkType"]): string {
+  if (checkType === "api") return "HTTP";
   return checkType.toUpperCase();
 }
 
@@ -45,7 +46,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
     setForm({
       name: service.name,
       url: service.url,
-      checkType: service.checkType,
+      checkType: service.checkType === "api" ? "http" : service.checkType,
       checkInterval: service.checkInterval,
       timeoutMs: service.timeoutMs,
       failureThreshold: service.failureThreshold,
@@ -84,7 +85,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
         id: editingServiceId,
         name: form.name,
         url: form.url,
-        checkType: form.checkType,
+        checkType: form.checkType === "api" ? "http" : form.checkType,
         checkInterval: form.checkInterval,
         timeoutMs: form.timeoutMs,
         failureThreshold: form.failureThreshold,
@@ -342,7 +343,7 @@ export function ServicesTable({ services }: ServicesTableProps) {
                 <div>
                   <label className="mb-1 block text-sm font-medium text-zinc-700">Check type</label>
                   <select
-                    value={form.checkType}
+                    value={form.checkType === "api" ? "http" : form.checkType}
                     onChange={(event) =>
                       setForm((prev) =>
                         prev
@@ -355,9 +356,8 @@ export function ServicesTable({ services }: ServicesTableProps) {
                     }
                     className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
                   >
-                    <option value="http">HTTP</option>
-                    <option value="ping">Ping</option>
-                    <option value="api">API</option>
+                    <option value="http">HTTP / HTTPS</option>
+                    <option value="ping">Ping (HTTP GET)</option>
                   </select>
                 </div>
                 <div>

@@ -37,13 +37,15 @@ export function AiAssistantSettings() {
           On the Incidents page, use <strong>Generate summary</strong> and{" "}
           <strong>Draft status update</strong> on a card when AI is configured.
         </p>
-        <p className="mt-2 text-xs">
+        <p className="mt-2 text-xs text-violet-800/90">
+          Tip: you can also read how the product works on the{" "}
           <Link
-            href="/developer-docs#ai-assistant"
+            href="/how-it-works"
             className="font-semibold text-violet-900 underline-offset-2 hover:underline"
           >
-            {"How AI works & example requests →"}
-          </Link>
+            How it works
+          </Link>{" "}
+          page.
         </p>
       </div>
     </section>

@@ -189,9 +189,9 @@ export function AutomationsSettings() {
         <code className="rounded bg-zinc-100 px-1 text-xs">docker</code>, etc. on the machine where it runs.
       </p>
       <p className="mt-2 text-sm">
-        <Link href="/developer-docs#restart-agent" className="font-medium text-violet-700 hover:underline">
-          Server restart agent example (Node.js) →
-        </Link>
+        <span className="text-zinc-600">
+          Point your webhook at a small service you host that validates the request and restarts your process.
+        </span>
       </p>
 
       {error ? (

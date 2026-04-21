@@ -44,7 +44,7 @@ export async function runIncidentAssist(params: {
   if (!provider) {
     return {
       error:
-        "AI is not enabled on this server yet. Add STATSUPAL_AI_API_KEY and related variables to the deployment environment (see Settings → AI assistant or the API docs).",
+        "AI is not enabled on this server yet. Add STATSUPAL_AI_API_KEY and related variables in your deployment environment (see Settings → AI assistant).",
       code: "ai_not_configured",
     };
   }

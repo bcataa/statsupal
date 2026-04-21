@@ -125,7 +125,7 @@ export function AddServiceModal() {
       await addService({
         name: form.name.trim(),
         url: form.url.trim(),
-        checkType: form.checkType,
+        checkType: form.checkType === "api" ? "http" : form.checkType,
         checkInterval: form.checkInterval.trim(),
         timeoutMs: form.timeoutMs,
         failureThreshold: form.failureThreshold,
@@ -199,7 +199,7 @@ export function AddServiceModal() {
               value={form.url}
               onChange={(event) => setForm((prev) => ({ ...prev, url: event.target.value }))}
               className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 placeholder:text-zinc-400 focus:ring-2"
-              placeholder="https://api.your-service.com"
+              placeholder="https://your-service.com/health"
             />
             {errors.url && <p className="mt-1 text-xs text-rose-600">{errors.url}</p>}
           </div>
@@ -214,7 +214,7 @@ export function AddServiceModal() {
               </label>
               <select
                 id="service-check-type"
-                value={form.checkType}
+                value={form.checkType === "api" ? "http" : form.checkType}
                 onChange={(event) =>
                   setForm((prev) => ({
                     ...prev,
@@ -223,9 +223,8 @@ export function AddServiceModal() {
                 }
                 className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none ring-zinc-400 focus:ring-2"
               >
-                <option value="http">HTTP</option>
-                <option value="ping">Ping</option>
-                <option value="api">API</option>
+                <option value="http">HTTP / HTTPS</option>
+                <option value="ping">Ping (HTTP GET)</option>
               </select>
             </div>
 

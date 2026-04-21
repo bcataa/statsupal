@@ -138,10 +138,11 @@ export function IncidentCard({
           AI assistance (drafts only)
         </p>
         <p className="mt-1 text-[11px] leading-snug text-violet-900/80">
-          Suggestions only—does not change monitoring or status.{" "}
-          <Link href="/developer-docs#ai-assistant" className="font-medium underline-offset-2 hover:underline">
-            API &amp; AI guide
+          Suggestions only—does not change monitoring or status. Configure models under{" "}
+          <Link href="/settings" className="font-medium underline-offset-2 hover:underline">
+            Settings
           </Link>
+          .
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           <button
@@ -170,14 +171,7 @@ export function IncidentCard({
                   href="/settings"
                   className="font-medium text-rose-950 underline-offset-2 hover:underline"
                 >
-                  AI assistant settings
-                </Link>
-                <span className="text-rose-800/80"> · </span>
-                <Link
-                  href="/developer-docs#errors"
-                  className="font-medium text-rose-950 underline-offset-2 hover:underline"
-                >
-                  Error codes
+                  Open Settings to configure the AI assistant
                 </Link>
               </p>
             ) : null}

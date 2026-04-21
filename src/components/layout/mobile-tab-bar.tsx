@@ -4,9 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { label: "Overview", href: "/dashboard" },
-  { label: "Services", href: "/services" },
-  { label: "Incidents", href: "/incidents" },
+  { label: "Home", href: "/dashboard" },
+  { label: "Monitors", href: "/services" },
+  { label: "Issues", href: "/incidents" },
   { label: "Settings", href: "/settings" },
 ] as const;
 
@@ -54,9 +54,9 @@ export function MobileTabBar() {
                   {href === "/dashboard" ? (
                     <IconOverview />
                   ) : href === "/services" ? (
-                    <IconServices />
+                    <IconMonitors />
                   ) : href === "/incidents" ? (
-                    <IconIncidents />
+                    <IconIssues />
                   ) : (
                     <IconSettings />
                   )}
@@ -84,7 +84,7 @@ function IconOverview() {
   );
 }
 
-function IconServices() {
+function IconMonitors() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="3" y="4" width="18" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
@@ -93,7 +93,7 @@ function IconServices() {
   );
 }
 
-function IconIncidents() {
+function IconIssues() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path

@@ -66,7 +66,7 @@ export default function RegisterPage() {
       options: {
         emailRedirectTo:
           typeof window !== "undefined"
-            ? `${window.location.origin}/dashboard`
+            ? `${window.location.origin}/onboarding/wizard`
             : undefined,
         data: {
           newsletter,

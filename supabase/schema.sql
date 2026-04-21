@@ -261,6 +261,17 @@ alter table public.workspaces add column if not exists support_email text;
 alter table public.workspaces add column if not exists public_description text;
 alter table public.workspaces add column if not exists custom_domain text;
 alter table public.workspaces add column if not exists custom_domain_status text not null default 'unconfigured';
+alter table public.workspaces add column if not exists onboarding_wizard_step integer not null default 0;
+alter table public.workspaces add column if not exists brand_color text;
+alter table public.workspaces add column if not exists operational_color text;
+alter table public.workspaces add column if not exists brand_logo_url text;
+alter table public.workspaces add column if not exists brand_favicon_url text;
+alter table public.workspaces add column if not exists status_page_published boolean not null default true;
+alter table public.workspaces add column if not exists status_page_style text not null default 'standard';
+alter table public.workspaces drop constraint if exists workspaces_status_page_style_check;
+alter table public.workspaces
+  add constraint workspaces_status_page_style_check
+  check (status_page_style in ('standard', 'premium_dark'));
 alter table public.workspace_notification_secrets add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.workspace_notification_secrets add column if not exists discord_bot_token text;
 alter table public.workspace_notification_secrets add column if not exists discord_bot_channel_id text;

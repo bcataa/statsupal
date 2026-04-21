@@ -22,7 +22,7 @@ import type {
   Service,
   UptimeSummary,
 } from "@/lib/models/monitoring";
-import type { Project, Workspace } from "@/lib/models/workspace";
+import type { Project, Workspace, WorkspaceStatusPageDesign } from "@/lib/models/workspace";
 import { createClient } from "@/lib/supabase/client";
 import {
   deleteMaintenanceWindow as deleteMaintenanceWindowRow,
@@ -148,6 +148,11 @@ type AppDataAction =
         supportEmail?: string;
         customDomain?: string;
         customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+        statusPage?: {
+          onboardingWizardStep?: number;
+          published?: boolean;
+          design?: Partial<WorkspaceStatusPageDesign>;
+        };
       };
     }
   | {
@@ -221,13 +226,18 @@ type AppDataContextValue = {
     supportEmail?: string;
     customDomain?: string;
     customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+    statusPage?: {
+      onboardingWizardStep?: number;
+      published?: boolean;
+      design?: Partial<WorkspaceStatusPageDesign>;
+    };
   }) => void;
   setOnboardingState: (payload: Partial<AppDataState["onboarding"]>) => void;
   openAddServiceModal: () => void;
   closeAddServiceModal: () => void;
   openCreateIncidentModal: () => void;
   closeCreateIncidentModal: () => void;
-  addService: (input: AddServiceInput) => Promise<void>;
+  addService: (input: AddServiceInput) => Promise<string>;
   updateService: (input: UpdateServiceInput) => Promise<void>;
   deleteService: (serviceId: string) => Promise<void>;
   createIncident: (input: CreateIncidentInput) => void;
@@ -417,6 +427,20 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
             action.payload.customDomainStatus ??
             state.workspace.domainSettings.customDomainStatus,
         },
+        statusPage: {
+          onboardingWizardStep:
+            action.payload.statusPage?.onboardingWizardStep !== undefined
+              ? action.payload.statusPage.onboardingWizardStep
+              : state.workspace.statusPage.onboardingWizardStep,
+          published:
+            action.payload.statusPage?.published !== undefined
+              ? action.payload.statusPage.published
+              : state.workspace.statusPage.published,
+          design: {
+            ...state.workspace.statusPage.design,
+            ...(action.payload.statusPage?.design ?? {}),
+          },
+        },
       },
     };
   }
@@ -468,6 +492,13 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
               ...state.workspace.projects.slice(1),
             ]
           : state.workspace.projects,
+        statusPage: {
+          ...state.workspace.statusPage,
+          onboardingWizardStep:
+            action.payload.onboardingCompleted === true
+              ? 6
+              : state.workspace.statusPage.onboardingWizardStep,
+        },
       },
       onboarding: nextOnboardingState,
     };
@@ -747,6 +778,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       supportEmail?: string;
       customDomain?: string;
       customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+      statusPage?: {
+        onboardingWizardStep?: number;
+        published?: boolean;
+        design?: Partial<WorkspaceStatusPageDesign>;
+      };
     }) =>
       dispatch({ type: "UPDATE_WORKSPACE_INFO", payload }),
     [],
@@ -862,6 +898,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           type: "ADD_SERVICE",
           payload: service,
         });
+        return service.id;
       } catch (error) {
         const details = getSupabaseErrorDetails(error);
         console.error("[AddService] insert failure", {
@@ -1242,6 +1279,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           supportEmail: state.workspace.notificationSettings.supportEmail,
           customDomain: state.workspace.domainSettings.customDomain,
           customDomainStatus: state.workspace.domainSettings.customDomainStatus,
+          onboardingWizardStep: state.workspace.statusPage.onboardingWizardStep,
+          statusPagePublished: state.workspace.statusPage.published,
+          brandColor: state.workspace.statusPage.design.brandColor ?? null,
+          operationalColor: state.workspace.statusPage.design.operationalColor ?? null,
+          brandLogoUrl: state.workspace.statusPage.design.logoUrl ?? null,
+          brandFaviconUrl: state.workspace.statusPage.design.faviconUrl ?? null,
+          statusPageStyle: state.workspace.statusPage.design.style,
         });
         console.log("[AppData] workspace persisted", {
           workspaceId: state.workspace.id,

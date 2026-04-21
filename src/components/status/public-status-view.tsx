@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PublicIncidentHistory } from "@/components/status/public-incident-history";
+import { PublicStatusPremiumView } from "@/components/status/public-status-premium-view";
 import { PublicUptimeSection } from "@/components/status/public-uptime-section";
 import { LocalDateTime, LocalTimestampOrText } from "@/components/ui/local-datetime";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -18,8 +19,15 @@ type OverallStatus = "all-operational" | "partial-outage" | "major-outage";
 type WorkspaceRow = {
   id: string;
   name: string;
+  project_name: string | null;
   public_description: string | null;
   support_email: string | null;
+  brand_color: string | null;
+  operational_color: string | null;
+  brand_logo_url: string | null;
+  brand_favicon_url: string | null;
+  status_page_published: boolean | null;
+  status_page_style: string | null;
 };
 
 type ServiceRow = {
@@ -101,6 +109,31 @@ function mapIncidentRow(row: IncidentDbRow): Incident {
   };
 }
 
+function StatusUnpublished({ slugLabel }: { slugLabel: string }) {
+  return (
+    <main className="min-h-screen bg-black px-4 py-16 text-white sm:px-6">
+      <div className="mx-auto max-w-lg rounded-2xl border border-white/10 bg-[#0a0a0a] p-8 text-center shadow-2xl">
+        <h1 className="text-xl font-semibold tracking-tight">This page isn’t public yet</h1>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+          The status page
+          {slugLabel ? (
+            <>
+              {" "}
+              <code className="text-cyan-300">{slugLabel}</code>
+            </>
+          ) : null}{" "}
+          hasn’t been published. Ask your team to enable publishing in Statsupal, or check back later.
+        </p>
+        <p className="mt-6 text-xs text-zinc-600">
+          <Link href="/" className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300">
+            Back to Statsupal
+          </Link>
+        </p>
+      </div>
+    </main>
+  );
+}
+
 function StatusNotFound({ slugLabel }: { slugLabel: string }) {
   return (
     <main className="px-4 py-16 sm:px-6">
@@ -138,7 +171,9 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
 
   const workspaceResult = await admin
     .from("workspaces")
-    .select("id,name,public_description,support_email")
+    .select(
+      "id,name,project_name,public_description,support_email,brand_color,operational_color,brand_logo_url,brand_favicon_url,status_page_published,status_page_style",
+    )
     .eq("project_slug", resolvedProjectSlug)
     .maybeSingle();
 
@@ -147,6 +182,10 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   }
 
   const workspace = workspaceResult.data as WorkspaceRow;
+
+  if (workspace.status_page_published === false) {
+    return <StatusUnpublished slugLabel={resolvedProjectSlug} />;
+  }
   const servicesResult = await admin
     .from("services")
     .select("id,name,description,status,is_published,last_checked,response_time_ms,created_at")
@@ -219,6 +258,31 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
     loadPublicWorkspaceUptime(admin, workspace.id, publishedIds),
     loadPublicUptimeBars24h(admin, publishedIds),
   ]);
+
+  if (workspace.status_page_style === "premium_dark") {
+    return (
+      <PublicStatusPremiumView
+        workspace={{
+          name: workspace.name,
+          project_name: workspace.project_name,
+          public_description: workspace.public_description,
+          support_email: workspace.support_email,
+          brand_color: workspace.brand_color,
+          operational_color: workspace.operational_color,
+          brand_logo_url: workspace.brand_logo_url,
+          brand_favicon_url: workspace.brand_favicon_url,
+        }}
+        projectSlug={resolvedProjectSlug}
+        publishedServices={publishedServices}
+        incidents={incidentModels}
+        serviceLabels={serviceLabels}
+        overallStatus={overallStatus}
+        lastUpdated={lastUpdated}
+        uptime={uptime}
+        bars24h={bars24h}
+      />
+    );
+  }
 
   return (
     <main className="min-w-0 overflow-x-hidden px-3 py-8 sm:px-6 sm:py-14">

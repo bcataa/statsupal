@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AddServiceButton } from "@/components/services/add-service-button";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { IncidentsSummarySection } from "@/components/dashboard/incidents-summary-section";
@@ -31,6 +32,7 @@ export default function OverviewPage() {
     (window) => window.status === "active",
   ).length;
   const isFirstRun = services.length === 0;
+  const setupIncomplete = workspace.statusPage.onboardingWizardStep < 6;
 
   const dashboardMetrics: DashboardMetric[] = [
     {
@@ -75,6 +77,26 @@ export default function OverviewPage() {
         projectName={currentProject?.name ?? "Main Project"}
         showCreateIncidentButton={!isFirstRun}
       />
+
+      {setupIncomplete ? (
+        <section className="rounded-2xl border border-cyan-500/25 bg-gradient-to-r from-zinc-900 to-zinc-950 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">Setup in progress</p>
+              <p className="mt-1 text-sm text-zinc-400">
+                Pick up the guided flow anytime—connect a monitor, publish your page, and customize how
+                it looks.
+              </p>
+            </div>
+            <Link
+              href="/onboarding/wizard"
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-white px-4 text-sm font-semibold text-zinc-900"
+            >
+              Continue setup
+            </Link>
+          </div>
+        </section>
+      ) : null}
 
       {isFirstRun ? (
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">

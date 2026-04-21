@@ -239,6 +239,13 @@ type WorkspaceRow = {
   public_description: string | null;
   custom_domain: string | null;
   custom_domain_status: "unconfigured" | "pending_verification" | "verified" | "failed" | null;
+  onboarding_wizard_step?: number | null;
+  brand_color?: string | null;
+  operational_color?: string | null;
+  brand_logo_url?: string | null;
+  brand_favicon_url?: string | null;
+  status_page_published?: boolean | null;
+  status_page_style?: string | null;
   created_at: string;
 };
 
@@ -339,6 +346,8 @@ type IncidentRow = {
 };
 
 function toWorkspaceModel(row: WorkspaceRow): Workspace {
+  const style =
+    row.status_page_style === "premium_dark" ? ("premium_dark" as const) : ("standard" as const);
   return {
     id: row.id,
     name: row.name,
@@ -364,6 +373,17 @@ function toWorkspaceModel(row: WorkspaceRow): Workspace {
       statusPageSlug: row.project_slug,
       customDomain: row.custom_domain || undefined,
       customDomainStatus: row.custom_domain_status ?? "unconfigured",
+    },
+    statusPage: {
+      onboardingWizardStep: row.onboarding_wizard_step ?? 0,
+      published: row.status_page_published ?? true,
+      design: {
+        style,
+        brandColor: row.brand_color ?? undefined,
+        operationalColor: row.operational_color ?? undefined,
+        logoUrl: row.brand_logo_url ?? undefined,
+        faviconUrl: row.brand_favicon_url ?? undefined,
+      },
     },
   };
 }
@@ -613,6 +633,13 @@ export async function persistWorkspaceInfo(
     supportEmail?: string;
     customDomain?: string;
     customDomainStatus?: "unconfigured" | "pending_verification" | "verified" | "failed";
+    onboardingWizardStep?: number;
+    statusPagePublished?: boolean;
+    brandColor?: string | null;
+    operationalColor?: string | null;
+    brandLogoUrl?: string | null;
+    brandFaviconUrl?: string | null;
+    statusPageStyle?: "standard" | "premium_dark";
   },
 ) {
   const db = getDb(client);
@@ -660,6 +687,36 @@ export async function persistWorkspaceInfo(
         payload.customDomainStatus ??
         workspace.custom_domain_status ??
         (payload.customDomain ? "pending_verification" : "unconfigured"),
+      onboarding_wizard_step:
+        payload.onboardingWizardStep !== undefined
+          ? payload.onboardingWizardStep
+          : (workspace.onboarding_wizard_step ?? 0),
+      status_page_published:
+        payload.statusPagePublished !== undefined
+          ? payload.statusPagePublished
+          : (workspace.status_page_published ?? true),
+      brand_color:
+        payload.brandColor !== undefined
+          ? payload.brandColor
+          : (workspace.brand_color ?? null),
+      operational_color:
+        payload.operationalColor !== undefined
+          ? payload.operationalColor
+          : (workspace.operational_color ?? null),
+      brand_logo_url:
+        payload.brandLogoUrl !== undefined
+          ? payload.brandLogoUrl
+          : (workspace.brand_logo_url ?? null),
+      brand_favicon_url:
+        payload.brandFaviconUrl !== undefined
+          ? payload.brandFaviconUrl
+          : (workspace.brand_favicon_url ?? null),
+      status_page_style:
+        payload.statusPageStyle !== undefined
+          ? payload.statusPageStyle
+          : workspace.status_page_style === "premium_dark"
+            ? "premium_dark"
+            : "standard",
     })
     .eq("id", workspace.id)
     .eq("user_id", userId);

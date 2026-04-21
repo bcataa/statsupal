@@ -26,4 +26,15 @@ export const defaultWorkspace: Workspace = {
     customDomain: undefined,
     customDomainStatus: "unconfigured",
   },
+  statusPage: {
+    onboardingWizardStep: 6,
+    published: true,
+    design: {
+      style: "standard",
+      brandColor: undefined,
+      operationalColor: undefined,
+      logoUrl: undefined,
+      faviconUrl: undefined,
+    },
+  },
 };
