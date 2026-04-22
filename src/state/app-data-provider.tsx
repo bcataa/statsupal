@@ -246,6 +246,8 @@ type AppDataContextValue = {
   deleteIncident: (incidentId: string) => Promise<void>;
   createMaintenanceWindow: (input: CreateMaintenanceInput) => Promise<void>;
   deleteMaintenanceWindow: (maintenanceId: string) => Promise<void>;
+  /** Public update on an incident timeline (persisted as incident_events). */
+  appendIncidentManualUpdate: (incidentId: string, message: string) => void;
   updateServiceStatus: (
     serviceId: string,
     payload: {
@@ -711,9 +713,15 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
   }
 
   if (action.type === "APPEND_INCIDENT_EVENT") {
+    const ev = action.payload;
     return {
       ...state,
-      incidentEvents: [action.payload, ...state.incidentEvents],
+      incidentEvents: [ev, ...state.incidentEvents],
+      incidents: state.incidents.map((incident) =>
+        incident.id === ev.incidentId
+          ? { ...incident, updatedAt: ev.createdAt }
+          : incident,
+      ),
     };
   }
 
@@ -1094,6 +1102,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     },
     [state.authUserId, supabase],
   );
+
+  const appendIncidentManualUpdate = useCallback((incidentId: string, message: string) => {
+    const trimmed = message.trim();
+    if (!trimmed) {
+      return;
+    }
+    const now = new Date().toISOString();
+    const event: IncidentEvent = {
+      id: createIncidentEventId(),
+      incidentId,
+      eventType: "manual_update",
+      source: "manual",
+      message: trimmed,
+      createdAt: now,
+    };
+    dispatch({ type: "APPEND_INCIDENT_EVENT", payload: event });
+  }, []);
 
   const addAlertSubscriber = useCallback((subscriber: AlertSubscriber) => {
     dispatch({ type: "ADD_ALERT_SUBSCRIBER", payload: subscriber });
@@ -1577,6 +1602,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteIncident,
       createMaintenanceWindow,
       deleteMaintenanceWindow,
+      appendIncidentManualUpdate,
       updateServiceStatus,
       addAlertSubscriber,
       refreshData: async () => {
@@ -1599,6 +1625,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteIncident,
       createMaintenanceWindow,
       deleteMaintenanceWindow,
+      appendIncidentManualUpdate,
       updateServiceStatus,
       addAlertSubscriber,
       reloadFromSupabase,
