@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { AppTopNav } from "@/components/layout/app-top-nav";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
-import { SidebarNav } from "@/components/layout/sidebar-nav";
-import { TopHeader } from "@/components/layout/top-header";
 import { useAppData } from "@/state/app-data-provider";
 
 type AppShellProps = {
@@ -11,56 +9,35 @@ type AppShellProps = {
 };
 
 export function AppShell({ children }: AppShellProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { dataError, isHydrated, isHydrating } = useAppData();
 
   return (
-    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-zinc-100">
-      <aside className="fixed top-0 left-0 z-30 hidden h-screen w-64 border-r border-zinc-200 bg-white md:block">
-        <SidebarNav />
-      </aside>
-
-      {isSidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-zinc-900/25"
-            onClick={() => setIsSidebarOpen(false)}
-            aria-label="Close navigation menu"
-          />
-          <aside className="relative h-full w-[min(20rem,calc(100vw-2.5rem))] border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl">
-            <SidebarNav onNavigate={() => setIsSidebarOpen(false)} />
-          </aside>
-        </div>
-      )}
-
-      <div className="md:pl-64">
-        <TopHeader onOpenSidebar={() => setIsSidebarOpen(true)} />
-        <main className="min-w-0 px-4 pt-[calc(6.75rem+env(safe-area-inset-top,0px))] pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:px-6 md:pt-24 md:pb-8">
+    <div className="app-root min-h-screen max-w-[100vw] overflow-x-hidden bg-[#05060a] text-zinc-100">
+      <AppTopNav />
+      <main className="min-w-0 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(4.25rem+env(safe-area-inset-top,0px))] md:pb-8 md:pt-20">
+        <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 md:px-6">
           {!isHydrated || isHydrating ? (
             <div className="mx-auto flex min-h-[50vh] w-full max-w-3xl items-center justify-center">
-              <div className="rounded-2xl border border-zinc-200 bg-white px-6 py-5 text-sm text-zinc-600 shadow-sm">
-                Loading your workspace data...
+              <div className="rounded-2xl border border-white/10 bg-zinc-900/40 px-6 py-5 text-sm text-zinc-400 shadow-[0_0_40px_-12px_rgba(139,92,246,0.3)]">
+                Loading your workspace data…
               </div>
             </div>
           ) : dataError ? (
             <div className="mx-auto w-full max-w-3xl">
-              <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
-                <h2 className="text-base font-semibold text-red-800">
-                  We could not load your data
-                </h2>
-                <p className="mt-2 text-sm text-red-700">{dataError}</p>
-                <p className="mt-3 text-xs text-red-600">
-                  Please verify Supabase tables/RLS settings, then refresh the page.
+              <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-100 shadow-lg">
+                <h2 className="text-base font-semibold">We could not load your data</h2>
+                <p className="mt-2 text-sm text-rose-200/90">{dataError}</p>
+                <p className="mt-3 text-xs text-rose-300/80">
+                  Please verify Supabase tables and RLS, then refresh the page.
                 </p>
               </div>
             </div>
           ) : (
             children
           )}
-        </main>
-        <MobileTabBar />
-      </div>
+        </div>
+      </main>
+      <MobileTabBar />
     </div>
   );
 }

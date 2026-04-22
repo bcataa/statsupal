@@ -98,19 +98,19 @@ export function IncidentCard({
   return (
     <article
       className={[
-        "rounded-2xl border bg-white p-5 shadow-sm",
-        isResolved ? "border-zinc-200/80 opacity-85" : "border-zinc-200",
+        "rounded-2xl border border-white/10 bg-zinc-900/40 p-5 ring-1 ring-white/5",
+        isResolved ? "opacity-80" : "",
       ].join(" ")}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-base font-semibold text-zinc-900">{incident.title}</p>
-          <p className="mt-1 text-sm text-zinc-600">Affected service: {serviceName}</p>
+          <p className="text-base font-semibold text-zinc-100">{incident.title}</p>
+          <p className="mt-1 text-sm text-zinc-400">Affected service: {serviceName}</p>
           <p className="mt-1 text-xs uppercase tracking-wide text-zinc-500">
             Source: {incident.source ?? "manual"}
           </p>
           {incident.description && (
-            <p className="mt-2 text-sm text-zinc-600">{incident.description}</p>
+            <p className="mt-2 text-sm text-zinc-400">{incident.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -128,16 +128,16 @@ export function IncidentCard({
       </div>
 
       {incident.resolutionSummary && (
-        <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+        <p className="mt-3 rounded-lg border border-white/5 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-400">
           Resolution: {incident.resolutionSummary}
         </p>
       )}
 
-      <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50/40 p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+      <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-950/20 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">
           AI assistance (drafts only)
         </p>
-        <p className="mt-1 text-[11px] leading-snug text-violet-900/80">
+        <p className="mt-1 text-[11px] leading-snug text-violet-200/80">
           Suggestions only—does not change monitoring or status. Configure models under{" "}
           <Link href="/settings" className="font-medium underline-offset-2 hover:underline">
             Settings
@@ -149,7 +149,7 @@ export function IncidentCard({
             type="button"
             onClick={() => void runIncidentAi("summarize")}
             disabled={aiBusy !== null}
-            className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-900 hover:bg-violet-50 disabled:opacity-60"
+            className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-200 hover:bg-violet-500/20 disabled:opacity-60"
           >
             {aiBusy === "summarize" ? "Working…" : "Generate summary"}
           </button>
@@ -157,13 +157,13 @@ export function IncidentCard({
             type="button"
             onClick={() => void runIncidentAi("draft_public_update")}
             disabled={aiBusy !== null}
-            className="rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-900 hover:bg-violet-50 disabled:opacity-60"
+            className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-200 hover:bg-violet-500/20 disabled:opacity-60"
           >
             {aiBusy === "draft" ? "Working…" : "Draft status update"}
           </button>
         </div>
         {aiError ? (
-          <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-2 text-xs text-rose-900">
+          <div className="mt-2 rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-2 text-xs text-rose-200">
             <p>{aiError}</p>
             {aiErrorCode === "ai_not_configured" ? (
               <p className="mt-2">
@@ -179,13 +179,13 @@ export function IncidentCard({
         ) : null}
         {aiOutput ? (
           <div className="mt-2">
-            <label className="text-[10px] font-medium uppercase tracking-wide text-violet-800">
+            <label className="text-[10px] font-medium uppercase tracking-wide text-violet-300">
               Output (copy and edit before use)
             </label>
             <textarea
               readOnly
               value={aiOutput}
-              className="mt-1 min-h-24 w-full rounded-lg border border-violet-200 bg-white px-2 py-2 text-xs text-zinc-800"
+              className="mt-1 min-h-24 w-full rounded-lg border border-violet-500/30 bg-zinc-950/80 px-2 py-2 text-xs text-zinc-200"
               rows={6}
             />
           </div>
@@ -198,7 +198,7 @@ export function IncidentCard({
             <button
               type="button"
               onClick={() => onUpdateStatus(incident.id, nextStatus)}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5"
             >
               Mark as {nextStatus}
             </button>
@@ -206,28 +206,28 @@ export function IncidentCard({
           <button
             type="button"
             onClick={() => onUpdateStatus(incident.id, "investigating")}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5"
           >
             Mark as investigating
           </button>
           <button
             type="button"
             onClick={() => onUpdateStatus(incident.id, "monitoring")}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5"
           >
             Mark as monitoring
           </button>
           <button
             type="button"
             onClick={resolveWithSummary}
-            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500"
           >
             Resolve incident
           </button>
           <button
             type="button"
             onClick={() => setShowDetails((prev) => !prev)}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5"
           >
             {showDetails ? "Hide details" : "View details"}
           </button>
@@ -243,7 +243,7 @@ export function IncidentCard({
               await onDelete(incident.id);
             }}
             disabled={isDeleting}
-            className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isDeleting ? "Deleting..." : "Delete incident"}
           </button>
@@ -256,7 +256,7 @@ export function IncidentCard({
             <button
               type="button"
               onClick={() => setShowDetails((prev) => !prev)}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-white/5"
             >
               {showDetails ? "Hide details" : "View details"}
             </button>
@@ -272,7 +272,7 @@ export function IncidentCard({
                 await onDelete(incident.id);
               }}
               disabled={isDeleting}
-              className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isDeleting ? "Deleting..." : "Delete incident"}
             </button>
@@ -281,18 +281,18 @@ export function IncidentCard({
       )}
 
       {showDetails && (
-        <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+        <div className="mt-4 rounded-xl border border-white/10 bg-zinc-950/40 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
             Incident timeline
           </p>
           {timelineEvents.length === 0 ? (
-            <ul className="mt-2 space-y-2 text-sm text-zinc-700">
+            <ul className="mt-2 space-y-2 text-sm text-zinc-300">
               <li>Started: {formatDateTime(incident.startedAt)}</li>
               <li>Status updated: {formatDateTime(incident.updatedAt)}</li>
               {incident.resolvedAt && <li>Resolved: {formatDateTime(incident.resolvedAt)}</li>}
             </ul>
           ) : (
-            <ul className="mt-2 space-y-2 text-sm text-zinc-700">
+            <ul className="mt-2 space-y-2 text-sm text-zinc-300">
               {timelineEvents.map((event) => (
                 <li key={event.id}>
                   <span className="font-medium">{event.source}</span> — {event.message}

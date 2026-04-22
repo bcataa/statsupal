@@ -2,85 +2,89 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { loggedInStatusPageHref } from "@/lib/utils/status-slug";
+import { useAppData } from "@/state/app-data-provider";
 
-const tabs = [
-  { label: "Home", href: "/dashboard" },
-  { label: "Monitors", href: "/services" },
-  { label: "Issues", href: "/incidents" },
-  { label: "Settings", href: "/settings" },
-] as const;
-
-function isOverviewActive(pathname: string): boolean {
-  if (pathname.startsWith("/dashboard/status")) {
-    return false;
-  }
-  return pathname === "/dashboard" || pathname === "/";
+function isMonitorsActive(pathname: string): boolean {
+  return pathname === "/services" || /^\/services\/[^/]+$/.test(pathname);
 }
 
-function isTabActive(pathname: string, href: string): boolean {
-  if (href === "/dashboard") {
-    return isOverviewActive(pathname);
-  }
-  return pathname === href || pathname.startsWith(`${href}/`);
+function isIssuesActive(pathname: string): boolean {
+  return pathname === "/incidents" || pathname.startsWith("/incidents/");
+}
+
+function isAppsActive(pathname: string): boolean {
+  return pathname === "/apps" || pathname.startsWith("/apps/");
+}
+
+function isPageActive(pathname: string): boolean {
+  return pathname.startsWith("/dashboard/status");
 }
 
 export function MobileTabBar() {
   const pathname = usePathname() ?? "";
+  const { workspace, currentProject } = useAppData();
+  const pageHref = loggedInStatusPageHref(workspace, currentProject);
+
+  const tabs = [
+    {
+      label: "Monitors",
+      href: "/services",
+      active: isMonitorsActive(pathname),
+      icon: IconMonitors,
+    },
+    {
+      label: "Issues",
+      href: "/incidents",
+      active: isIssuesActive(pathname),
+      icon: IconIssues,
+    },
+    {
+      label: "Page",
+      href: pageHref,
+      active: isPageActive(pathname),
+      icon: IconPage,
+    },
+    {
+      label: "Apps",
+      href: "/apps",
+      active: isAppsActive(pathname),
+      icon: IconApps,
+    },
+  ] as const;
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 border-t border-zinc-200/90 bg-white/95 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#06070a]/95 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-8px_32px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl md:hidden"
       aria-label="Primary navigation"
     >
       <ul className="mx-auto flex max-w-lg items-stretch justify-around gap-0 px-1">
-        {tabs.map(({ label, href }) => {
-          const active = isTabActive(pathname, href);
-          return (
-            <li key={href} className="min-w-0 flex-1">
-              <Link
-                href={href}
+        {tabs.map(({ label, href, active, icon: Icon }) => (
+          <li key={label} className="min-w-0 flex-1">
+            <Link
+              href={href}
+              className={[
+                "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium tracking-wide transition-colors active:opacity-90",
+                active ? "text-cyan-200" : "text-zinc-500",
+              ].join(" ")}
+            >
+              <span
                 className={[
-                  "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium tracking-wide transition-colors active:opacity-80",
-                  active ? "text-zinc-900" : "text-zinc-400",
+                  "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
+                  active
+                    ? "bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-500/40"
+                    : "bg-white/[0.04] text-zinc-500",
                 ].join(" ")}
+                aria-hidden
               >
-                <span
-                  className={[
-                    "flex h-9 w-9 items-center justify-center rounded-xl transition-colors",
-                    active ? "bg-zinc-900 text-white" : "bg-zinc-100/80 text-zinc-500",
-                  ].join(" ")}
-                  aria-hidden
-                >
-                  {href === "/dashboard" ? (
-                    <IconOverview />
-                  ) : href === "/services" ? (
-                    <IconMonitors />
-                  ) : href === "/incidents" ? (
-                    <IconIssues />
-                  ) : (
-                    <IconSettings />
-                  )}
-                </span>
-                <span className="max-w-full truncate">{label}</span>
-              </Link>
-            </li>
-          );
-        })}
+                <Icon />
+              </span>
+              <span className="max-w-full truncate">{label}</span>
+            </Link>
+          </li>
+        ))}
       </ul>
     </nav>
-  );
-}
-
-function IconOverview() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -113,16 +117,22 @@ function IconIssues() {
   );
 }
 
-function IconSettings() {
+function IconPage() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
-      <path
-        d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinecap="round"
-      />
+      <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M8 8h8M8 12h5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconApps() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+      <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
     </svg>
   );
 }

@@ -1,26 +1,16 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import type { Service } from "@/lib/models/monitoring";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 import { formatTimestampOrText } from "@/lib/utils/date-time";
+import { ServiceEditDialog } from "@/components/services/service-edit-dialog";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Switch } from "@/components/ui/switch";
 import { useAppData } from "@/state/app-data-provider";
 
 type ServicesTableProps = {
   services: Service[];
-};
-
-type EditFormState = {
-  name: string;
-  url: string;
-  checkType: Service["checkType"];
-  checkInterval: string;
-  timeoutMs: number;
-  failureThreshold: number;
-  retryCount: number;
-  description: string;
 };
 
 function formatCheckType(checkType: Service["checkType"]): string {
@@ -31,9 +21,7 @@ function formatCheckType(checkType: Service["checkType"]): string {
 export function ServicesTable({ services }: ServicesTableProps) {
   const { updateService, deleteService } = useAppData();
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
-  const [form, setForm] = useState<EditFormState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
 
   const editingService = useMemo(
@@ -43,62 +31,12 @@ export function ServicesTable({ services }: ServicesTableProps) {
 
   const openEdit = (service: Service) => {
     setEditingServiceId(service.id);
-    setForm({
-      name: service.name,
-      url: service.url,
-      checkType: service.checkType === "api" ? "http" : service.checkType,
-      checkInterval: service.checkInterval,
-      timeoutMs: service.timeoutMs,
-      failureThreshold: service.failureThreshold,
-      retryCount: service.retryCount,
-      description: service.description ?? "",
-    });
     setErrorMessage(null);
   };
 
   const closeEdit = () => {
     setEditingServiceId(null);
-    setForm(null);
     setErrorMessage(null);
-  };
-
-  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!editingServiceId || !form) {
-      return;
-    }
-
-    if (!form.name.trim() || !form.url.trim() || !form.checkInterval.trim()) {
-      setErrorMessage("Name, URL, and check interval are required.");
-      return;
-    }
-    try {
-      new URL(form.url);
-    } catch {
-      setErrorMessage("Enter a valid URL including https://.");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      await updateService({
-        id: editingServiceId,
-        name: form.name,
-        url: form.url,
-        checkType: form.checkType === "api" ? "http" : form.checkType,
-        checkInterval: form.checkInterval,
-        timeoutMs: form.timeoutMs,
-        failureThreshold: form.failureThreshold,
-        retryCount: form.retryCount,
-        description: form.description || undefined,
-      });
-      closeEdit();
-    } catch (error) {
-      console.error("[ServicesTable] edit failed", error);
-      setErrorMessage("Could not save service changes. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleDelete = async (serviceId: string) => {
@@ -305,157 +243,8 @@ export function ServicesTable({ services }: ServicesTableProps) {
         ))}
       </div>
 
-      {editingService && form ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-zinc-900/45"
-            onClick={closeEdit}
-            aria-label="Close edit service modal"
-          />
-          <section className="relative z-10 w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-semibold text-zinc-900">Edit Service</h3>
-            <p className="mt-1 text-sm text-zinc-500">
-              Update monitor details for this endpoint.
-            </p>
-            <form className="mt-4 space-y-4" onSubmit={handleSave}>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">Service name</label>
-                <input
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((prev) => (prev ? { ...prev, name: event.target.value } : prev))
-                  }
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">URL</label>
-                <input
-                  value={form.url}
-                  onChange={(event) =>
-                    setForm((prev) => (prev ? { ...prev, url: event.target.value } : prev))
-                  }
-                  className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700">Check type</label>
-                  <select
-                    value={form.checkType === "api" ? "http" : form.checkType}
-                    onChange={(event) =>
-                      setForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              checkType: event.target.value as Service["checkType"],
-                            }
-                          : prev,
-                      )
-                    }
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                  >
-                    <option value="http">HTTP / HTTPS</option>
-                    <option value="ping">Ping (HTTP GET)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700">Check interval</label>
-                  <input
-                    value={form.checkInterval}
-                    onChange={(event) =>
-                      setForm((prev) =>
-                        prev ? { ...prev, checkInterval: event.target.value } : prev,
-                      )
-                    }
-                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700">Timeout (ms)</label>
-                  <input
-                    type="number"
-                    min={1000}
-                    value={form.timeoutMs}
-                    onChange={(event) =>
-                      setForm((prev) =>
-                        prev ? { ...prev, timeoutMs: Number(event.target.value || 10000) } : prev,
-                      )
-                    }
-                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700">
-                    Failure threshold
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={form.failureThreshold}
-                    onChange={(event) =>
-                      setForm((prev) =>
-                        prev
-                          ? { ...prev, failureThreshold: Number(event.target.value || 3) }
-                          : prev,
-                      )
-                    }
-                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-zinc-700">Retry count</label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={5}
-                    value={form.retryCount}
-                    onChange={(event) =>
-                      setForm((prev) =>
-                        prev ? { ...prev, retryCount: Number(event.target.value || 0) } : prev,
-                      )
-                    }
-                    className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-zinc-700">
-                  Description (optional)
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, description: event.target.value } : prev,
-                    )
-                  }
-                  className="min-h-24 w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:ring-2"
-                />
-              </div>
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={closeEdit}
-                  className="inline-flex h-10 items-center rounded-xl border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="inline-flex h-10 items-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
-                >
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
+      {editingService ? (
+        <ServiceEditDialog key={editingService.id} service={editingService} onClose={closeEdit} />
       ) : null}
     </>
   );

@@ -99,15 +99,15 @@ export default function OverviewPage() {
       ) : null}
 
       {isFirstRun ? (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600">
+        <section className="rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900/50 to-[#08090d] p-5 shadow-2xl ring-1 ring-violet-500/10 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-400">
             Welcome
           </p>
-          <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl">
+          <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
             Add a service to start monitoring
           </h3>
-          <p className="mt-2 max-w-2xl text-sm text-zinc-600">
-            Open <strong className="font-medium text-zinc-800">Add service</strong> and paste the URL you
+          <p className="mt-2 max-w-2xl text-sm text-zinc-400">
+            Open <strong className="font-medium text-zinc-200">Add monitor</strong> and paste the URL you
             want to watch. Notifications, your public status page, and maintenance windows can be tuned
             anytime in Settings.
           </p>

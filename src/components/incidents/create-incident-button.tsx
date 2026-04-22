@@ -15,7 +15,7 @@ export function CreateIncidentButton({ className }: CreateIncidentButtonProps) {
       onClick={openCreateIncidentModal}
       className={
         className ??
-        "inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-zinc-800"
+        "inline-flex h-10 items-center justify-center rounded-xl border border-violet-500/40 bg-violet-600 px-4 text-sm font-medium text-white shadow-lg shadow-violet-900/25 transition-colors hover:bg-violet-500"
       }
     >
       Create Incident

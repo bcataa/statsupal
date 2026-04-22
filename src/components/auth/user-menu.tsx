@@ -8,7 +8,12 @@ type UserState = {
   email: string | null;
 };
 
-export function UserMenu() {
+type UserMenuProps = {
+  /** Dark header styling (logged-in app shell). */
+  variant?: "default" | "app";
+};
+
+export function UserMenu({ variant = "default" }: UserMenuProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<UserState>({ email: null });
@@ -68,21 +73,39 @@ export function UserMenu() {
     setIsLoggingOut(false);
   };
 
+  const isApp = variant === "app";
   return (
     <div className="flex items-center gap-2">
-      <span className="hidden max-w-40 truncate text-sm text-zinc-500 sm:inline">
+      <span
+        className={[
+          "hidden max-w-40 truncate text-sm sm:inline",
+          isApp ? "text-zinc-500" : "text-zinc-500",
+        ].join(" ")}
+      >
         {user.email ?? "User"}
       </span>
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+      <div
+        className={[
+          "flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white ring-1",
+          isApp
+            ? "bg-gradient-to-br from-violet-600 to-cyan-600 ring-white/20"
+            : "bg-zinc-900 ring-transparent",
+        ].join(" ")}
+      >
         {initials}
       </div>
       <button
         type="button"
         onClick={logout}
         disabled={isLoggingOut}
-        className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+        className={[
+          "rounded-lg px-2.5 py-1.5 text-xs font-medium disabled:opacity-60",
+          isApp
+            ? "border border-white/10 text-zinc-300 hover:bg-white/5"
+            : "border border-zinc-300 text-zinc-700 hover:bg-zinc-50",
+        ].join(" ")}
       >
-        {isLoggingOut ? "..." : "Logout"}
+        {isLoggingOut ? "…" : "Logout"}
       </button>
     </div>
   );

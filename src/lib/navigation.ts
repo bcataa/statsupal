@@ -16,6 +16,7 @@ const titleMap: Record<string, string> = {
   "/services": "Monitors",
   "/incidents": "Issues",
   "/settings": "Settings",
+  "/apps": "Apps",
 };
 
 export function getPageTitle(pathname: string): string {
@@ -25,6 +26,14 @@ export function getPageTitle(pathname: string): string {
 
   if (pathname.startsWith("/settings/status-design")) {
     return "Status design";
+  }
+
+  if (pathname.startsWith("/services/")) {
+    return "Monitor";
+  }
+
+  if (pathname.startsWith("/apps")) {
+    return "Apps";
   }
 
   return titleMap[pathname] ?? "Dashboard";

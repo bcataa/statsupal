@@ -24,8 +24,8 @@ export function IncidentsList({
 
   if (incidents.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-8 text-center shadow-sm">
-        <p className="text-sm font-medium text-zinc-800">No incidents in this section</p>
+      <div className="rounded-2xl border border-dashed border-white/10 bg-zinc-900/30 p-8 text-center">
+        <p className="text-sm font-medium text-zinc-400">No incidents in this section</p>
       </div>
     );
   }
