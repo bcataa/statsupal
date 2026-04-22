@@ -106,7 +106,7 @@ function MonitorRow({
   return (
     <div
       className={[
-        "group relative flex flex-col gap-3 rounded-xl border p-3 transition-all sm:grid sm:grid-cols-[minmax(0,1.2fr)_8rem_7rem_5rem_6rem] sm:items-center sm:gap-4",
+        "group relative flex flex-col gap-3 rounded-xl border p-3 transition-all sm:grid sm:grid-cols-[minmax(0,1.2fr)_8.5rem_7.5rem_12.5rem_minmax(5.5rem,1fr)] sm:items-center sm:gap-x-3 sm:gap-y-0",
         service.status === "operational" || service.status === "degraded"
           ? "border-cyan-500/10 bg-zinc-900/30 hover:border-cyan-500/30 hover:shadow-[0_0_24px_-8px_rgba(6,182,212,0.25)]"
           : "border-rose-500/20 bg-rose-950/10 hover:border-rose-500/30",
@@ -152,20 +152,27 @@ function MonitorRow({
         <span className="ml-1 text-[10px] font-normal text-zinc-500">up</span>
       </p>
 
-      <p className="text-sm tabular-nums text-zinc-300 sm:text-right">
-        {formatServiceResponse({
-          status: service.status,
-          responseTimeMs: service.responseTimeMs,
-          lastChecked: service.lastChecked,
-        })}
-      </p>
+      <div
+        className="flex min-w-0 items-center justify-end gap-2.5 sm:min-h-[2.5rem] sm:justify-end sm:pl-0"
+        title="Response time and public visibility on your status page"
+      >
+        <span className="min-w-0 max-w-full shrink text-right text-sm leading-snug break-words text-zinc-300 tabular-nums sm:min-w-0 sm:max-w-[6.5rem]">
+          {formatServiceResponse({
+            status: service.status,
+            responseTimeMs: service.responseTimeMs,
+            lastChecked: service.lastChecked,
+          })}
+        </span>
+        <div className="shrink-0">
+          <Switch
+            checked={service.isPublished}
+            onCheckedChange={(next) => void onTogglePublished(service, next)}
+            aria-label={`Status page visibility for ${service.name}`}
+          />
+        </div>
+      </div>
 
-      <div className="flex items-center justify-end gap-1 border-t border-white/5 pt-2 sm:col-start-5 sm:border-0 sm:pt-0">
-        <Switch
-          checked={service.isPublished}
-          onCheckedChange={(next) => void onTogglePublished(service, next)}
-          aria-label={`Status page visibility for ${service.name}`}
-        />
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-0.5 border-t border-white/5 pt-2 sm:border-0 sm:pt-0 sm:pl-0">
         <button
           type="button"
           onClick={() => onEdit(service)}
@@ -372,7 +379,7 @@ export function MonitorsDashboard({ services }: MonitorsDashboardProps) {
           </div>
         ) : (
           <>
-            <div className="hidden gap-2 border-b border-white/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 sm:grid sm:grid-cols-[minmax(0,1.2fr)_8rem_7rem_5rem_6rem] sm:items-center sm:pl-1">
+            <div className="hidden gap-2 border-b border-white/5 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 sm:grid sm:grid-cols-[minmax(0,1.2fr)_8.5rem_7.5rem_12.5rem_minmax(5.5rem,1fr)] sm:items-center sm:pl-1">
               <span>Monitor</span>
               <span className="text-center">Uptime (checks)</span>
               <span className="text-right">Available</span>
