@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEventHandler } from "react";
 import { StatusPageLivePreview } from "@/components/status/status-page-live-preview";
 import { useAppData } from "@/state/app-data-provider";
 import { toSlug } from "@/lib/utils/slug";
 
 const DEFAULT_BRAND = "#7c3aed";
 const DEFAULT_OPS = "#00b069";
-const MAX_IMAGE_CHARS = 380_000;
+const MAX_IMAGE_CHARS = 900_000;
 
 export default function StatusDesignSettingsPage() {
   const { workspace, isHydrated, updateWorkspaceInfo, services } = useAppData();
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const faviconFileRef = useRef<HTMLInputElement>(null);
   const [brandColor, setBrandColor] = useState(DEFAULT_BRAND);
   const [operationalColor, setOperationalColor] = useState(DEFAULT_OPS);
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
@@ -56,6 +58,37 @@ export default function StatusDesignSettingsPage() {
 
   const project = workspace.projects[0];
   const previewName = services[0]?.name || "Primary service";
+  const previewServiceUrl = services[0]?.url || "https://example.com";
+
+  const onLogo: ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) {
+      setLogoUrl(undefined);
+      return;
+    }
+    const data = await readFile(f);
+    if (data.length > MAX_IMAGE_CHARS) {
+      alert("Image too large—use a file under about 500KB.");
+      return;
+    }
+    setLogoUrl(data);
+  };
+
+  const onFavicon: ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) {
+      setFaviconUrl(undefined);
+      return;
+    }
+    const data = await readFile(f);
+    if (data.length > MAX_IMAGE_CHARS) {
+      alert("Icon too large—use a file under about 500KB.");
+      return;
+    }
+    setFaviconUrl(data);
+  };
 
   if (!isHydrated) {
     return (
@@ -93,70 +126,60 @@ export default function StatusDesignSettingsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <p className="text-xs font-medium text-zinc-500">Logo</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-zinc-300 bg-zinc-50">
+          <div className="mt-1 flex min-h-[3.5rem] items-center gap-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-zinc-300 bg-zinc-50">
               {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                <img src={logoUrl} alt="" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-[10px] text-zinc-400">None</span>
               )}
             </div>
-            <label className="inline-flex cursor-pointer rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-zinc-50">
-              Change
+            <div>
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-4 text-xs font-bold uppercase tracking-wide text-zinc-900 hover:bg-zinc-50"
+                onClick={() => logoFileRef.current?.click()}
+              >
+                Change
+              </button>
               <input
+                ref={logoFileRef}
                 type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) {
-                    setLogoUrl(undefined);
-                    return;
-                  }
-                  const data = await readFile(f);
-                  if (data.length > MAX_IMAGE_CHARS) {
-                    alert("Image too large—try a smaller file.");
-                    return;
-                  }
-                  setLogoUrl(data);
-                }}
+                className="sr-only"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                onChange={onLogo}
               />
-            </label>
+            </div>
           </div>
         </div>
         <div>
           <p className="text-xs font-medium text-zinc-500">Favicon</p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-zinc-300 bg-zinc-50">
+          <div className="mt-1 flex min-h-[3.5rem] items-center gap-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-zinc-300 bg-zinc-50">
               {faviconUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={faviconUrl} alt="" className="h-full w-full object-cover" />
+                <img src={faviconUrl} alt="" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-[10px] text-zinc-400">None</span>
               )}
             </div>
-            <label className="inline-flex cursor-pointer rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-zinc-50">
-              Change
+            <div>
+              <button
+                type="button"
+                className="min-h-11 rounded-lg border border-zinc-300 bg-white px-4 text-xs font-bold uppercase tracking-wide text-zinc-900 hover:bg-zinc-50"
+                onClick={() => faviconFileRef.current?.click()}
+              >
+                Change
+              </button>
               <input
+                ref={faviconFileRef}
                 type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) {
-                    setFaviconUrl(undefined);
-                    return;
-                  }
-                  const data = await readFile(f);
-                  if (data.length > MAX_IMAGE_CHARS) {
-                    alert("Image too large—try a smaller file.");
-                    return;
-                  }
-                  setFaviconUrl(data);
-                }}
+                className="sr-only"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/x-icon,image/vnd.microsoft.icon"
+                onChange={onFavicon}
               />
-            </label>
+            </div>
           </div>
         </div>
       </div>
@@ -196,9 +219,13 @@ export default function StatusDesignSettingsPage() {
         </label>
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-zinc-950 p-4">
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-          Live preview
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-950 p-4 sm:p-5">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+          How your public page will look
+        </p>
+        <p className="mb-4 text-xs text-zinc-500">
+          Visitors see a clear headline, your monitor, an uptime bar, and notices—similar in spirit to
+          leading status products, with Statsupal branding.
         </p>
         <StatusPageLivePreview
           pageTitle={project?.name || "Your status page"}
@@ -206,6 +233,8 @@ export default function StatusDesignSettingsPage() {
           brandColor={brandColor}
           operationalColor={operationalColor}
           logoUrl={logoUrl}
+          faviconUrl={faviconUrl}
+          serviceUrl={previewServiceUrl}
           serviceName={previewName}
           overallStatus="sample"
         />

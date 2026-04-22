@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEventHandler,
+} from "react";
 import { StatusPageLivePreview } from "@/components/status/status-page-live-preview";
 import type { CheckType } from "@/lib/models/monitoring";
 import type { MonitorTestMonitorKind } from "@/lib/monitoring/monitor-test-kinds";
@@ -12,7 +19,7 @@ import { toSlug } from "@/lib/utils/slug";
 
 const DEFAULT_BRAND = "#7c3aed";
 const DEFAULT_OPS = "#00b069";
-const MAX_IMAGE_CHARS = 380_000;
+const MAX_IMAGE_CHARS = 900_000;
 
 type WizardKind = MonitorTestMonitorKind;
 
@@ -83,6 +90,8 @@ export function OnboardingWizard() {
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const [faviconUrl, setFaviconUrl] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const faviconFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -165,27 +174,31 @@ export function OnboardingWizard() {
       r.readAsDataURL(file);
     });
 
-  const onLogo = async (file: File | null) => {
+  const onLogoPicked: ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) {
       setLogoUrl(undefined);
       return;
     }
     const data = await readFileDataUrl(file);
     if (data.length > MAX_IMAGE_CHARS) {
-      alert("That image is too large—try a smaller logo (under ~280KB).");
+      alert("That image is too large—use a file under about 500KB (PNG, JPG, or WebP).");
       return;
     }
     setLogoUrl(data);
   };
 
-  const onFavicon = async (file: File | null) => {
+  const onFaviconPicked: ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) {
       setFaviconUrl(undefined);
       return;
     }
     const data = await readFileDataUrl(file);
     if (data.length > MAX_IMAGE_CHARS) {
-      alert("That icon is too large—try a smaller file.");
+      alert("That icon is too large—use a file under about 500KB.");
       return;
     }
     setFaviconUrl(data);
@@ -289,10 +302,15 @@ export function OnboardingWizard() {
 
   const previewService = services[0];
   const previewName = previewService?.name || guessServiceName(endpoint) || "Your first service";
+  const previewServiceUrl = (() => {
+    const u = previewService?.url || endpoint.trim();
+    if (!u) return "https://example.com";
+    return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+  })();
 
   return (
     <div className="min-h-[calc(100vh-2.25rem)] bg-black px-3 py-8 text-white sm:px-6 sm:py-12">
-      <div className="mx-auto w-full max-w-lg">
+      <div className="mx-auto w-full max-w-2xl">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-cyan-400/40 bg-gradient-to-br from-cyan-400/30 to-violet-600/30 text-lg font-bold text-white">
             S
@@ -443,16 +461,26 @@ export function OnboardingWizard() {
                 />
                 Publish my status page (visitors can open the public link)
               </label>
-              <StatusPageLivePreview
-                pageTitle={pageName || "Your status page"}
-                slug={slug || "your-page"}
-                brandColor={brandColor}
-                operationalColor={operationalColor}
-                logoUrl={logoUrl}
-                serviceName={previewName}
-                overallStatus="sample"
-                className="mt-2"
-              />
+              <div className="pt-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                  How your page will look
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  This updates as you type. You can change logo and colors in the next step.
+                </p>
+                <StatusPageLivePreview
+                  className="mt-4"
+                  pageTitle={pageName || "Your status page"}
+                  slug={slug || "your-page"}
+                  brandColor={brandColor}
+                  operationalColor={operationalColor}
+                  logoUrl={logoUrl}
+                  faviconUrl={faviconUrl}
+                  serviceUrl={previewServiceUrl}
+                  serviceName={previewName}
+                  overallStatus="sample"
+                />
+              </div>
               <button
                 type="button"
                 className="flex h-12 w-full items-center justify-center rounded-xl bg-white text-sm font-bold uppercase tracking-wide text-black"
@@ -485,50 +513,68 @@ export function OnboardingWizard() {
           )}
 
           {step === 4 && (
-            <div className="space-y-4">
+            <div className="space-y-5">
+              <p className="text-xs text-zinc-500">
+                Add your brand images (PNG, JPG, or WebP).{" "}
+                <span className="text-zinc-400">If nothing opens, tap the button again—some browsers need that.</span>
+              </p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-medium text-zinc-400">Logo</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900">
+                  <div className="mt-1 flex min-h-[3.5rem] items-center gap-3">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900/80">
                       {logoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                        <img src={logoUrl} alt="" className="h-full w-full object-contain" />
                       ) : (
-                        <span className="text-[10px] text-zinc-600">None</span>
+                        <span className="px-1 text-center text-[10px] text-zinc-600">None</span>
                       )}
                     </div>
-                    <label className="inline-flex cursor-pointer rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide hover:bg-white/5">
-                      Change
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        className="min-h-11 rounded-lg border border-white/30 bg-white/5 px-4 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/10"
+                        onClick={() => logoFileRef.current?.click()}
+                      >
+                        Change
+                      </button>
                       <input
+                        ref={logoFileRef}
                         type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => void onLogo(e.target.files?.[0] ?? null)}
+                        className="sr-only"
+                        accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                        onChange={onLogoPicked}
                       />
-                    </label>
+                    </div>
                   </div>
                 </div>
                 <div>
                   <p className="text-xs font-medium text-zinc-400">Favicon</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900">
+                  <div className="mt-1 flex min-h-[3.5rem] items-center gap-3">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-white/20 bg-zinc-900/80">
                       {faviconUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={faviconUrl} alt="" className="h-full w-full object-cover" />
+                        <img src={faviconUrl} alt="" className="h-full w-full object-contain" />
                       ) : (
-                        <span className="text-[10px] text-zinc-600">None</span>
+                        <span className="px-1 text-center text-[10px] text-zinc-600">None</span>
                       )}
                     </div>
-                    <label className="inline-flex cursor-pointer rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide hover:bg-white/5">
-                      Change
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        className="min-h-11 rounded-lg border border-white/30 bg-white/5 px-4 text-xs font-bold uppercase tracking-wide text-white hover:bg-white/10"
+                        onClick={() => faviconFileRef.current?.click()}
+                      >
+                        Change
+                      </button>
                       <input
+                        ref={faviconFileRef}
                         type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => void onFavicon(e.target.files?.[0] ?? null)}
+                        className="sr-only"
+                        accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/x-icon,image/vnd.microsoft.icon"
+                        onChange={onFaviconPicked}
                       />
-                    </label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -566,15 +612,26 @@ export function OnboardingWizard() {
                   </div>
                 </label>
               </div>
-              <StatusPageLivePreview
-                pageTitle={pageName || "Your status page"}
-                slug={slug || "your-page"}
-                brandColor={brandColor}
-                operationalColor={operationalColor}
-                logoUrl={logoUrl}
-                serviceName={previewName}
-                overallStatus="sample"
-              />
+              <div className="border-t border-white/10 pt-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                  How your public page will look
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Similar to a classic status page: headline, your monitor link, uptime strip, and notices.
+                </p>
+                <StatusPageLivePreview
+                  className="mt-4"
+                  pageTitle={pageName || "Your status page"}
+                  slug={slug || "your-page"}
+                  brandColor={brandColor}
+                  operationalColor={operationalColor}
+                  logoUrl={logoUrl}
+                  faviconUrl={faviconUrl}
+                  serviceUrl={previewServiceUrl}
+                  serviceName={previewName}
+                  overallStatus="sample"
+                />
+              </div>
               <button
                 type="button"
                 className="flex h-12 w-full items-center justify-center rounded-xl bg-white text-sm font-bold uppercase tracking-wide text-black"
