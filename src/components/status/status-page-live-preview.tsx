@@ -1,7 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { ServiceStatus } from "@/lib/models/monitoring";
+import type { Service, ServiceStatus } from "@/lib/models/monitoring";
+import { formatServiceResponse } from "@/lib/utils/monitoring-display";
+import {
+  headlineForOverall,
+  type PublicOverallStatus,
+} from "@/components/status/status-page-preview-helpers";
+
+export type StatusPagePreviewService = {
+  name: string;
+  url: string;
+  status: ServiceStatus;
+  lastChecked?: string;
+  responseTimeMs?: number;
+};
 
 export type StatusPageLivePreviewProps = {
   pageTitle: string;
@@ -11,17 +24,34 @@ export type StatusPageLivePreviewProps = {
   logoUrl?: string;
   /** Shown in the mini “browser tab” and header when set. */
   faviconUrl?: string;
-  /** Shown on the service row (e.g. https://example.com). Falls back to serviceName. */
+  /** Legacy single service row when `previewServices` is omitted. */
   serviceUrl?: string;
   serviceName: string;
+  /** Legacy: driving headline when `overallPublic` is not passed. */
   overallStatus: ServiceStatus | "sample";
+  /**
+   * Preferred overall headline model (aligns with public status page).
+   * When set, supersedes headline derived from `overallStatus`.
+   */
+  overallPublic?: PublicOverallStatus;
   uptimeLabel?: string;
+  publicDescription?: string;
+  isUnpublished?: boolean;
+  /** Recent notices: date + title. */
+  notices?: { id: string; line1: string; line2: string }[];
+  /** When set, show one card per public component. */
+  previewServices?: StatusPagePreviewService[];
+  /**
+   * Bar fill heights 0–1, left-to-right (e.g. 48–64 segments).
+   * When null/omitted, uses a synthetic 90-style strip.
+   */
+  barHeights?: number[] | null;
   className?: string;
 };
 
 /**
- * Full-page style preview (inspired by modern status UIs) for the wizard and design settings.
- * Not the real public page — uses the same colors and content model.
+ * In-dashboard public status preview (not the real route): mirrors premium public layout
+ * and updates from workspace design state.
  */
 export function StatusPageLivePreview({
   pageTitle,
@@ -33,7 +63,13 @@ export function StatusPageLivePreview({
   serviceName,
   serviceUrl,
   overallStatus,
+  overallPublic,
   uptimeLabel = "100.0% uptime",
+  publicDescription,
+  isUnpublished,
+  notices,
+  previewServices,
+  barHeights: barHeightsFromProps,
   className = "",
 }: StatusPageLivePreviewProps) {
   const [hostLabel, setHostLabel] = useState("yoursite.com");
@@ -41,19 +77,91 @@ export function StatusPageLivePreview({
     setHostLabel(typeof window !== "undefined" ? window.location.host : "yoursite.com");
   }, []);
 
-  const allOk = overallStatus === "operational" || overallStatus === "sample";
-  const headline = allOk ? "All systems operational" : "Some systems may be impacted";
-  const displayService = (serviceUrl || serviceName).trim() || "https://yoursite.com";
+  const displayTitle = pageTitle.trim() || "Your project";
   const tabIcon = faviconUrl || logoUrl;
+  const desc =
+    publicDescription?.trim() || "Real-time system status and incident updates.";
+
+  const overall: PublicOverallStatus =
+    overallPublic ??
+    (() => {
+      if (overallStatus === "down") {
+        return "major-outage";
+      }
+      if (overallStatus === "degraded" || overallStatus === "pending") {
+        return "partial-outage";
+      }
+      return "all-operational";
+    })();
+
+  const headline = headlineForOverall(overall);
+  const allOk = overall === "all-operational";
+
+  const defaultDisplayUrl = (serviceUrl || serviceName).trim() || "https://yoursite.com";
+  const rows: StatusPagePreviewService[] =
+    previewServices && previewServices.length > 0
+      ? previewServices
+      : [
+          {
+            name: serviceName || "Service",
+            url: defaultDisplayUrl,
+            status:
+              overallStatus === "down"
+                ? "down"
+                : overallStatus === "degraded"
+                  ? "degraded"
+                  : overallStatus === "pending"
+                    ? "pending"
+                    : "operational",
+          },
+        ];
+
+  const targetBars = 56;
+  const barHeights =
+    barHeightsFromProps && barHeightsFromProps.length > 0
+      ? barHeightsFromProps
+      : null;
+
+  function glyphFor(s: ServiceStatus) {
+    if (s === "down") {
+      return "!";
+    }
+    if (s === "degraded" || s === "pending") {
+      return "–";
+    }
+    return "✓";
+  }
+
+  function rowAccent(s: ServiceStatus): string {
+    if (s === "down") {
+      return "#f87171";
+    }
+    if (s === "degraded" || s === "pending") {
+      return "#fbbf24";
+    }
+    return operationalColor;
+  }
+
+  function statusTitle(s: ServiceStatus): string {
+    if (s === "down") {
+      return "Down";
+    }
+    if (s === "degraded") {
+      return "Degraded";
+    }
+    if (s === "pending") {
+      return "Checking";
+    }
+    return "Operational";
+  }
 
   return (
     <div
       className={[
-        "overflow-hidden rounded-2xl border border-white/10 bg-[#080808] text-left shadow-2xl",
+        "overflow-hidden rounded-2xl border border-white/10 bg-[#080808] text-left shadow-[0_0_60px_-20px_rgba(124,58,237,0.45)]",
         className,
       ].join(" ")}
     >
-      {/* Mini browser chrome */}
       <div className="flex items-center gap-2 border-b border-white/10 bg-zinc-950/90 px-3 py-2.5 sm:px-4">
         <div className="hidden shrink-0 gap-1.5 sm:flex" aria-hidden>
           <span className="h-2.5 w-2.5 rounded-full bg-zinc-600" />
@@ -69,7 +177,7 @@ export function StatusPageLivePreview({
               className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[8px] font-bold text-white"
               style={{ background: brandColor }}
             >
-              {pageTitle.trim().charAt(0).toUpperCase() || "S"}
+              {displayTitle.charAt(0).toUpperCase() || "S"}
             </span>
           )}
           <span className="min-w-0 truncate">
@@ -78,92 +186,194 @@ export function StatusPageLivePreview({
         </div>
       </div>
 
-      {/* Public page body — Instatus-style hierarchy, Statsupal branding in copy */}
+      {isUnpublished ? (
+        <div
+          className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2.5 text-center text-xs font-medium text-amber-100/90"
+          role="status"
+        >
+          Preview only — this page is not public yet. Visitors will see a short “not published” message
+          until you enable publishing in Settings.
+        </div>
+      ) : null}
+
       <div
-        className="px-4 py-6 sm:px-8 sm:py-8"
+        className="px-0"
         style={{
-          background: `linear-gradient(180deg, ${brandColor}12 0%, transparent 42%), #080808`,
+          background: `linear-gradient(180deg, ${brandColor}12 0%, transparent 48%), #080808`,
         }}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold leading-tight tracking-tight text-white sm:text-2xl md:text-3xl">
-              {pageTitle.trim() || "Your project"}{" "}
-              <span className="font-medium text-zinc-500">— Status</span>
-            </h2>
-            <p className="mt-2 text-sm text-zinc-500">
-              Live uptime and incident notices for your visitors.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="shrink-0 self-start rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-white/95 backdrop-blur-sm transition hover:bg-white/10"
-            style={{ boxShadow: `0 0 0 1px ${brandColor}30` }}
-          >
-            Get updates
-          </button>
-        </div>
-
         <div
-          className="mt-8 flex items-center gap-3 rounded-xl border border-white/10 px-4 py-3.5"
-          style={{ background: `${operationalColor}12` }}
+          className="border-b border-white/10 px-4 py-6 sm:px-8"
+          style={{
+            background: `linear-gradient(180deg, ${brandColor}33 0%, transparent 100%)`,
+          }}
         >
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base text-white shadow-lg"
-            style={{ background: operationalColor, boxShadow: `0 0 24px ${operationalColor}55` }}
-          >
-            {allOk ? "✓" : "!"}
-          </span>
-          <p className="text-base font-semibold text-white sm:text-lg">{headline}</p>
-        </div>
-
-        <div className="mt-5 rounded-xl border border-white/10 bg-zinc-950/60 p-4 sm:p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-3">
-            <a
-              href={displayService.startsWith("http") ? displayService : `https://${displayService}`}
-              className="min-w-0 break-all text-sm font-medium text-cyan-300/95 underline-offset-2 hover:underline"
-              onClick={(e) => e.preventDefault()}
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-black/50">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-base font-bold" style={{ color: brandColor }}>
+                    {displayTitle.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-lg font-semibold tracking-tight text-white">
+                  {displayTitle}
+                </p>
+                <p className="truncate text-xs text-zinc-500">
+                  {hostLabel}/status/{slug || "page"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="shrink-0 self-start rounded-full border px-4 py-2 text-xs font-semibold text-white/95 transition hover:bg-white/5"
+              style={{ borderColor: `${brandColor}80`, background: `${brandColor}22` }}
             >
-              {displayService}
-            </a>
-            <span className="text-sm text-zinc-500">— {allOk ? "Operational" : "Degraded"}</span>
-            <span className="text-sm font-semibold tabular-nums sm:ml-auto" style={{ color: operationalColor }}>
-              {uptimeLabel}
+              Get updates
+            </button>
+          </div>
+        </div>
+
+        <div className="mx-auto w-full max-w-3xl space-y-5 px-4 py-6 sm:px-8 sm:py-8">
+          <p className="text-center text-sm text-zinc-400">{desc}</p>
+
+          <div
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 px-3 py-3.5 sm:px-4"
+            style={{ background: `${operationalColor}16` }}
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg text-white shadow-lg"
+              style={{
+                background: allOk ? operationalColor : brandColor,
+                boxShadow: `0 0 24px ${allOk ? operationalColor : brandColor}55`,
+              }}
+            >
+              {allOk ? "✓" : "!"}
             </span>
+            <p className="min-w-0 text-base font-semibold text-white sm:text-lg">{headline}</p>
           </div>
 
-          <p className="mt-1 text-xs text-zinc-600 sm:hidden">Uptime is estimated from your checks.</p>
+          {rows.length === 0 ? (
+            <p className="rounded-xl border border-white/10 bg-zinc-950/50 px-4 py-6 text-center text-sm text-zinc-500">
+              No published monitors on this page yet. Publish a component or add a monitor to fill this
+              preview.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {rows.map((service, index) => {
+                const showUrl = service.url.trim() || "https://…";
+                const linkHref = showUrl.startsWith("http") ? showUrl : `https://${showUrl}`;
+                return (
+                  <div
+                    key={`${service.name}-${index}`}
+                    className="rounded-xl border border-white/10 bg-zinc-950/50 p-4 sm:p-5"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
+                      <div className="flex min-w-0 items-start gap-2">
+                        <span className="mt-0.5 text-base" style={{ color: rowAccent(service.status) }}>
+                          {glyphFor(service.status)}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-zinc-100">{service.name}</p>
+                          <a
+                            href={linkHref}
+                            className="mt-0.5 block min-w-0 break-all text-xs text-cyan-300/85 underline-offset-2 hover:underline"
+                            onClick={(e) => e.preventDefault()}
+                          >
+                            {showUrl}
+                          </a>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right sm:pl-2">
+                        <p className="text-xs text-zinc-500">{statusTitle(service.status)}</p>
+                        <p
+                          className="text-sm font-semibold tabular-nums"
+                          style={{ color: rowAccent(service.status) }}
+                        >
+                          {uptimeLabel}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex h-10 items-end gap-px overflow-hidden rounded-md bg-zinc-900/90 px-0.5 pb-0.5 pt-1.5">
+                      {barHeights
+                        ? barHeights.map((h, i) => {
+                            const dip = !allOk && i % 11 === 0;
+                            return (
+                              <div
+                                key={i}
+                                className="min-w-0 flex-1 rounded-[1px]"
+                                style={{
+                                  height: `${Math.min(1, h) * 100}%`,
+                                  background: operationalColor,
+                                  opacity: dip ? 0.3 : 0.88,
+                                }}
+                              />
+                            );
+                          })
+                        : Array.from({ length: targetBars }).map((_, i) => {
+                            const dip = !allOk && i % 11 === 0;
+                            return (
+                              <div
+                                key={i}
+                                className="min-w-0 flex-1 rounded-[1px]"
+                                style={{
+                                  height: `${32 + ((i * 5) % 60)}%`,
+                                  background: operationalColor,
+                                  opacity: dip ? 0.3 : 0.88,
+                                }}
+                              />
+                            );
+                          })}
+                    </div>
+                    <div className="mt-2 flex justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                      <span>90 days ago</span>
+                      <span>Today</span>
+                    </div>
+                    {service.lastChecked || service.responseTimeMs != null ? (
+                      <div className="mt-3 text-xs text-zinc-500">
+                        {formatServiceResponse({
+                          status: service.status,
+                          responseTimeMs: service.responseTimeMs ?? 0,
+                          lastChecked: service.lastChecked ?? "",
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-          <div className="mt-4 flex h-10 items-end gap-px overflow-hidden rounded-md bg-zinc-900/90 px-0.5 pb-0.5 pt-1.5">
-            {Array.from({ length: 56 }).map((_, i) => {
-              const dip = !allOk && i % 11 === 0;
-              return (
-                <div
-                  key={i}
-                  className="min-w-0 flex-1 rounded-[1px]"
-                  style={{
-                    height: `${32 + ((i * 5) % 60)}%`,
-                    background: operationalColor,
-                    opacity: dip ? 0.3 : 0.88,
-                  }}
-                />
-              );
-            })}
+          <div className="border-t border-white/10 pt-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+              Recent notices
+            </p>
+            {notices && notices.length > 0 ? (
+              <ul className="mt-3 divide-y divide-white/10">
+                {notices.map((n) => (
+                  <li key={n.id} className="py-3 first:pt-0">
+                    <p className="text-xs text-zinc-500">{n.line1}</p>
+                    <p className="mt-0.5 text-sm text-zinc-200">{n.line2}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-500">
+                No incident notices in the last view. You&apos;re all clear, or you haven&apos;t posted a
+                notice yet.
+              </p>
+            )}
           </div>
-          <div className="mt-2 flex justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-            <span>90 days ago</span>
-            <span>Today</span>
-          </div>
+
+          <p className="pt-2 text-center text-[10px] text-zinc-600">
+            Preview · Powered by <span className="text-zinc-500">Statsupal</span>
+          </p>
         </div>
-
-        <div className="mt-6 border-t border-white/10 pt-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Recent notices</p>
-          <p className="mt-2 text-sm text-zinc-600">No open incidents. Subscribers only get emails when you post a notice.</p>
-        </div>
-
-        <p className="mt-6 text-center text-[10px] text-zinc-600">
-          Preview · Powered by <span className="text-zinc-500">Statsupal</span>
-        </p>
       </div>
     </div>
   );
