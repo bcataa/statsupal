@@ -104,7 +104,7 @@ export default function OverviewPage() {
             Welcome
           </p>
           <h3 className="mt-2 text-xl font-semibold tracking-tight text-zinc-100 sm:text-2xl">
-            Add a service to start monitoring
+            Add a monitor to start tracking uptime
           </h3>
           <p className="mt-2 max-w-2xl text-sm text-zinc-400">
             Open <strong className="font-medium text-zinc-200">Add monitor</strong> and paste the URL you

@@ -46,7 +46,7 @@ export function MonitorTestInput({ url, onUrlChange, onRun, testState, inputRef 
           autoComplete="url"
           value={url}
           onChange={(e) => onUrlChange(e.target.value)}
-          placeholder="https://yoursite.com"
+          placeholder="https://your-service.com/health"
           className="min-w-0 flex-1 border-0 bg-transparent px-3 py-3.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
         />
         <div className="flex shrink-0 items-center border-l border-white/[0.08] bg-black/30 pr-1.5 pl-1">

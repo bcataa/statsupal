@@ -88,7 +88,6 @@ export function AddMonitorModal() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [testState, setTestState] = useState<TestRunState>({ status: "idle" });
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [alertsRowOpen, setAlertsRowOpen] = useState(false);
   const [headerTab, setHeaderTab] = useState<"monitors" | "alerts">("monitors");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -99,7 +98,6 @@ export function AddMonitorModal() {
     setErrors({});
     setSubmitError(null);
     setTestState({ status: "idle" });
-    setAdvancedOpen(false);
     setAlertsRowOpen(false);
     setHeaderTab("monitors");
     closeAddServiceModal();
@@ -224,7 +222,7 @@ export function AddMonitorModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4">
       <button
         type="button"
         className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity"
@@ -234,7 +232,7 @@ export function AddMonitorModal() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="add-monitor-header"
+        aria-labelledby={headerTab === "alerts" ? "add-monitor-alerts-title" : "add-monitor-header"}
         className="relative z-10 w-full max-w-[560px] overflow-hidden rounded-2xl border shadow-2xl"
         style={{
           backgroundColor: "#000000",
@@ -291,7 +289,7 @@ export function AddMonitorModal() {
 
         {headerTab === "alerts" ? (
           <div className="px-5 py-8 text-center sm:px-6">
-            <h2 className="text-sm font-medium text-zinc-200" id="add-monitor-header">
+            <h2 className="text-sm font-medium text-zinc-200" id="add-monitor-alerts-title">
               Alert delivery
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-zinc-500">
@@ -313,23 +311,36 @@ export function AddMonitorModal() {
             className="max-h-[min(88vh,820px)] overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 sm:py-5"
             aria-describedby={submitError ? "add-mon-err" : undefined}
           >
-            <h2 id="add-monitor-header" className="sr-only">
-              Add monitor
-            </h2>
+            <div className="mb-4 sm:mb-5">
+              <h2
+                id="add-monitor-header"
+                className="text-lg font-semibold tracking-tight text-zinc-100 sm:text-xl"
+              >
+                Add monitor
+              </h2>
+              <p className="mt-1.5 text-sm text-zinc-500">
+                Register a new monitor and start collecting health checks.
+              </p>
+            </div>
+
             <div
               className="space-y-5 rounded-2xl border p-4 sm:p-5"
               style={{ borderColor: "rgba(255,255,255,0.08)", background: INNER }}
             >
-              <div className="space-y-2">
-                <p className="text-xs text-zinc-500">Monitor type</p>
-                <MonitorTypeSelect
-                  id={typeSelectId}
-                  value={form.monitorTypeId}
-                  onChange={(id) => {
-                    setForm((f) => ({ ...f, monitorTypeId: id }));
-                    setTestState({ status: "idle" });
-                  }}
+              <div>
+                <label className="text-xs text-zinc-500" htmlFor="am-display">
+                  Service name
+                </label>
+                <input
+                  id="am-display"
+                  value={form.displayName}
+                  onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
+                  placeholder="e.g. Authentication API"
+                  className="mt-1.5 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
                 />
+                <p className="mt-1 text-[11px] text-zinc-600">
+                  If empty, the monitor label defaults to the hostname from the URL.
+                </p>
               </div>
 
               <div>
@@ -346,6 +357,100 @@ export function AddMonitorModal() {
                   inputRef={inputRef}
                 />
                 {errors.url ? <p className="mt-1.5 text-xs text-rose-400">{errors.url}</p> : null}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-zinc-500">Check type</p>
+                <MonitorTypeSelect
+                  id={typeSelectId}
+                  value={form.monitorTypeId}
+                  onChange={(id) => {
+                    setForm((f) => ({ ...f, monitorTypeId: id }));
+                    setTestState({ status: "idle" });
+                  }}
+                />
+                <p className="text-[11px] text-zinc-600">HTTP/HTTPS, ping, and more as your stack supports.</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs text-zinc-500" htmlFor="am-interval">
+                    Check interval
+                  </label>
+                  <input
+                    id="am-interval"
+                    value={form.checkInterval}
+                    onChange={(e) => setForm((f) => ({ ...f, checkInterval: e.target.value }))}
+                    className="mt-1.5 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
+                    placeholder="1 min"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500" htmlFor="am-to">
+                    Timeout (ms)
+                  </label>
+                  <input
+                    id="am-to"
+                    type="number"
+                    min={1000}
+                    step={500}
+                    value={form.timeoutMs}
+                    onChange={(e) => setForm((f) => ({ ...f, timeoutMs: Number(e.target.value || 10000) }))}
+                    className="mt-1.5 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
+                  />
+                </div>
+              </div>
+              {errors.checkInterval || errors.timeoutMs ? (
+                <p className="text-xs text-rose-400">
+                  {[errors.checkInterval, errors.timeoutMs].filter(Boolean).join(" ")}
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs text-zinc-500" htmlFor="am-ft">
+                    Failure threshold
+                  </label>
+                  <input
+                    id="am-ft"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={form.failureThreshold}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, failureThreshold: Number(e.target.value || 3) }))
+                    }
+                    className="mt-1.5 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500" htmlFor="am-rc">
+                    Retry count
+                  </label>
+                  <input
+                    id="am-rc"
+                    type="number"
+                    min={0}
+                    max={5}
+                    value={form.retryCount}
+                    onChange={(e) => setForm((f) => ({ ...f, retryCount: Number(e.target.value || 0) }))}
+                    className="mt-1.5 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-500" htmlFor="am-desc">
+                  Description <span className="text-zinc-600">(optional)</span>
+                </label>
+                <textarea
+                  id="am-desc"
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={3}
+                  placeholder="Briefly describe what this monitor is responsible for."
+                  className="mt-1.5 w-full resize-none rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
+                />
               </div>
 
               <div>
@@ -416,125 +521,6 @@ export function AddMonitorModal() {
                   </p>
                 ) : null}
               </div>
-
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setAdvancedOpen((o) => !o)}
-                  className="flex w-full items-center justify-between gap-2 py-2.5 text-left text-sm text-zinc-200 transition hover:text-white"
-                >
-                  <span>Advanced settings</span>
-                  <span
-                    className="text-zinc-500 transition-transform duration-200"
-                    style={{ transform: advancedOpen ? "rotate(90deg)" : "none" }}
-                    aria-hidden
-                  >
-                    &gt;
-                  </span>
-                </button>
-                <div
-                  className="grid transition-[grid-template-rows] duration-200 ease-out"
-                  style={{ gridTemplateRows: advancedOpen ? "1fr" : "0fr" }}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    <div className="space-y-3 border-t border-white/10 pt-3">
-                      <div>
-                        <label className="text-xs text-zinc-500" htmlFor="am-display">
-                          Label <span className="text-zinc-600">(optional)</span>
-                        </label>
-                        <input
-                          id="am-display"
-                          value={form.displayName}
-                          onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))}
-                          placeholder="Defaults to hostname from URL"
-                          className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
-                        />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="text-xs text-zinc-500" htmlFor="am-interval">
-                            Check interval
-                          </label>
-                          <input
-                            id="am-interval"
-                            value={form.checkInterval}
-                            onChange={(e) => setForm((f) => ({ ...f, checkInterval: e.target.value }))}
-                            className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
-                            placeholder="1 min"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-zinc-500" htmlFor="am-to">
-                            Timeout (ms)
-                          </label>
-                          <input
-                            id="am-to"
-                            type="number"
-                            min={1000}
-                            step={500}
-                            value={form.timeoutMs}
-                            onChange={(e) =>
-                              setForm((f) => ({ ...f, timeoutMs: Number(e.target.value || 10000) }))
-                            }
-                            className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
-                          />
-                        </div>
-                      </div>
-                      {errors.checkInterval || errors.timeoutMs ? (
-                        <p className="text-xs text-rose-400">
-                          {[errors.checkInterval, errors.timeoutMs].filter(Boolean).join(" ")}
-                        </p>
-                      ) : null}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs text-zinc-500" htmlFor="am-ft">
-                            Failure threshold
-                          </label>
-                          <input
-                            id="am-ft"
-                            type="number"
-                            min={1}
-                            max={10}
-                            value={form.failureThreshold}
-                            onChange={(e) =>
-                              setForm((f) => ({ ...f, failureThreshold: Number(e.target.value || 3) }))
-                            }
-                            className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-zinc-500" htmlFor="am-rc">
-                            Retries
-                          </label>
-                          <input
-                            id="am-rc"
-                            type="number"
-                            min={0}
-                            max={5}
-                            value={form.retryCount}
-                            onChange={(e) =>
-                              setForm((f) => ({ ...f, retryCount: Number(e.target.value || 0) }))
-                            }
-                            className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs text-zinc-500" htmlFor="am-desc">
-                          Notes <span className="text-zinc-600">(optional)</span>
-                        </label>
-                        <textarea
-                          id="am-desc"
-                          value={form.description}
-                          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                          rows={2}
-                          className="mt-1 w-full resize-none rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/35"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             {submitError ? (
@@ -547,23 +533,21 @@ export function AddMonitorModal() {
               </p>
             ) : null}
 
-            <div className="mt-5 space-y-3">
+            <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:items-stretch sm:justify-end sm:gap-3">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="order-2 h-12 rounded-xl border border-white/20 bg-transparent px-5 text-sm font-medium text-zinc-200 transition hover:border-white/30 hover:bg-white/5 sm:order-1 sm:min-w-[7.5rem]"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={isSaving || !getDefById(form.monitorTypeId).available}
-                className="w-full rounded-xl border border-white/5 bg-white py-3.5 text-sm font-bold tracking-[0.2em] text-black uppercase transition enabled:hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-45"
+                className="order-1 h-12 min-w-0 flex-1 rounded-xl border border-white/5 bg-white px-5 text-sm font-bold tracking-[0.12em] text-black uppercase transition enabled:hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-45 sm:order-2 sm:min-w-[12rem] sm:max-w-sm sm:flex-none"
               >
-                {isSaving ? "Adding…" : "Add monitor"}
+                {isSaving ? "Creating…" : "Create monitor"}
               </button>
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="text-xs font-medium tracking-[0.25em] text-zinc-500 uppercase transition hover:text-zinc-300"
-                >
-                  Close
-                </button>
-              </div>
             </div>
           </form>
         )}
