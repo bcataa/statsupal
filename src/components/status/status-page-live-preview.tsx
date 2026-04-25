@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { Service, ServiceStatus } from "@/lib/models/monitoring";
+import { useSyncExternalStore } from "react";
+import type { ServiceStatus } from "@/lib/models/monitoring";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 import {
   headlineForOverall,
   type PublicOverallStatus,
 } from "@/components/status/status-page-preview-helpers";
+import {
+  type StatusPageExtraThemeV1,
+  overallAccentColor,
+  serviceStatusAccent,
+} from "@/lib/models/status-page-theme";
 
 export type StatusPagePreviewService = {
   name: string;
@@ -24,6 +29,10 @@ export type StatusPageLivePreviewProps = {
   logoUrl?: string;
   /** Shown in the mini “browser tab” and header when set. */
   faviconUrl?: string;
+  /** When set, used in the dark header area instead of `logoUrl`. */
+  logoDarkUrl?: string;
+  /** Custom colors for degraded / outage / pending (see public status page). */
+  extraTheme?: StatusPageExtraThemeV1;
   /** Legacy single service row when `previewServices` is omitted. */
   serviceUrl?: string;
   serviceName: string;
@@ -59,7 +68,9 @@ export function StatusPageLivePreview({
   brandColor,
   operationalColor,
   logoUrl,
+  logoDarkUrl,
   faviconUrl,
+  extraTheme,
   serviceName,
   serviceUrl,
   overallStatus,
@@ -72,15 +83,11 @@ export function StatusPageLivePreview({
   barHeights: barHeightsFromProps,
   className = "",
 }: StatusPageLivePreviewProps) {
-  const [hostLabel, setHostLabel] = useState("yoursite.com");
-  useEffect(() => {
-    setHostLabel(typeof window !== "undefined" ? window.location.host : "yoursite.com");
-  }, []);
-
-  const displayTitle = pageTitle.trim() || "Your project";
-  const tabIcon = faviconUrl || logoUrl;
-  const desc =
-    publicDescription?.trim() || "Real-time system status and incident updates.";
+  const hostLabel = useSyncExternalStore(
+    () => () => undefined,
+    () => (typeof window !== "undefined" ? window.location.host : "yoursite.com"),
+    () => "yoursite.com",
+  );
 
   const overall: PublicOverallStatus =
     overallPublic ??
@@ -93,6 +100,14 @@ export function StatusPageLivePreview({
       }
       return "all-operational";
     })();
+
+  const displayTitle = pageTitle.trim() || "Your project";
+  const headerLogo = logoDarkUrl || logoUrl;
+  const tabIcon = faviconUrl || logoUrl;
+  const themeExtras = extraTheme ?? {};
+  const overallBanner = overallAccentColor(overall, brandColor, operationalColor, themeExtras);
+  const desc =
+    publicDescription?.trim() || "Real-time system status and incident updates.";
 
   const headline = headlineForOverall(overall);
   const allOk = overall === "all-operational";
@@ -133,13 +148,7 @@ export function StatusPageLivePreview({
   }
 
   function rowAccent(s: ServiceStatus): string {
-    if (s === "down") {
-      return "#f87171";
-    }
-    if (s === "degraded" || s === "pending") {
-      return "#fbbf24";
-    }
-    return operationalColor;
+    return serviceStatusAccent(s, operationalColor, themeExtras);
   }
 
   function statusTitle(s: ServiceStatus): string {
@@ -211,9 +220,9 @@ export function StatusPageLivePreview({
           <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-black/50">
-                {logoUrl ? (
+                {headerLogo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={headerLogo} alt="" className="h-full w-full object-contain" />
                 ) : (
                   <span className="text-base font-bold" style={{ color: brandColor }}>
                     {displayTitle.charAt(0).toUpperCase()}
@@ -244,13 +253,13 @@ export function StatusPageLivePreview({
 
           <div
             className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 px-3 py-3.5 sm:px-4"
-            style={{ background: `${operationalColor}16` }}
+            style={{ background: overallBanner.bg, borderColor: "rgba(255,255,255,0.08)" }}
           >
             <span
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg text-white shadow-lg"
               style={{
-                background: allOk ? operationalColor : brandColor,
-                boxShadow: `0 0 24px ${allOk ? operationalColor : brandColor}55`,
+                background: overallBanner.icon,
+                boxShadow: `0 0 24px ${overallBanner.icon}55`,
               }}
             >
               {allOk ? "✓" : "!"}
@@ -268,6 +277,7 @@ export function StatusPageLivePreview({
               {rows.map((service, index) => {
                 const showUrl = service.url.trim() || "https://…";
                 const linkHref = showUrl.startsWith("http") ? showUrl : `https://${showUrl}`;
+                const barColor = rowAccent(service.status);
                 return (
                   <div
                     key={`${service.name}-${index}`}
@@ -275,7 +285,7 @@ export function StatusPageLivePreview({
                   >
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
                       <div className="flex min-w-0 items-start gap-2">
-                        <span className="mt-0.5 text-base" style={{ color: rowAccent(service.status) }}>
+                        <span className="mt-0.5 text-base" style={{ color: barColor }}>
                           {glyphFor(service.status)}
                         </span>
                         <div className="min-w-0">
@@ -293,7 +303,7 @@ export function StatusPageLivePreview({
                         <p className="text-xs text-zinc-500">{statusTitle(service.status)}</p>
                         <p
                           className="text-sm font-semibold tabular-nums"
-                          style={{ color: rowAccent(service.status) }}
+                          style={{ color: barColor }}
                         >
                           {uptimeLabel}
                         </p>
@@ -309,7 +319,7 @@ export function StatusPageLivePreview({
                                 className="min-w-0 flex-1 rounded-[1px]"
                                 style={{
                                   height: `${Math.min(1, h) * 100}%`,
-                                  background: operationalColor,
+                                  background: barColor,
                                   opacity: dip ? 0.3 : 0.88,
                                 }}
                               />
@@ -323,7 +333,7 @@ export function StatusPageLivePreview({
                                 className="min-w-0 flex-1 rounded-[1px]"
                                 style={{
                                   height: `${32 + ((i * 5) % 60)}%`,
-                                  background: operationalColor,
+                                  background: barColor,
                                   opacity: dip ? 0.3 : 0.88,
                                 }}
                               />

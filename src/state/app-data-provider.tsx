@@ -42,6 +42,7 @@ import {
   buildFallbackUptimeSummary,
   loadSevenDayUptimeSummary,
 } from "@/lib/supabase/uptime-history";
+import { buildExtraThemeForPersist } from "@/lib/models/status-page-theme";
 import { getDefaultTimeZone } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 
@@ -1311,6 +1312,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           brandLogoUrl: state.workspace.statusPage.design.logoUrl ?? null,
           brandFaviconUrl: state.workspace.statusPage.design.faviconUrl ?? null,
           statusPageStyle: state.workspace.statusPage.design.style,
+          statusPageExtraTheme: buildExtraThemeForPersist({
+            logoDarkUrl: state.workspace.statusPage.design.logoDarkUrl,
+            degradedColor: state.workspace.statusPage.design.degradedColor,
+            partialOutageColor: state.workspace.statusPage.design.partialOutageColor,
+            majorOutageColor: state.workspace.statusPage.design.majorOutageColor,
+            maintenanceColor: state.workspace.statusPage.design.maintenanceColor,
+            notStartedColor: state.workspace.statusPage.design.notStartedColor,
+          }),
         });
         console.log("[AppData] workspace persisted", {
           workspaceId: state.workspace.id,

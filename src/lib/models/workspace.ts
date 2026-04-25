@@ -35,7 +35,15 @@ export type WorkspaceStatusPageDesign = {
   /** Healthy / operational accents (hex). */
   operationalColor?: string;
   logoUrl?: string;
+  /** Optional logo for dark headers (public + preview). */
+  logoDarkUrl?: string;
   faviconUrl?: string;
+  /** Degraded / partial / major / maintenance / pending accents (see `status-page-theme.ts`). */
+  degradedColor?: string;
+  partialOutageColor?: string;
+  majorOutageColor?: string;
+  maintenanceColor?: string;
+  notStartedColor?: string;
 };
 
 export type WorkspaceStatusPageSettings = {

@@ -268,6 +268,7 @@ alter table public.workspaces add column if not exists brand_logo_url text;
 alter table public.workspaces add column if not exists brand_favicon_url text;
 alter table public.workspaces add column if not exists status_page_published boolean not null default true;
 alter table public.workspaces add column if not exists status_page_style text not null default 'standard';
+alter table public.workspaces add column if not exists status_page_extra_theme jsonb;
 alter table public.workspaces drop constraint if exists workspaces_status_page_style_check;
 alter table public.workspaces
   add constraint workspaces_status_page_style_check

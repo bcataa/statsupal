@@ -6,6 +6,7 @@ import type {
   Service,
 } from "@/lib/models/monitoring";
 import type { Workspace } from "@/lib/models/workspace";
+import { parseStatusPageExtraTheme } from "@/lib/models/status-page-theme";
 import { toSlug } from "@/lib/utils/slug";
 
 type SupabaseClientLike = unknown;
@@ -246,6 +247,7 @@ type WorkspaceRow = {
   brand_favicon_url?: string | null;
   status_page_published?: boolean | null;
   status_page_style?: string | null;
+  status_page_extra_theme?: unknown | null;
   created_at: string;
 };
 
@@ -383,6 +385,7 @@ function toWorkspaceModel(row: WorkspaceRow): Workspace {
         operationalColor: row.operational_color ?? undefined,
         logoUrl: row.brand_logo_url ?? undefined,
         faviconUrl: row.brand_favicon_url ?? undefined,
+        ...parseStatusPageExtraTheme(row.status_page_extra_theme),
       },
     },
   };
@@ -640,6 +643,7 @@ export async function persistWorkspaceInfo(
     brandLogoUrl?: string | null;
     brandFaviconUrl?: string | null;
     statusPageStyle?: "standard" | "premium_dark";
+    statusPageExtraTheme?: string | null;
   },
 ) {
   const db = getDb(client);
@@ -717,6 +721,10 @@ export async function persistWorkspaceInfo(
           : workspace.status_page_style === "premium_dark"
             ? "premium_dark"
             : "standard",
+      status_page_extra_theme:
+        payload.statusPageExtraTheme !== undefined
+          ? payload.statusPageExtraTheme
+          : (workspace.status_page_extra_theme ?? null),
     })
     .eq("id", workspace.id)
     .eq("user_id", userId);

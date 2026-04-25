@@ -12,6 +12,7 @@ import {
   loadPublicUptimeBars24h,
   loadPublicWorkspaceUptime,
 } from "@/lib/status/public-uptime";
+import { parseStatusPageExtraTheme } from "@/lib/models/status-page-theme";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 
 type OverallStatus = "all-operational" | "partial-outage" | "major-outage";
@@ -28,6 +29,7 @@ type WorkspaceRow = {
   brand_favicon_url: string | null;
   status_page_published: boolean | null;
   status_page_style: string | null;
+  status_page_extra_theme: unknown | null;
 };
 
 type ServiceRow = {
@@ -172,7 +174,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   const workspaceResult = await admin
     .from("workspaces")
     .select(
-      "id,name,project_name,public_description,support_email,brand_color,operational_color,brand_logo_url,brand_favicon_url,status_page_published,status_page_style",
+      "id,name,project_name,public_description,support_email,brand_color,operational_color,brand_logo_url,brand_favicon_url,status_page_published,status_page_style,status_page_extra_theme",
     )
     .eq("project_slug", resolvedProjectSlug)
     .maybeSingle();
@@ -262,6 +264,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   if (workspace.status_page_style === "premium_dark") {
     return (
       <PublicStatusPremiumView
+        extraTheme={parseStatusPageExtraTheme(workspace.status_page_extra_theme)}
         workspace={{
           name: workspace.name,
           project_name: workspace.project_name,

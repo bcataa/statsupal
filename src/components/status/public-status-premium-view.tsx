@@ -4,6 +4,11 @@ import { LocalDateTime, LocalTimestampOrText } from "@/components/ui/local-datet
 import { getPublicSupportEmail, getPublicSupportMailto } from "@/lib/support/contact-info";
 import type { Incident, Service } from "@/lib/models/monitoring";
 import type { PublicUptimeBars24hResult, PublicUptimeWindows } from "@/lib/status/public-uptime";
+import {
+  type StatusPageExtraThemeV1,
+  overallAccentColor,
+  serviceStatusAccent,
+} from "@/lib/models/status-page-theme";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 
 export type PremiumPublicWorkspace = {
@@ -21,6 +26,8 @@ type OverallStatus = "all-operational" | "partial-outage" | "major-outage";
 
 type Props = {
   workspace: PremiumPublicWorkspace;
+  /** Parsed `workspaces.status_page_extra_theme` (dark logo + extra state colors). */
+  extraTheme?: StatusPageExtraThemeV1;
   projectSlug: string;
   publishedServices: Service[];
   incidents: Incident[];
@@ -39,6 +46,7 @@ function headlineFor(status: OverallStatus): string {
 
 export function PublicStatusPremiumView({
   workspace,
+  extraTheme = {},
   projectSlug,
   publishedServices,
   incidents,
@@ -51,6 +59,8 @@ export function PublicStatusPremiumView({
   const brand = workspace.brand_color || "#7c3aed";
   const op = workspace.operational_color || "#10b981";
   const title = workspace.project_name?.trim() || workspace.name;
+  const headerLogo = extraTheme.logoDarkUrl || workspace.brand_logo_url;
+  const overallAccent = overallAccentColor(overallStatus, brand, op, extraTheme);
   const desc =
     workspace.public_description || "Real-time system status and incident updates.";
   const upLabel =
@@ -76,9 +86,9 @@ export function PublicStatusPremiumView({
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-black/50">
-              {workspace.brand_logo_url ? (
+              {headerLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={workspace.brand_logo_url} alt="" className="h-full w-full object-cover" />
+                <img src={headerLogo} alt="" className="h-full w-full object-contain" />
               ) : (
                 <span className="text-sm font-bold" style={{ color: brand }}>
                   {title.charAt(0).toUpperCase()}
@@ -112,11 +122,11 @@ export function PublicStatusPremiumView({
           <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-7">
             <div
               className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 px-3 py-3 sm:px-4"
-              style={{ background: `${op}18` }}
+              style={{ background: overallAccent.bg, borderColor: "rgba(255,255,255,0.08)" }}
             >
               <span
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg text-white"
-                style={{ background: op }}
+                style={{ background: overallAccent.icon }}
               >
                 {overallStatus === "all-operational" ? "✓" : "!"}
               </span>
@@ -129,16 +139,24 @@ export function PublicStatusPremiumView({
               </p>
             ) : (
               <div className="space-y-4">
-                {publishedServices.map((service) => (
+                {publishedServices.map((service) => {
+                  const rowColor = serviceStatusAccent(service.status, op, extraTheme);
+                  return (
                   <div key={service.id} className="rounded-xl border border-white/10 bg-black/35 px-3 py-3 sm:px-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
-                        <span style={{ color: op }}>✓</span>
+                        <span style={{ color: rowColor }} aria-hidden>
+                          {service.status === "down" || service.status === "degraded"
+                            ? "!"
+                            : service.status === "pending"
+                              ? "○"
+                              : "✓"}
+                        </span>
                         <span className="min-w-0 truncate font-medium text-zinc-100">
                           {service.name}
                         </span>
                       </div>
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: op }}>
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: rowColor }}>
                         {upLabel}
                       </span>
                     </div>
@@ -150,7 +168,7 @@ export function PublicStatusPremiumView({
                               className="min-w-0 flex-1 rounded-[1px]"
                               style={{
                                 height: `${b < 0 ? 12 : Math.max(18, Math.min(100, b))}%`,
-                                background: op,
+                                background: rowColor,
                                 opacity: b < 0 ? 0.2 : 0.85,
                               }}
                             />
@@ -161,7 +179,7 @@ export function PublicStatusPremiumView({
                               className="min-w-0 flex-1 rounded-[1px]"
                               style={{
                                 height: `${35 + ((i * 5) % 50)}%`,
-                                background: op,
+                                background: rowColor,
                                 opacity: 0.5,
                               }}
                             />
@@ -190,7 +208,8 @@ export function PublicStatusPremiumView({
                       </p>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
