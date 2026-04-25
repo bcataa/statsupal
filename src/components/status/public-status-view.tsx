@@ -13,6 +13,7 @@ import {
   loadPublicWorkspaceUptime,
 } from "@/lib/status/public-uptime";
 import { parseStatusPageExtraTheme } from "@/lib/models/status-page-theme";
+import { fetchWorkspaceForPublicStatusPage } from "@/lib/status/fetch-workspace-for-public";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 
 type OverallStatus = "all-operational" | "partial-outage" | "major-outage";
@@ -151,7 +152,14 @@ function StatusNotFound({ slugLabel }: { slugLabel: string }) {
           ) : (
             " for that link"
           )}
-          . Check the page address or confirm your project slug under Settings.
+          . The URL must match your workspace <strong>project slug</strong> (e.g. under Page →
+          Settings or the main{" "}
+          <Link className="text-violet-600 underline" href="/settings">
+            Settings
+          </Link>{" "}
+          page). If you use cloud Supabase, run pending migrations and ensure{" "}
+          <code className="rounded bg-zinc-100 px-1">project_slug</code> in the database matches this
+          segment.
         </p>
       </div>
     </main>
@@ -171,19 +179,16 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
 
   const admin = createAdminClient() as SupabaseAdmin;
 
-  const workspaceResult = await admin
-    .from("workspaces")
-    .select(
-      "id,name,project_name,public_description,support_email,brand_color,operational_color,brand_logo_url,brand_favicon_url,status_page_published,status_page_style,status_page_extra_theme",
-    )
-    .eq("project_slug", resolvedProjectSlug)
-    .maybeSingle();
+  const { row: found, error: workspaceLookupError } = await fetchWorkspaceForPublicStatusPage(
+    admin,
+    resolvedProjectSlug,
+  );
 
-  if (workspaceResult.error || !workspaceResult.data) {
+  if (workspaceLookupError || !found) {
     return <StatusNotFound slugLabel={resolvedProjectSlug} />;
   }
 
-  const workspace = workspaceResult.data as WorkspaceRow;
+  const workspace = found as WorkspaceRow;
 
   if (workspace.status_page_published === false) {
     return <StatusUnpublished slugLabel={resolvedProjectSlug} />;
