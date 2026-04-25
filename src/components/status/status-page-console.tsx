@@ -18,6 +18,7 @@ import {
   uptimeLabelFromSummary,
 } from "@/components/status/status-page-preview-helpers";
 import { ServiceEditDialog } from "@/components/services/service-edit-dialog";
+import { DEFAULT_STATUS_PAGE_EXTRA } from "@/lib/models/status-page-theme";
 import { toSlug } from "@/lib/utils/slug";
 import { resolveWorkspaceStatusSlug } from "@/lib/utils/status-slug";
 import type { Service } from "@/lib/models/monitoring";
@@ -145,11 +146,20 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
   );
 
   const logoFileRef = useRef<HTMLInputElement>(null);
+  const logoDarkFileRef = useRef<HTMLInputElement>(null);
   const faviconFileRef = useRef<HTMLInputElement>(null);
   const [brandColor, setBrandColor] = useState(DEFAULT_BRAND);
   const [operationalColor, setOperationalColor] = useState(DEFAULT_OPS);
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
+  const [logoDarkUrl, setLogoDarkUrl] = useState<string | undefined>();
   const [faviconUrl, setFaviconUrl] = useState<string | undefined>();
+  const [degradedColor, setDegradedColor] = useState(DEFAULT_STATUS_PAGE_EXTRA.degradedColor);
+  const [partialOutageColor, setPartialOutageColor] = useState(
+    DEFAULT_STATUS_PAGE_EXTRA.partialOutageColor,
+  );
+  const [majorOutageColor, setMajorOutageColor] = useState(DEFAULT_STATUS_PAGE_EXTRA.majorOutageColor);
+  const [maintenanceColor, setMaintenanceColor] = useState(DEFAULT_STATUS_PAGE_EXTRA.maintenanceColor);
+  const [notStartedColor, setNotStartedColor] = useState(DEFAULT_STATUS_PAGE_EXTRA.notStartedColor);
   const [customizePublished, setCustomizePublished] = useState(true);
 
   const [workspaceName, setWorkspaceName] = useState("");
@@ -174,7 +184,14 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     setBrandColor(workspace.statusPage.design.brandColor || DEFAULT_BRAND);
     setOperationalColor(workspace.statusPage.design.operationalColor || DEFAULT_OPS);
     setLogoUrl(workspace.statusPage.design.logoUrl);
+    setLogoDarkUrl(workspace.statusPage.design.logoDarkUrl);
     setFaviconUrl(workspace.statusPage.design.faviconUrl);
+    const d = workspace.statusPage.design;
+    setDegradedColor(d.degradedColor || DEFAULT_STATUS_PAGE_EXTRA.degradedColor);
+    setPartialOutageColor(d.partialOutageColor || DEFAULT_STATUS_PAGE_EXTRA.partialOutageColor);
+    setMajorOutageColor(d.majorOutageColor || DEFAULT_STATUS_PAGE_EXTRA.majorOutageColor);
+    setMaintenanceColor(d.maintenanceColor || DEFAULT_STATUS_PAGE_EXTRA.maintenanceColor);
+    setNotStartedColor(d.notStartedColor || DEFAULT_STATUS_PAGE_EXTRA.notStartedColor);
     setCustomizePublished(workspace.statusPage.published);
     setWorkspaceName(workspace.name);
     setProjectName(currentProject?.name || "");
@@ -238,6 +255,21 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     setFaviconUrl(data);
   };
 
+  const onLogoDark: ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) {
+      setLogoDarkUrl(undefined);
+      return;
+    }
+    const data = await readFile(f);
+    if (data.length > MAX_IMAGE_CHARS) {
+      window.alert("Image too large—use a file under about 500KB.");
+      return;
+    }
+    setLogoDarkUrl(data);
+  };
+
   const saveDesign = () => {
     setSavingDesign(true);
     setDesignSaveNote(null);
@@ -250,7 +282,13 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
             brandColor,
             operationalColor,
             logoUrl,
+            logoDarkUrl,
             faviconUrl,
+            degradedColor,
+            partialOutageColor,
+            majorOutageColor,
+            maintenanceColor,
+            notStartedColor,
           },
         },
       });
@@ -316,12 +354,23 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
 
   /** Saved workspace design — Overview reflects persisted data, not unsaved Customize drafts. */
   const committedDesign = useMemo(
-    () => ({
-      brand: workspace.statusPage.design.brandColor || DEFAULT_BRAND,
-      op: workspace.statusPage.design.operationalColor || DEFAULT_OPS,
-      logo: workspace.statusPage.design.logoUrl,
-      fav: workspace.statusPage.design.faviconUrl,
-    }),
+    () => {
+      const d = workspace.statusPage.design;
+      return {
+        brand: d.brandColor || DEFAULT_BRAND,
+        op: d.operationalColor || DEFAULT_OPS,
+        logo: d.logoUrl,
+        logoDark: d.logoDarkUrl,
+        fav: d.faviconUrl,
+        extra: {
+          degradedColor: d.degradedColor || DEFAULT_STATUS_PAGE_EXTRA.degradedColor,
+          partialOutageColor: d.partialOutageColor || DEFAULT_STATUS_PAGE_EXTRA.partialOutageColor,
+          majorOutageColor: d.majorOutageColor || DEFAULT_STATUS_PAGE_EXTRA.majorOutageColor,
+          maintenanceColor: d.maintenanceColor || DEFAULT_STATUS_PAGE_EXTRA.maintenanceColor,
+          notStartedColor: d.notStartedColor || DEFAULT_STATUS_PAGE_EXTRA.notStartedColor,
+        },
+      };
+    },
     [workspace],
   );
 
@@ -435,6 +484,8 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                 brandColor={committedDesign.brand}
                 operationalColor={committedDesign.op}
                 logoUrl={committedDesign.logo}
+                logoDarkUrl={committedDesign.logoDark}
+                extraTheme={committedDesign.extra}
                 faviconUrl={committedDesign.fav}
                 serviceName={primaryServiceName}
                 serviceUrl={primaryServiceUrl}
@@ -659,6 +710,24 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                   ) : null}
                 </label>
                 <label className="block text-xs font-medium text-zinc-500">
+                  Logo (dark header)
+                  <input
+                    ref={logoDarkFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="mt-1 text-xs text-zinc-400"
+                    onChange={onLogoDark}
+                  />
+                  {logoDarkUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={logoDarkUrl}
+                      alt="Dark mode logo"
+                      className="mt-2 h-10 w-auto max-w-full rounded object-contain"
+                    />
+                  ) : null}
+                </label>
+                <label className="block text-xs font-medium text-zinc-500">
                   Favicon
                   <input
                     ref={faviconFileRef}
@@ -700,6 +769,35 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                     />
                   </div>
                 </label>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:col-span-2">
+                  Other state colors
+                </p>
+                {(
+                  [
+                    ["Degraded", degradedColor, setDegradedColor] as const,
+                    ["Partial outage", partialOutageColor, setPartialOutageColor] as const,
+                    ["Major outage", majorOutageColor, setMajorOutageColor] as const,
+                    ["Maintenance", maintenanceColor, setMaintenanceColor] as const,
+                    ["Checking / not started", notStartedColor, setNotStartedColor] as const,
+                  ] as const
+                ).map(([label, value, set]) => (
+                  <label key={label} className="block text-xs font-medium text-zinc-500">
+                    {label}
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        className="h-10 w-12 cursor-pointer rounded-lg border border-white/10"
+                      />
+                      <input
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/60 px-2 py-1.5 font-mono text-xs text-zinc-100"
+                      />
+                    </div>
+                  </label>
+                ))}
               </div>
               <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
@@ -712,6 +810,15 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                   brandColor={brandColor}
                   operationalColor={operationalColor}
                   logoUrl={logoUrl}
+                  logoDarkUrl={logoDarkUrl}
+                  extraTheme={{
+                    logoDarkUrl,
+                    degradedColor,
+                    partialOutageColor,
+                    majorOutageColor,
+                    maintenanceColor,
+                    notStartedColor,
+                  }}
                   faviconUrl={faviconUrl}
                   serviceName={primaryServiceName}
                   serviceUrl={primaryServiceUrl}
@@ -739,7 +846,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                   href="/settings/status-design"
                   className="text-sm text-cyan-400/90 underline-offset-2 hover:underline"
                 >
-                  Open legacy design page
+                  Open full design page
                 </Link>
               </div>
             </div>

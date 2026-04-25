@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import type { ServiceStatus } from "@/lib/models/monitoring";
 import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 import {
@@ -83,11 +83,12 @@ export function StatusPageLivePreview({
   barHeights: barHeightsFromProps,
   className = "",
 }: StatusPageLivePreviewProps) {
-  const hostLabel = useSyncExternalStore(
-    () => () => undefined,
-    () => (typeof window !== "undefined" ? window.location.host : "yoursite.com"),
-    () => "yoursite.com",
-  );
+  /** Stable SSR/CSR: avoid useSyncExternalStore host mismatch (breaks hydration). */
+  const [hostLabel, setHostLabel] = useState("yoursite.com");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only real host for preview label
+    setHostLabel(typeof window !== "undefined" ? window.location.host : "yoursite.com");
+  }, []);
 
   const overall: PublicOverallStatus =
     overallPublic ??
