@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 const benefits = [
   {
@@ -22,6 +23,7 @@ const benefits = [
 
 export default function RegisterPage() {
   const supabase = useMemo(() => createClient(), []);
+  const { isDevLocalFallback } = useMemo(() => getSupabaseEnv(), []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -93,9 +95,17 @@ export default function RegisterPage() {
           </h1>
           <p className="mt-1 text-[20px] text-zinc-700">Monitoring and status pages in one place</p>
 
-          {!supabase && (
+          {isDevLocalFallback && (
+            <p className="mt-5 rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
+              <span className="font-medium">Local dev:</span> run <code className="text-xs">npx supabase start</code>{" "}
+              first, then sign up here (or create a user in Studio). Cloud keys in <code className="text-xs">.env</code>{" "}
+              override this.
+            </p>
+          )}
+          {!supabase && !isDevLocalFallback && (
             <p className="mt-5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              Configure Supabase keys to enable registration.
+              Configure Supabase keys to enable registration, or use <code className="text-xs">next dev</code> with
+              local Supabase.
             </p>
           )}
 

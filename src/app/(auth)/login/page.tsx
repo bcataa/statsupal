@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { createClient } from "@/lib/supabase/client";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
 export default function LoginPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
+  const { isDevLocalFallback } = useMemo(() => getSupabaseEnv(), []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -84,9 +86,22 @@ export default function LoginPage() {
         <h1 className="text-[42px] font-semibold tracking-tight text-zinc-900">Welcome back!</h1>
         <p className="mt-1 text-[22px] text-zinc-700">Sign in to your Statsupal account</p>
 
-        {!supabase && (
+        {isDevLocalFallback && (
+          <p className="mt-5 rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
+            <span className="font-medium">Local dev mode:</span> using Supabase at{" "}
+            <code className="text-xs">127.0.0.1:54321</code> (no <code className="text-xs">.env</code>{" "}
+            needed). From the project root run <code className="text-xs">npx supabase start</code>, then
+            add a user in Studio (<span className="whitespace-nowrap">localhost:54323</span> →
+            Authentication). Or set <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
+            <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> for a cloud project.
+          </p>
+        )}
+        {!supabase && !isDevLocalFallback && (
           <p className="mt-5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Configure Supabase keys to access protected pages.
+            Configure Supabase keys to access protected pages, or run{" "}
+            <code className="text-xs">next dev</code> without{" "}
+            <code className="text-xs">NEXT_PUBLIC_STATSUPAL_DISABLE_DEV_LOCAL=1</code> to use local
+            Supabase.
           </p>
         )}
 
