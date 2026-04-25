@@ -30,8 +30,8 @@ export default async function OnboardingLayout({
             Statsupal
           </Link>
           <div className="flex items-center gap-3 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-            <Link href="/dashboard" className="hover:text-white">
-              Dashboard
+            <Link href="/services" className="hover:text-white">
+              Monitors
             </Link>
           </div>
         </div>

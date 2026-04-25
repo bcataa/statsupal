@@ -286,7 +286,7 @@ export function OnboardingWizard() {
           },
         });
       }
-      router.push("/dashboard");
+      router.push("/services");
     } finally {
       setBusy(false);
     }
@@ -697,7 +697,7 @@ export function OnboardingWizard() {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
-          <Link href="/dashboard" className="font-semibold uppercase tracking-wide hover:text-white">
+          <Link href="/services" className="font-semibold uppercase tracking-wide hover:text-white">
             Skip for now
           </Link>
           <Link href="/settings/status-design" className="hover:text-white">

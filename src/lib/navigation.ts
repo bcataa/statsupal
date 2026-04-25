@@ -4,15 +4,14 @@ export type NavItem = {
 };
 
 export const navigationItems: NavItem[] = [
-  { label: "Overview", href: "/dashboard" },
   { label: "Monitors", href: "/services" },
   { label: "Issues", href: "/incidents" },
   { label: "Page", href: "/dashboard/status" },
+  { label: "Apps", href: "/apps" },
   { label: "Settings", href: "/settings" },
 ];
 
 const titleMap: Record<string, string> = {
-  "/dashboard": "Overview",
   "/services": "Monitors",
   "/incidents": "Issues",
   "/settings": "Settings",
@@ -36,5 +35,5 @@ export function getPageTitle(pathname: string): string {
     return "Apps";
   }
 
-  return titleMap[pathname] ?? "Dashboard";
+  return titleMap[pathname] ?? "Monitors";
 }
