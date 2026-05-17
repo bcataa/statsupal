@@ -68,8 +68,11 @@ function Counter({ target, suffix = "" }: { target: number; suffix?: string }) {
 
 /* ─── hero status mockup ────────────────────────────────────────── */
 function LiveStatusMockup() {
+  const [mounted, setMounted] = useState(false);
   const [tick, setTick] = useState(0);
   const [phase, setPhase] = useState(0); // 0=ok 1=incident 2=resolving
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 1400);
@@ -88,6 +91,14 @@ function LiveStatusMockup() {
     amber: i === 10 || i === 11,
     down: phase === 1 && i >= barCount - 2,
   }));
+
+  if (!mounted) {
+    return (
+      <div className="relative w-full max-w-[500px]">
+        <div className="rounded-2xl border border-white/10 bg-[#080c1e]/90" style={{ height: 320 }} />
+      </div>
+    );
+  }
 
   const overall =
     phase === 0 ? { text: "✓ All systems operational", color: "#34d399", bg: "rgba(52,211,153,0.12)", border: "rgba(52,211,153,0.25)" } :
@@ -131,11 +142,16 @@ function LiveStatusMockup() {
           <div>
             <div className="mb-1.5 flex items-end gap-px" style={{ height: "40px" }}>
               {bars.map((b, i) => (
-                <div key={i} className="flex-1 rounded-[2px] transition-all duration-500" style={{
-                  background: b.down ? "#f87171" : b.amber ? "#fbbf24" : "#34d399",
-                  height: `${24 + ((i * 7 + tick) % 14)}px`,
-                  opacity: 0.75 + Math.sin(i * 0.6 + tick * 0.3) * 0.25,
-                }} />
+                <div
+                  key={i}
+                  suppressHydrationWarning
+                  className="flex-1 rounded-[2px] transition-all duration-500"
+                  style={{
+                    background: b.down ? "#f87171" : b.amber ? "#fbbf24" : "#34d399",
+                    height: `${24 + ((i * 7 + tick) % 14)}px`,
+                    opacity: Math.round((0.75 + Math.sin(i * 0.6 + tick * 0.3) * 0.25) * 100) / 100,
+                  }}
+                />
               ))}
             </div>
             <div className="flex justify-between text-[9px] font-medium uppercase tracking-wider text-zinc-600"><span>60 days ago</span><span>Now</span></div>
@@ -186,13 +202,12 @@ function UptimeGrid() {
 
   const cells = Array.from({ length: GRID_TOTAL }, (_, idx) => {
     const isLit = idx < lit;
-    const r = Math.random();
     const color = idx === 42 || idx === 97 || idx === 133
       ? "#fbbf24"
       : idx === 60 || idx === 61
         ? "#f87171"
         : "#34d399";
-    return { isLit, color, delay: idx * 6, r };
+    return { isLit, color, delay: idx * 6 };
   });
 
   return (
