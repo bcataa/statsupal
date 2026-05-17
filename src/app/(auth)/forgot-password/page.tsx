@@ -16,89 +16,66 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setError(null);
     setMessage(null);
-
-    if (!supabase) {
-      setError(
-        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your env.",
-      );
-      return;
-    }
-
-    if (!email.trim()) {
-      setError("Email is required.");
-      return;
-    }
-
+    if (!supabase) { setError("Supabase is not configured."); return; }
+    if (!email.trim()) { setError("Email is required."); return; }
     setIsSubmitting(true);
-
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo:
-        typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
     });
-
-    if (resetError) {
-      setError(resetError.message);
-      setIsSubmitting(false);
-      return;
-    }
-
+    if (resetError) { setError(resetError.message); setIsSubmitting(false); return; }
     setMessage("Password reset email sent. Please check your inbox.");
     setIsSubmitting(false);
   };
 
   return (
     <AuthPageShell>
-      <section className="mx-auto w-full max-w-md rounded-md border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">
-          Reset password
-        </h1>
-        <p className="mt-1 text-lg text-zinc-700">
-          Enter your account email and we&apos;ll send reset instructions.
-        </p>
+      <div className="mx-auto w-full max-w-md">
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0d1128]/80 shadow-[0_0_80px_-20px_rgba(99,102,241,0.5)] backdrop-blur-md">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label htmlFor="email" className="mb-1 block text-sm text-zinc-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
-              autoComplete="email"
-            />
+          <div className="px-8 py-8 sm:px-10 sm:py-10">
+            <h1 className="text-3xl font-bold tracking-tight text-white">Reset password</h1>
+            <p className="mt-1.5 text-sm text-zinc-400">
+              Enter your email and we&apos;ll send reset instructions.
+            </p>
+
+            <form className="mt-7 space-y-4" onSubmit={onSubmit}>
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-zinc-400">Email</label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  autoComplete="email"
+                  className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-0 transition focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30"
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div>
+              )}
+              {message && (
+                <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{message}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting || !supabase}
+                className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:from-indigo-400 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? "Sending…" : "Send reset email"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-zinc-500">
+              Back to{" "}
+              <Link href="/login" className="font-medium text-indigo-400 hover:text-indigo-300">Sign in</Link>
+            </p>
           </div>
-
-          {error && (
-            <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
-            </p>
-          )}
-
-          {message && (
-            <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {message}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting || !supabase}
-            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#5f58f7] px-4 text-base font-medium text-white transition hover:bg-[#544df1] disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isSubmitting ? "Please wait..." : "Send reset email"}
-          </button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-zinc-600">
-          Back to{" "}
-          <Link href="/login" className="font-medium text-zinc-700 hover:text-zinc-900">
-            Login
-          </Link>
-        </p>
-      </section>
+        </div>
+      </div>
     </AuthPageShell>
   );
 }

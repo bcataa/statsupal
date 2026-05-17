@@ -1,32 +1,51 @@
+"use client";
+
 import Link from "next/link";
+import { HeroCanvasBackground } from "@/components/marketing/hero-canvas-background";
+import { useEffect, useState } from "react";
 
 type AuthPageShellProps = {
   children: React.ReactNode;
 };
 
 export function AuthPageShell({ children }: AuthPageShellProps) {
+  const [scrollY, setScrollY] = useState(0);
+  useEffect(() => {
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f5f5f8] px-4 py-8 sm:px-6">
-      <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[48%] bg-[radial-gradient(circle_at_top_right,rgba(148,163,184,0.25)_0,rgba(148,163,184,0.08)_40%,transparent_75%)] lg:block" />
+    <div className="relative isolate min-h-screen overflow-hidden bg-[#080c1e] text-zinc-100">
+      <HeroCanvasBackground scrollY={scrollY} />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl">
-        <div className="mb-6 flex items-center justify-center gap-3 text-zinc-800">
-          <Link href="/" className="flex items-center gap-1.5 text-base font-semibold">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-violet-300 text-[10px] text-violet-700">
-              S
-            </span>
-            Statuspal
-          </Link>
-          <button
-            type="button"
-            className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs text-zinc-600"
-          >
-            EU
-          </button>
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-[1]"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 50% at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 70%),radial-gradient(ellipse 50% 40% at 10% 60%, rgba(34,211,238,0.07) 0%, transparent 60%)",
+        }}
+      />
+
+      <main className="relative z-10 flex min-h-screen flex-col px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="mb-8 flex items-center justify-center">
+            <Link
+              href="/"
+              className="flex items-center gap-2.5 text-base font-bold text-white transition hover:opacity-80"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-[11px] font-bold text-white shadow-lg shadow-indigo-500/40">
+                S
+              </span>
+              <span className="text-lg font-bold tracking-tight">Slebb</span>
+            </Link>
+          </div>
+
+          {children}
         </div>
-
-        {children}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

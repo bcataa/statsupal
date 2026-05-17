@@ -7,6 +7,25 @@ import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
+function DarkInput({
+  id, type = "text", value, onChange, placeholder, autoComplete,
+}: {
+  id: string; type?: string; value: string;
+  onChange: (v: string) => void; placeholder?: string; autoComplete?: string;
+}) {
+  return (
+    <input
+      id={id}
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoComplete={autoComplete}
+      className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-0 transition focus:border-indigo-500/60 focus:bg-white/8 focus:ring-1 focus:ring-indigo-500/30"
+    />
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -19,21 +38,11 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!supabase) {
-      return;
-    }
-
+    if (!supabase) return;
     const checkSession = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (user) {
-        router.replace("/services");
-        router.refresh();
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) { router.replace("/services"); router.refresh(); }
     };
-
     checkSession();
   }, [router, supabase]);
 
@@ -41,140 +50,108 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
     setMessage(null);
-
     if (!supabase) {
-      setError(
-        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your env.",
-      );
+      setError("Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.");
       return;
     }
-
     if (!email.trim() || !password.trim()) {
       setError("Email and password are required.");
       return;
     }
-
     setIsSubmitting(true);
-
     const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
+      email: email.trim(), password,
     });
-
-    if (signInError) {
-      setError(signInError.message);
-      setIsSubmitting(false);
-      return;
-    }
-
+    if (signInError) { setError(signInError.message); setIsSubmitting(false); return; }
     if (!rememberMe) {
       await supabase.auth.signOut();
       setError("This prototype currently supports persistent sessions only.");
       setIsSubmitting(false);
       return;
     }
-
-    if (signInData.user) {
-      router.push("/services");
-    }
+    if (signInData.user) router.push("/services");
     router.refresh();
   };
 
   return (
     <AuthPageShell>
-      <section className="mx-auto w-full max-w-md rounded-md border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-[42px] font-semibold tracking-tight text-zinc-900">Welcome back!</h1>
-        <p className="mt-1 text-[22px] text-zinc-700">Sign in to your Statsupal account</p>
+      <div className="mx-auto w-full max-w-md">
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0d1128]/80 shadow-[0_0_80px_-20px_rgba(99,102,241,0.5)] backdrop-blur-md">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
 
-        {isDevLocalFallback && (
-          <p className="mt-5 rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
-            <span className="font-medium">Local dev mode:</span> using Supabase at{" "}
-            <code className="text-xs">127.0.0.1:54321</code> (no <code className="text-xs">.env</code>{" "}
-            needed). From the project root run <code className="text-xs">npx supabase start</code>, then
-            add a user in Studio (<span className="whitespace-nowrap">localhost:54323</span> →
-            Authentication). Or set <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-            <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> for a cloud project.
-          </p>
-        )}
-        {!supabase && !isDevLocalFallback && (
-          <p className="mt-5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            Configure Supabase keys to access protected pages, or run{" "}
-            <code className="text-xs">next dev</code> without{" "}
-            <code className="text-xs">NEXT_PUBLIC_STATSUPAL_DISABLE_DEV_LOCAL=1</code> to use local
-            Supabase.
-          </p>
-        )}
+          <div className="px-8 py-8 sm:px-10 sm:py-10">
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Welcome back
+            </h1>
+            <p className="mt-1.5 text-sm text-zinc-400">Sign in to your Slebb account</p>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label htmlFor="email" className="mb-1 block text-sm text-zinc-700">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
-              autoComplete="email"
-            />
-          </div>
+            {isDevLocalFallback && (
+              <div className="mt-5 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-xs text-cyan-300">
+                <span className="font-semibold">Local dev:</span> using Supabase at{" "}
+                <code>127.0.0.1:54321</code>. Run{" "}
+                <code>npx supabase start</code> then add a user in Studio → Authentication.
+              </div>
+            )}
+            {!supabase && !isDevLocalFallback && (
+              <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+                Configure <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to enable sign-in.
+              </div>
+            )}
 
-          <div>
-            <label htmlFor="password" className="mb-1 block text-sm text-zinc-700">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
-              autoComplete="current-password"
-            />
-          </div>
+            <form className="mt-7 space-y-4" onSubmit={onSubmit}>
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-zinc-400">
+                  Email
+                </label>
+                <DarkInput id="email" type="email" value={email} onChange={setEmail} placeholder="you@company.com" autoComplete="email" />
+              </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label htmlFor="password" className="block text-xs font-medium text-zinc-400">Password</label>
+                  <Link href="/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300">Forgot password?</Link>
+                </div>
+                <DarkInput id="password" type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
+              </div>
 
-          <label className="mt-1 inline-flex items-center gap-2 text-sm text-zinc-700">
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(event) => setRememberMe(event.target.checked)}
-              className="h-3.5 w-3.5 rounded border-zinc-300"
-            />
-            Remember Me?
-          </label>
+              <label className="flex cursor-pointer items-center gap-2.5 text-sm text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/20 bg-white/5 accent-indigo-500"
+                />
+                Remember me
+              </label>
 
-          {error && (
-            <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-              {error}
+              {error && (
+                <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                  {error}
+                </div>
+              )}
+              {message && (
+                <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                  {message}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting || !supabase}
+                className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:from-indigo-400 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? "Signing in…" : "Sign in"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-zinc-500">
+              No account?{" "}
+              <Link href="/register" className="font-medium text-indigo-400 hover:text-indigo-300">
+                Sign up free
+              </Link>
             </p>
-          )}
-
-          {message && (
-            <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              {message}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={isSubmitting || !supabase}
-            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#5f58f7] px-4 text-base font-medium text-white transition hover:bg-[#544df1] disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isSubmitting ? "Please wait..." : "Sign In"}
-          </button>
-        </form>
-
-        <p className="mt-4 text-center text-sm text-zinc-600">
-          <Link href="/register" className="font-medium text-zinc-700 hover:text-zinc-900">
-            Sign up
-          </Link>
-          {"  ·  "}
-          <Link href="/forgot-password" className="font-medium text-zinc-700 hover:text-zinc-900">
-            Forgot my password
-          </Link>
-        </p>
-      </section>
+          </div>
+        </div>
+      </div>
     </AuthPageShell>
   );
 }

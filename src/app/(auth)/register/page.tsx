@@ -6,19 +6,29 @@ import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { createClient } from "@/lib/supabase/client";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
+function DarkInput({
+  id, type = "text", value, onChange, placeholder, autoComplete,
+}: {
+  id: string; type?: string; value: string;
+  onChange: (v: string) => void; placeholder?: string; autoComplete?: string;
+}) {
+  return (
+    <input
+      id={id}
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoComplete={autoComplete}
+      className="h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-0 transition focus:border-indigo-500/60 focus:bg-white/8 focus:ring-1 focus:ring-indigo-500/30"
+    />
+  );
+}
+
 const benefits = [
-  {
-    title: "Save hours on each incident",
-    text: "Our customers report saving at least 2 hours on each incident.",
-  },
-  {
-    title: "Centralize system status",
-    text: "Monitor and publish historical SLA for your applications with ease.",
-  },
-  {
-    title: "You'll be in good company",
-    text: "Hundreds of DevOps/SRE, CTOs and operation teams communicate effectively.",
-  },
+  { icon: "⬡", color: "#818cf8", title: "Save hours on each incident", text: "Teams report saving 2+ hours per incident with clear automated workflows." },
+  { icon: "◎", color: "#34d399", title: "Centralize system status", text: "Monitor services, publish uptime, and manage incidents in one place." },
+  { icon: "◉", color: "#60a5fa", title: "Trusted by DevOps teams", text: "CTOs, SREs, and support engineers use Slebb to communicate clearly." },
 ];
 
 export default function RegisterPage() {
@@ -37,204 +47,120 @@ export default function RegisterPage() {
     event.preventDefault();
     setError(null);
     setMessage(null);
-
-    if (!supabase) {
-      setError(
-        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your env.",
-      );
-      return;
-    }
-
-    if (!email.trim() || !password.trim() || !passwordConfirmation.trim()) {
-      setError("All fields are required.");
-      return;
-    }
-
-    if (password !== passwordConfirmation) {
-      setError("Password and password confirmation must match.");
-      return;
-    }
-
-    if (!acceptTerms) {
-      setError("You must accept the Terms of Service and Privacy Policy.");
-      return;
-    }
-
+    if (!supabase) { setError("Supabase is not configured."); return; }
+    if (!email.trim() || !password.trim() || !passwordConfirmation.trim()) { setError("All fields are required."); return; }
+    if (password !== passwordConfirmation) { setError("Passwords do not match."); return; }
+    if (!acceptTerms) { setError("You must accept the Terms of Service and Privacy Policy."); return; }
     setIsSubmitting(true);
-
     const { error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/onboarding/wizard`
-            : undefined,
-        data: {
-          newsletter,
-        },
+        emailRedirectTo: typeof window !== "undefined" ? `${window.location.origin}/onboarding/wizard` : undefined,
+        data: { newsletter },
       },
     });
-
-    if (signUpError) {
-      setError(signUpError.message);
-      setIsSubmitting(false);
-      return;
-    }
-
-    setMessage("Account created. Please check your email to confirm your account.");
+    if (signUpError) { setError(signUpError.message); setIsSubmitting(false); return; }
+    setMessage("Account created. Check your email to confirm your account.");
     setIsSubmitting(false);
   };
 
   return (
     <AuthPageShell>
-      <section className="mx-auto grid w-full max-w-5xl gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
-        <div className="rounded-md border border-zinc-200 bg-white p-8 shadow-sm">
-          <h1 className="text-[40px] font-semibold tracking-tight text-zinc-900">
-            Create your Statsupal account
-          </h1>
-          <p className="mt-1 text-[20px] text-zinc-700">Monitoring and status pages in one place</p>
-
-          {isDevLocalFallback && (
-            <p className="mt-5 rounded border border-cyan-200 bg-cyan-50 px-3 py-2 text-sm text-cyan-900">
-              <span className="font-medium">Local dev:</span> run <code className="text-xs">npx supabase start</code>{" "}
-              first, then sign up here (or create a user in Studio). Cloud keys in <code className="text-xs">.env</code>{" "}
-              override this.
-            </p>
-          )}
-          {!supabase && !isDevLocalFallback && (
-            <p className="mt-5 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              Configure Supabase keys to enable registration, or use <code className="text-xs">next dev</code> with
-              local Supabase.
-            </p>
-          )}
-
-          <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm text-zinc-700">
-                Work email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                autoComplete="email"
-                placeholder="alex@acme.corp"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-1 block text-sm text-zinc-700">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password-confirmation" className="mb-1 block text-sm text-zinc-700">
-                Password confirmation
-              </label>
-              <input
-                id="password-confirmation"
-                type="password"
-                value={passwordConfirmation}
-                onChange={(event) => setPasswordConfirmation(event.target.value)}
-                className="h-10 w-full rounded-sm border border-zinc-300 px-3 text-sm text-zinc-900 outline-none focus:border-violet-400"
-                autoComplete="new-password"
-              />
-            </div>
-
-            <label className="inline-flex items-start gap-2 text-sm text-zinc-700">
-              <input
-                type="checkbox"
-                checked={acceptTerms}
-                onChange={(event) => setAcceptTerms(event.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300"
-              />
-              <span>
-                I accept the{" "}
-                <Link href="/terms" className="underline">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="underline">
-                  Privacy Policy
-                </Link>
-              </span>
-            </label>
-
-            <p className="text-xs text-zinc-500">
-              We process the data you provide according to our Privacy Policy.
-            </p>
-
-            <label className="inline-flex items-start gap-2 text-sm text-zinc-700">
-              <input
-                type="checkbox"
-                checked={newsletter}
-                onChange={(event) => setNewsletter(event.target.checked)}
-                className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300"
-              />
-              <span>Send me newsletters &amp; occasional offers</span>
-            </label>
-
-            {error && (
-              <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {error}
-              </p>
-            )}
-
-            {message && (
-              <p className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                {message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting || !supabase}
-              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[#5f58f7] px-4 text-base font-medium text-white transition hover:bg-[#544df1] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isSubmitting ? "Please wait..." : "Create account"}
-            </button>
-          </form>
-
-          <p className="mt-4 text-center text-sm text-zinc-600">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-zinc-700 hover:text-zinc-900">
-              Login here
-            </Link>
-          </p>
-        </div>
-
+      <div className="mx-auto grid w-full max-w-5xl gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        {/* Left — benefits */}
         <aside className="hidden lg:block">
-          <h2 className="text-4xl font-semibold tracking-tight text-zinc-900">
-            Effective incident communication starts here
+          <h2 className="text-3xl font-bold tracking-tight text-white">
+            Incident communication<br />that actually works
           </h2>
-
-          <div className="mt-6 space-y-6">
-            {benefits.map((item) => (
-              <article key={item.title}>
-                <p className="flex items-center gap-2 text-2xl font-semibold text-zinc-900">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-zinc-400 text-xs">
-                    ✓
-                  </span>
-                  {item.title}
-                </p>
-                <p className="mt-1 pl-7 text-lg leading-7 text-zinc-700">{item.text}</p>
-              </article>
+          <p className="mt-3 text-base leading-7 text-zinc-400">
+            Join DevOps teams and CTOs who use Slebb to keep users informed during outages — automatically.
+          </p>
+          <div className="mt-8 space-y-6">
+            {benefits.map((b) => (
+              <div key={b.title} className="flex items-start gap-4">
+                <span className="mt-0.5 text-xl" style={{ color: b.color }}>{b.icon}</span>
+                <div>
+                  <p className="text-sm font-bold text-zinc-100">{b.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">{b.text}</p>
+                </div>
+              </div>
             ))}
           </div>
         </aside>
-      </section>
+
+        {/* Right — form */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0d1128]/80 shadow-[0_0_80px_-20px_rgba(99,102,241,0.5)] backdrop-blur-md">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
+          <div className="px-8 py-8 sm:px-10 sm:py-10">
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Create your Slebb account
+            </h1>
+            <p className="mt-1.5 text-sm text-zinc-400">Monitoring and status pages in one place</p>
+
+            {isDevLocalFallback && (
+              <div className="mt-5 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-xs text-cyan-300">
+                <span className="font-semibold">Local dev:</span> run <code>npx supabase start</code> first.
+              </div>
+            )}
+            {!supabase && !isDevLocalFallback && (
+              <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-300">
+                Configure Supabase keys to enable registration.
+              </div>
+            )}
+
+            <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-zinc-400">Work email</label>
+                <DarkInput id="email" type="email" value={email} onChange={setEmail} placeholder="you@company.com" autoComplete="email" />
+              </div>
+              <div>
+                <label htmlFor="password" className="mb-1.5 block text-xs font-medium text-zinc-400">Password</label>
+                <DarkInput id="password" type="password" value={password} onChange={setPassword} placeholder="Min. 8 characters" autoComplete="new-password" />
+              </div>
+              <div>
+                <label htmlFor="password-confirmation" className="mb-1.5 block text-xs font-medium text-zinc-400">Confirm password</label>
+                <DarkInput id="password-confirmation" type="password" value={passwordConfirmation} onChange={setPasswordConfirmation} placeholder="••••••••" autoComplete="new-password" />
+              </div>
+
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-zinc-400">
+                <input type="checkbox" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 accent-indigo-500" />
+                <span>
+                  I accept the{" "}
+                  <Link href="/terms" className="text-indigo-400 underline-offset-2 hover:text-indigo-300 hover:underline">Terms of Service</Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" className="text-indigo-400 underline-offset-2 hover:text-indigo-300 hover:underline">Privacy Policy</Link>
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-zinc-500">
+                <input type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/5 accent-indigo-500" />
+                Send me product updates &amp; tips
+              </label>
+
+              {error && (
+                <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{error}</div>
+              )}
+              {message && (
+                <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">{message}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSubmitting || !supabase}
+                className="mt-1 inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 text-sm font-semibold text-white shadow-lg shadow-indigo-500/30 transition-all hover:from-indigo-400 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? "Creating account…" : "Create account"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-zinc-500">
+              Already have an account?{" "}
+              <Link href="/login" className="font-medium text-indigo-400 hover:text-indigo-300">Sign in</Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </AuthPageShell>
   );
 }
