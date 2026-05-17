@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ScrollAnimatedBackground } from "@/components/marketing/scroll-animated-background";
+// ScrollAnimatedBackground is mounted by the shared marketing layout
 
 const brandName = "Slebb";
 const publicDomain = "status.slebb.com";
@@ -378,10 +378,8 @@ function FeatureRow({
 /* ─── page ──────────────────────────────────────────────────────── */
 export default function MarketingPage() {
   return (
-    <div className="relative isolate text-zinc-100">
-      <ScrollAnimatedBackground />
-
-      <div className="relative z-10">
+    <div className="text-zinc-100">
+      <div>
         {/* ── Hero ── */}
         <main className="mx-auto grid w-full max-w-7xl gap-12 px-5 pt-10 pb-20 sm:px-8 sm:pt-16 lg:grid-cols-2 lg:items-center lg:gap-20 lg:pt-20">
           <section className="max-w-[580px]">

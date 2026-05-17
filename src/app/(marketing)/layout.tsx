@@ -1,16 +1,14 @@
 import { MarketingNavbar } from "@/components/marketing/marketing-navbar";
+import { ScrollAnimatedBackground } from "@/components/marketing/scroll-animated-background";
 
-/**
- * Shared shell for all marketing routes: one persistent navbar + client-side navigation
- * between Product, How it works, Showcase, etc. Dashboard and auth use other layouts.
- */
 export default function MarketingLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-[#f5f5f8] text-zinc-900">
+    <div className="relative isolate min-h-screen max-w-[100vw] overflow-x-hidden text-zinc-100">
+      <ScrollAnimatedBackground />
       <MarketingNavbar />
-      {children}
+      <div className="relative z-10">{children}</div>
     </div>
   );
 }
