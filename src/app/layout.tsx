@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Statsupal",
-    template: "%s | Statsupal",
+    default: "Slebb",
+    template: "%s | Slebb",
   },
   description: "Status monitoring, incidents, and public communication for modern teams.",
 };

@@ -63,7 +63,7 @@ export function MarketingNavbar() {
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-indigo-300 text-[10px] text-indigo-600">
               S
             </span>
-            <span className="truncate text-base font-semibold sm:text-base">Statsupal</span>
+            <span className="truncate text-base font-semibold sm:text-base">Slebb</span>
           </Link>
           <nav
             className="hidden min-w-0 items-center gap-5 text-sm lg:flex xl:gap-6"
