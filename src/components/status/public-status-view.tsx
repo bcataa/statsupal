@@ -11,6 +11,8 @@ import type { Incident, Service } from "@/lib/models/monitoring";
 import {
   loadPublicUptimeBars24h,
   loadPublicWorkspaceUptime,
+  type PublicUptimeBars24hResult,
+  type PublicUptimeWindows,
 } from "@/lib/status/public-uptime";
 import { parseStatusPageExtraTheme } from "@/lib/models/status-page-theme";
 import { fetchWorkspaceForPublicStatusPage } from "@/lib/status/fetch-workspace-for-public";
@@ -170,6 +172,137 @@ type PublicStatusViewProps = {
   projectParam: string;
 };
 
+function getDemoPublicStatusData(projectSlug: string): {
+  workspace: WorkspaceRow;
+  services: Service[];
+  incidents: Incident[];
+  serviceLabels: { id: string; name: string }[];
+  overallStatus: OverallStatus;
+  lastUpdated: string;
+  uptime: PublicUptimeWindows;
+  bars24h: PublicUptimeBars24hResult;
+} {
+  const now = new Date();
+  const isoNow = now.toISOString();
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60 * 1000).toISOString();
+  const services: Service[] = [
+    {
+      id: "demo_web",
+      name: "Web App",
+      url: "https://www.slebb.com",
+      description: "Customer-facing web interface.",
+      status: "operational",
+      isPublished: true,
+      timeoutMs: 10000,
+      failureThreshold: 3,
+      retryCount: 0,
+      checkType: "http",
+      checkInterval: "1 min",
+      lastChecked: ago(1),
+      responseTimeMs: 143,
+      createdAt: ago(60 * 24 * 20),
+    },
+    {
+      id: "demo_api",
+      name: "Public API",
+      url: "https://api.slebb.com",
+      description: "Public REST endpoints.",
+      status: "operational",
+      isPublished: true,
+      timeoutMs: 10000,
+      failureThreshold: 3,
+      retryCount: 0,
+      checkType: "http",
+      checkInterval: "1 min",
+      lastChecked: ago(2),
+      responseTimeMs: 168,
+      createdAt: ago(60 * 24 * 20),
+    },
+    {
+      id: "demo_worker",
+      name: "Background Workers",
+      url: "https://workers.slebb.com/health",
+      description: "Queue processing and notifications.",
+      status: "degraded",
+      isPublished: true,
+      timeoutMs: 10000,
+      failureThreshold: 3,
+      retryCount: 0,
+      checkType: "http",
+      checkInterval: "1 min",
+      lastChecked: ago(4),
+      responseTimeMs: 412,
+      createdAt: ago(60 * 24 * 20),
+    },
+  ];
+
+  const incidents: Incident[] = [
+    {
+      id: "demo_incident_1",
+      title: "Worker latency spike",
+      description: "Queue throughput is slower than normal due to elevated database load.",
+      source: "monitoring",
+      affectedServiceId: "demo_worker",
+      status: "monitoring",
+      severity: "minor",
+      startedAt: ago(48),
+      updatedAt: ago(12),
+      resolutionSummary: "Capacity increased and processing rates recovered.",
+    },
+    {
+      id: "demo_incident_2",
+      title: "API timeout increase",
+      description: "Short period of increased p95 latency on /status endpoints.",
+      source: "monitoring",
+      affectedServiceId: "demo_api",
+      status: "resolved",
+      severity: "minor",
+      startedAt: ago(2400),
+      updatedAt: ago(2200),
+      resolvedAt: ago(2200),
+      resolutionSummary: "Redis cache node restarted and stabilized.",
+    },
+  ];
+
+  const bars24h: PublicUptimeBars24hResult = {
+    windowStartMs: now.getTime() - 24 * 60 * 60 * 1000,
+    values: Array.from({ length: 24 }, (_, i) => {
+      if (i === 9 || i === 10) return 96;
+      if (i === 14) return 98;
+      return 100;
+    }),
+  };
+
+  return {
+    workspace: {
+      id: "demo_workspace",
+      name: "Slebb Demo Workspace",
+      project_name: "Slebb Public Status",
+      public_description:
+        "Demo status page showing live uptime, incidents, and service health.",
+      support_email: "support@slebb.com",
+      brand_color: "#635bff",
+      operational_color: "#00b093",
+      brand_logo_url: null,
+      brand_favicon_url: null,
+      status_page_published: true,
+      status_page_style: "premium_dark",
+      status_page_extra_theme: null,
+    },
+    services,
+    incidents,
+    serviceLabels: services.map((s) => ({ id: s.id, name: s.name })),
+    overallStatus: getOverallStatus(services),
+    lastUpdated: isoNow,
+    uptime: {
+      hours24: 99.4,
+      days7: 99.7,
+      days30: 99.9,
+    },
+    bars24h,
+  };
+}
+
 export async function PublicStatusView({ projectParam }: PublicStatusViewProps) {
   const resolvedProjectSlug = decodeURIComponent(projectParam || "").trim();
 
@@ -177,7 +310,42 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
     return <StatusNotFound slugLabel="" />;
   }
 
-  const admin = createAdminClient() as SupabaseAdmin;
+  let admin: SupabaseAdmin | null = null;
+  try {
+    admin = createAdminClient() as SupabaseAdmin;
+  } catch (error) {
+    logApi.warn("public status admin client unavailable", {
+      projectSlug: resolvedProjectSlug,
+      error,
+    });
+    if (resolvedProjectSlug === "main-status-page") {
+      const demo = getDemoPublicStatusData(resolvedProjectSlug);
+      return (
+        <PublicStatusPremiumView
+          extraTheme={parseStatusPageExtraTheme(demo.workspace.status_page_extra_theme)}
+          workspace={{
+            name: demo.workspace.name,
+            project_name: demo.workspace.project_name,
+            public_description: demo.workspace.public_description,
+            support_email: demo.workspace.support_email,
+            brand_color: demo.workspace.brand_color,
+            operational_color: demo.workspace.operational_color,
+            brand_logo_url: demo.workspace.brand_logo_url,
+            brand_favicon_url: demo.workspace.brand_favicon_url,
+          }}
+          projectSlug={resolvedProjectSlug}
+          publishedServices={demo.services}
+          incidents={demo.incidents}
+          serviceLabels={demo.serviceLabels}
+          overallStatus={demo.overallStatus}
+          lastUpdated={demo.lastUpdated}
+          uptime={demo.uptime}
+          bars24h={demo.bars24h}
+        />
+      );
+    }
+    return <StatusNotFound slugLabel={resolvedProjectSlug} />;
+  }
 
   const { row: found, error: workspaceLookupError } = await fetchWorkspaceForPublicStatusPage(
     admin,
@@ -185,6 +353,32 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   );
 
   if (workspaceLookupError || !found) {
+    if (resolvedProjectSlug === "main-status-page") {
+      const demo = getDemoPublicStatusData(resolvedProjectSlug);
+      return (
+        <PublicStatusPremiumView
+          extraTheme={parseStatusPageExtraTheme(demo.workspace.status_page_extra_theme)}
+          workspace={{
+            name: demo.workspace.name,
+            project_name: demo.workspace.project_name,
+            public_description: demo.workspace.public_description,
+            support_email: demo.workspace.support_email,
+            brand_color: demo.workspace.brand_color,
+            operational_color: demo.workspace.operational_color,
+            brand_logo_url: demo.workspace.brand_logo_url,
+            brand_favicon_url: demo.workspace.brand_favicon_url,
+          }}
+          projectSlug={resolvedProjectSlug}
+          publishedServices={demo.services}
+          incidents={demo.incidents}
+          serviceLabels={demo.serviceLabels}
+          overallStatus={demo.overallStatus}
+          lastUpdated={demo.lastUpdated}
+          uptime={demo.uptime}
+          bars24h={demo.bars24h}
+        />
+      );
+    }
     return <StatusNotFound slugLabel={resolvedProjectSlug} />;
   }
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { SlebbLogo } from "@/components/brand/slebb-logo";
 
 const navItems = [
   { href: "/product", label: "Product" },
@@ -56,15 +57,7 @@ export function MarketingNavbar() {
     <header className="sticky top-0 z-50 border-b border-white/8 bg-[#0a0c1e]/85 shadow-lg shadow-black/30 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-8 sm:py-3">
         <div className="flex min-w-0 flex-1 items-center gap-4 lg:gap-8">
-          <Link
-            href="/"
-            className="flex shrink-0 items-center gap-2 text-lg font-semibold text-white sm:text-[22px]"
-          >
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-[10px] font-bold text-white shadow shadow-indigo-500/40">
-              S
-            </span>
-            <span className="truncate text-base font-bold sm:text-base">Slebb</span>
-          </Link>
+          <SlebbLogo href="/" />
           <nav
             className="hidden min-w-0 items-center gap-5 text-sm lg:flex xl:gap-6"
             aria-label="Marketing"

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { CrispChat } from "@/components/support/crisp-chat";
 import { AppDataProvider } from "@/state/app-data-provider";
 import "./globals.css";
 
@@ -38,7 +39,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-zinc-100 text-zinc-900 font-sans antialiased">
-        <AppDataProvider>{children}</AppDataProvider>
+        <AppDataProvider>
+          {children}
+          <CrispChat />
+        </AppDataProvider>
       </body>
     </html>
   );
