@@ -2,6 +2,7 @@
 
 import { AppTopNav } from "@/components/layout/app-top-nav";
 import { MobileTabBar } from "@/components/layout/mobile-tab-bar";
+import { SpaceBackground } from "@/components/layout/space-background";
 import { useAppData } from "@/state/app-data-provider";
 
 type AppShellProps = {
@@ -13,13 +14,15 @@ export function AppShell({ children }: AppShellProps) {
   const busy = !isHydrated || isHydrating;
 
   return (
-    <div className="app-root min-h-screen max-w-[100vw] overflow-x-hidden bg-[#05060a] text-zinc-100">
+    <div className="app-root relative min-h-screen max-w-[100vw] overflow-x-hidden bg-[#02020a] text-zinc-100">
+      <SpaceBackground />
+      <div className="relative z-10">
       <AppTopNav />
       <main
         className="min-w-0 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] pt-[calc(4.25rem+env(safe-area-inset-top,0px))] md:pb-8 md:pt-20"
         aria-busy={busy}
       >
-        <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 md:px-6">
+        <div className="mx-auto w-full max-w-7xl px-3 sm:px-4 md:px-6">
           {dataError ? (
             <div className="mx-auto w-full max-w-3xl">
               <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-rose-100 shadow-lg">
@@ -36,6 +39,7 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </main>
       <MobileTabBar />
+      </div>
     </div>
   );
 }
