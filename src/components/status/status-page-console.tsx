@@ -18,7 +18,7 @@ import {
   uptimeLabelFromSummary,
 } from "@/components/status/status-page-preview-helpers";
 import { ServiceEditDialog } from "@/components/services/service-edit-dialog";
-import { DEFAULT_STATUS_PAGE_EXTRA } from "@/lib/models/status-page-theme";
+import { DEFAULT_STATUS_PAGE_EXTRA, buildExtraThemeForPersist } from "@/lib/models/status-page-theme";
 import { createClient } from "@/lib/supabase/client";
 import { persistWorkspaceInfo } from "@/lib/supabase/app-data";
 import { toSlug } from "@/lib/utils/slug";
@@ -296,12 +296,10 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
         },
       });
 
-      // Persist directly so it's saved immediately (not deferred via useEffect)
+      // Persist directly so colours are in DB before any navigation
       if (supabase) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { buildExtraThemeForPersist } = await import("@/lib/models/status-page-theme");
-          const { persistWorkspaceInfo } = await import("@/lib/supabase/app-data");
           await persistWorkspaceInfo(supabase, user.id, {
             statusPagePublished: customizePublished,
             statusPageStyle: "premium_dark",

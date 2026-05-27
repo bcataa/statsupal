@@ -94,60 +94,12 @@ function formatErrorForLog(error: unknown, fallbackMessage: string): SupabaseErr
   return getErrorDetails(error, fallbackMessage);
 }
 
-let workspaceTableCache: "workspaces" | "workspace" | null = null;
-
 async function resolveWorkspaceTableName(
-  db: DbClient,
-  userId: string,
+  _db: DbClient,
+  _userId: string,
 ): Promise<"workspaces" | "workspace"> {
-  if (workspaceTableCache) {
-    return workspaceTableCache;
-  }
-
-  const preferred = await db
-    .from("workspaces")
-    .select("id,user_id")
-    .eq("user_id", userId)
-    .limit(1);
-
-  if (!preferred.error) {
-    workspaceTableCache = "workspaces";
-    return workspaceTableCache;
-  }
-
-  if (!hasErrorCode(preferred.error, "42P01")) {
-    const details = formatErrorForLog(preferred.error, "Could not access workspaces table.");
-    throw new Error(
-      `Workspace table check failed: ${details.message} (code=${details.code ?? "unknown"})`,
-    );
-  }
-
-  const singular = await db
-    .from("workspace")
-    .select("id,user_id")
-    .eq("user_id", userId)
-    .limit(1);
-
-  if (!singular.error) {
-    workspaceTableCache = "workspace";
-    return workspaceTableCache;
-  }
-
-  const preferredDetails = formatErrorForLog(
-    preferred.error,
-    "Could not access workspaces table.",
-  );
-  const singularDetails = formatErrorForLog(
-    singular.error,
-    "Could not access workspace table.",
-  );
-  throw new Error(
-    [
-      "Neither 'workspaces' nor 'workspace' table is queryable.",
-      `workspaces => ${preferredDetails.message} (code=${preferredDetails.code ?? "unknown"})`,
-      `workspace => ${singularDetails.message} (code=${singularDetails.code ?? "unknown"})`,
-    ].join(" "),
-  );
+  // Always use the canonical table name; the view is read-only and writes silently fail.
+  return "workspaces";
 }
 
 async function validateUserScopedTables(db: DbClient, userId: string): Promise<void> {
