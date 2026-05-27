@@ -51,47 +51,159 @@ function sublineFor(status: OverallStatus): string {
   return "Every service is running within normal parameters.";
 }
 
-/* ── Floating particle canvas ─────────────────────────────────────── */
-function ParticleCanvas({ brand }: { brand: string }) {
+/* ── Full-page animated space background ─────────────────────────── */
+function SpaceCanvas({ brand }: { brand: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
+
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
     const ctx = c.getContext("2d");
     if (!ctx) return;
-    let w = c.offsetWidth; let h = c.offsetHeight;
-    c.width = w; c.height = h;
-    const resize = () => { w = c.offsetWidth; h = c.offsetHeight; c.width = w; c.height = h; };
-    window.addEventListener("resize", resize);
 
-    type P = { x: number; y: number; r: number; a: number; spd: number; da: number };
-    const pts: P[] = Array.from({ length: 55 }, () => ({
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    c.width = w; c.height = h;
+    const onResize = () => { w = window.innerWidth; h = window.innerHeight; c.width = w; c.height = h; };
+    window.addEventListener("resize", onResize);
+
+    type Star = { x: number; y: number; r: number; alpha: number; ts: number; to: number };
+    type Shooter = { x: number; y: number; len: number; spd: number; ang: number; life: number; maxLife: number; active: boolean };
+
+    const STAR_N = 340;
+    const stars: Star[] = Array.from({ length: STAR_N }, () => ({
       x: Math.random() * w, y: Math.random() * h,
-      r: 0.5 + Math.random() * 1.8,
-      a: Math.random(), spd: 0.15 + Math.random() * 0.35,
-      da: (Math.random() - 0.5) * 0.008,
+      r: Math.random() < 0.1 ? 1.5 + Math.random() : 0.3 + Math.random() * 0.9,
+      alpha: 0.25 + Math.random() * 0.75,
+      ts: 0.4 + Math.random() * 1.8,
+      to: Math.random() * Math.PI * 2,
     }));
+
+    const SHOOT_N = 5;
+    const shooters: Shooter[] = Array.from({ length: SHOOT_N }, () => ({
+      x: 0, y: 0, len: 0, spd: 0, ang: 0, life: 0, maxLife: 1, active: false,
+    }));
+
+    const spawn = (s: Shooter) => {
+      s.x = Math.random() * w * 0.8; s.y = Math.random() * h * 0.4;
+      s.len = 90 + Math.random() * 160; s.spd = 7 + Math.random() * 9;
+      s.ang = Math.PI / 5 + Math.random() * (Math.PI / 6);
+      s.maxLife = (s.len / s.spd) * 1.5; s.life = 0; s.active = true;
+    };
+    shooters.forEach((s, i) => setTimeout(() => spawn(s), i * 2600 + Math.random() * 2000));
 
     let t = 0;
     const draw = () => {
-      t += 0.008;
-      ctx.clearRect(0, 0, w, h);
-      for (const p of pts) {
-        p.y -= p.spd; p.a += p.da;
-        if (p.y < -4) { p.y = h + 4; p.x = Math.random() * w; }
-        if (p.a < 0) p.da *= -1; if (p.a > 1) p.da *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `${brand}${Math.round(p.a * 99).toString(16).padStart(2, "0")}`;
-        ctx.fill();
+      t += 0.016;
+
+      // Background
+      ctx.fillStyle = "#01010a";
+      ctx.fillRect(0, 0, w, h);
+
+      // Nebula — brand colour haze top-centre
+      const nb = ctx.createRadialGradient(w * 0.5, 0, 0, w * 0.5, 0, w * 0.55);
+      nb.addColorStop(0, `${brand}1a`);
+      nb.addColorStop(0.5, `${brand}08`);
+      nb.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = nb;
+      ctx.fillRect(0, 0, w, h);
+
+      // Teal nebula bottom-left
+      const tb = ctx.createRadialGradient(w * 0.05, h * 0.85, 0, w * 0.05, h * 0.85, w * 0.28);
+      tb.addColorStop(0, "rgba(0,50,90,0.20)");
+      tb.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = tb;
+      ctx.fillRect(0, 0, w, h);
+
+      // Planet — top-right
+      const px = w * 0.82, py = -h * 0.03, pr = Math.min(w, h) * 0.42;
+      const pulse = 1 + 0.018 * Math.sin(t * 0.45);
+
+      // Halo
+      for (let i = 5; i >= 1; i--) {
+        const hr = pr * pulse * (1 + i * 0.20);
+        const g = ctx.createRadialGradient(px, py, pr * 0.65, px, py, hr);
+        g.addColorStop(0, `rgba(100,30,190,${0.07 / i})`);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.beginPath(); ctx.arc(px, py, hr, 0, Math.PI * 2);
+        ctx.fillStyle = g; ctx.fill();
       }
+
+      // Body
+      const pg = ctx.createRadialGradient(px - pr * 0.3, py + pr * 0.25, pr * 0.04, px, py, pr * pulse);
+      pg.addColorStop(0, "#a855e8"); pg.addColorStop(0.25, "#7c22d4");
+      pg.addColorStop(0.6, "#4a0ea4"); pg.addColorStop(0.85, "#2a0870"); pg.addColorStop(1, "#110440");
+      ctx.beginPath(); ctx.arc(px, py, pr * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = pg; ctx.fill();
+
+      // Surface sweep band
+      ctx.save();
+      ctx.beginPath(); ctx.arc(px, py, pr * pulse, 0, Math.PI * 2); ctx.clip();
+      const bx = (Math.sin(t * 0.08) * 0.5 + 0.5) * pr * 2 - pr;
+      const band = ctx.createLinearGradient(px + bx - pr * 0.4, py, px + bx + pr * 0.4, py);
+      band.addColorStop(0, "rgba(180,80,255,0)");
+      band.addColorStop(0.5, "rgba(180,80,255,0.06)");
+      band.addColorStop(1, "rgba(180,80,255,0)");
+      ctx.fillStyle = band; ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+      ctx.restore();
+
+      // Rim
+      const rim = ctx.createRadialGradient(px, py, pr * pulse * 0.84, px, py, pr * pulse * 1.04);
+      rim.addColorStop(0, "rgba(200,100,255,0)"); rim.addColorStop(0.65, "rgba(170,80,255,0.16)"); rim.addColorStop(1, "rgba(210,130,255,0.44)");
+      ctx.beginPath(); ctx.arc(px, py, pr * pulse * 1.04, 0, Math.PI * 2);
+      ctx.fillStyle = rim; ctx.fill();
+
+      // Stars
+      for (const s of stars) {
+        const a = s.alpha * (0.55 + 0.45 * Math.sin(t * s.ts + s.to));
+        if (s.r > 1.3) {
+          ctx.strokeStyle = `rgba(255,255,255,${a * 0.3})`; ctx.lineWidth = 0.4;
+          ctx.beginPath(); ctx.moveTo(s.x - s.r * 3, s.y); ctx.lineTo(s.x + s.r * 3, s.y);
+          ctx.moveTo(s.x, s.y - s.r * 3); ctx.lineTo(s.x, s.y + s.r * 3); ctx.stroke();
+        }
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
+      }
+
+      // Shooting stars
+      for (const s of shooters) {
+        if (!s.active) continue;
+        s.life++;
+        const p = s.life / s.maxLife;
+        const hx = s.x + Math.cos(s.ang) * s.spd * s.life;
+        const hy = s.y + Math.sin(s.ang) * s.spd * s.life;
+        const tx = hx - Math.cos(s.ang) * s.len;
+        const ty = hy - Math.sin(s.ang) * s.len;
+        const fade = p < 0.3 ? p / 0.3 : 1 - (p - 0.3) / 0.7;
+        const gr = ctx.createLinearGradient(tx, ty, hx, hy);
+        gr.addColorStop(0, "rgba(255,255,255,0)");
+        gr.addColorStop(0.6, `rgba(200,180,255,${fade * 0.5})`);
+        gr.addColorStop(1, `rgba(255,255,255,${fade * 0.9})`);
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy);
+        ctx.strokeStyle = gr; ctx.lineWidth = 1.2; ctx.stroke();
+        if (s.life >= s.maxLife) { s.active = false; setTimeout(() => spawn(s), 2000 + Math.random() * 5000); }
+      }
+
+      // Vignette
+      const vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.95);
+      vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,0.5)");
+      ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
+
       rafRef.current = requestAnimationFrame(draw);
     };
+
     rafRef.current = requestAnimationFrame(draw);
-    return () => { window.removeEventListener("resize", resize); cancelAnimationFrame(rafRef.current); };
+    return () => { window.removeEventListener("resize", onResize); cancelAnimationFrame(rafRef.current); };
   }, [brand]);
-  return <canvas ref={ref} aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />;
+
+  return (
+    <canvas
+      ref={ref}
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full"
+    />
+  );
 }
 
 /* ── Animated status ring ─────────────────────────────────────────── */
@@ -181,26 +293,25 @@ export function PublicStatusPremiumView({
   const hasHourly = bars.some((b) => b !== -1);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#02020a] text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#01010a] text-white">
+
+      {/* ── Full-page animated space background ─── */}
+      <SpaceCanvas brand={brand} />
 
       {/* ── Hero header ─────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
-        {/* Deep gradient */}
+      <div className="relative z-10 overflow-hidden" style={{ minHeight: 320 }}>
+        {/* Subtle brand haze over the hero only */}
         <div
-          className="absolute inset-0"
+          className="pointer-events-none absolute inset-0"
           style={{
-            background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${brand}28 0%, transparent 70%),
-                         radial-gradient(ellipse 40% 30% at 10% 100%, ${op}14 0%, transparent 60%),
-                         #02020a`,
+            background: `radial-gradient(ellipse 70% 60% at 50% 0%, ${brand}22 0%, transparent 65%)`,
           }}
         />
-        {/* Particle animation */}
-        <ParticleCanvas brand={brand} />
-        {/* Grid overlay */}
+        {/* Dot-grid overlay */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="pointer-events-none absolute inset-0 opacity-[0.035]"
           style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px)",
             backgroundSize: "44px 44px",
           }}
         />
@@ -272,7 +383,7 @@ export function PublicStatusPremiumView({
       </div>
 
       {/* ── Services ────────────────────────────────────────────────── */}
-      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-10 sm:px-6">
+      <div className="relative z-10 mx-auto w-full max-w-4xl space-y-6 px-4 py-10 sm:px-6">
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-white/8" />
           <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-600">Services</span>
@@ -291,8 +402,8 @@ export function PublicStatusPremiumView({
               return (
                 <div
                   key={svc.id}
-                  className="overflow-hidden rounded-2xl border border-white/[0.07] backdrop-blur-sm"
-                  style={{ background: `linear-gradient(135deg, ${color}09 0%, rgba(10,10,20,0.7) 60%)` }}
+                  className="overflow-hidden rounded-2xl border border-white/[0.07] backdrop-blur-md"
+                  style={{ background: `linear-gradient(135deg, ${color}0c 0%, rgba(6,6,18,0.55) 60%)` }}
                 >
                   {/* Top accent line */}
                   <div className="h-[1.5px] w-full" style={{ background: `linear-gradient(90deg, ${color}00, ${color}88, ${color}00)` }} />
