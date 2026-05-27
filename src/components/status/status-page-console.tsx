@@ -512,6 +512,15 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                 className={refreshing ? "animate-spin text-cyan-300" : "text-zinc-300"}
               />
             </button>
+            <Link
+              href={publicPath}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 text-sm font-medium text-emerald-100 shadow-[0_0_24px_-10px_rgba(16,185,129,0.45)] transition hover:border-emerald-400/50 hover:bg-emerald-500/15"
+            >
+              <span>Visit page</span>
+              <ExternalLinkIcon className="shrink-0 text-emerald-200/90" />
+            </Link>
           </div>
         </div>
 

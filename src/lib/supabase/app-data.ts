@@ -730,18 +730,55 @@ export async function persistWorkspaceInfo(
     .eq("user_id", userId);
 
   if (result.error && isMissingColumnError(result.error)) {
-    const legacyResult = await db
+    // status_page_extra_theme column missing — retry without it but keep all other fields
+    const retryResult = await db
       .from(workspaceTable)
       .update({
         name: payload.workspaceName || workspace.name,
         project_name: nextProjectName,
         project_slug: nextProjectSlug,
+        public_description:
+          payload.publicDescription !== undefined
+            ? payload.publicDescription || null
+            : (workspace.public_description ?? null),
+        support_email:
+          payload.supportEmail !== undefined
+            ? payload.supportEmail || null
+            : (workspace.support_email ?? null),
+        onboarding_wizard_step:
+          payload.onboardingWizardStep !== undefined
+            ? payload.onboardingWizardStep
+            : (workspace.onboarding_wizard_step ?? 0),
+        status_page_published:
+          payload.statusPagePublished !== undefined
+            ? payload.statusPagePublished
+            : (workspace.status_page_published ?? true),
+        brand_color:
+          payload.brandColor !== undefined ? payload.brandColor : (workspace.brand_color ?? null),
+        operational_color:
+          payload.operationalColor !== undefined
+            ? payload.operationalColor
+            : (workspace.operational_color ?? null),
+        brand_logo_url:
+          payload.brandLogoUrl !== undefined
+            ? payload.brandLogoUrl
+            : (workspace.brand_logo_url ?? null),
+        brand_favicon_url:
+          payload.brandFaviconUrl !== undefined
+            ? payload.brandFaviconUrl
+            : (workspace.brand_favicon_url ?? null),
+        status_page_style:
+          payload.statusPageStyle !== undefined
+            ? payload.statusPageStyle
+            : workspace.status_page_style === "premium_dark"
+              ? "premium_dark"
+              : "standard",
       })
       .eq("id", workspace.id)
       .eq("user_id", userId);
 
-    if (legacyResult.error) {
-      throw legacyResult.error;
+    if (retryResult.error) {
+      throw retryResult.error;
     }
 
     return;
