@@ -44,28 +44,27 @@ function availabilityFromPoints(points: HistoryPoint[]): number | null {
   return Math.round((up / points.length) * 1000) / 10;
 }
 
-/* ── inline sparkline (SVG smooth line like reference) ──────────── */
+/* ── ECG-style sparkline ─────────────────────────────────────────── */
 function Sparkline({ points, color }: { points: HistoryPoint[]; color: string }) {
   const slice = points.slice(-40);
   const W = 200, H = 44;
-  const STROKE_W = 1.6;
 
   if (!slice.length) {
     return (
-      <div className="h-11 w-full rounded-md border border-white/5 bg-white/[0.03]" />
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-11 w-full" preserveAspectRatio="none">
+        <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="4 3" />
+      </svg>
     );
   }
 
   const cap = Math.max(1, ...slice.map((p) => p.response_time_ms), 200);
-  const toY = (ms: number) => H - 4 - ((Math.min(ms, cap) / cap) * (H - 8));
-
-  const pts = slice.map((p, i) => {
+  const pts = slice.map((p, i): [number, number] => {
     const x = (i / Math.max(slice.length - 1, 1)) * W;
-    const y = toY(p.response_time_ms > 0 ? p.response_time_ms : cap * 0.25);
-    return [x, y] as [number, number];
+    const norm = Math.min(p.response_time_ms > 0 ? p.response_time_ms : cap * 0.12, cap) / cap;
+    const y = H - 4 - norm * (H - 10);
+    return [x, y];
   });
 
-  // Smooth bezier path
   let d = `M ${pts[0][0]},${pts[0][1]}`;
   for (let i = 1; i < pts.length; i++) {
     const [x0, y0] = pts[i - 1];
@@ -74,18 +73,23 @@ function Sparkline({ points, color }: { points: HistoryPoint[]; color: string })
     d += ` C ${cx},${y0} ${cx},${y1} ${x1},${y1}`;
   }
 
-  const fillPath = `${d} L ${pts[pts.length - 1][0]},${H} L ${pts[0][0]},${H} Z`;
+  const last = pts[pts.length - 1];
+  const fillPath = `${d} L ${last[0]},${H} L ${pts[0][0]},${H} Z`;
+  const gradId = `ecg-${color.replace("#","")}`;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-11 w-full" preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-11 w-full" preserveAspectRatio="none" style={{ overflow: "visible" }}>
       <defs>
-        <linearGradient id={`sg-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.20" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.01" />
         </linearGradient>
       </defs>
-      <path d={fillPath} fill={`url(#sg-${color.replace("#","")})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth={STROKE_W} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={fillPath} fill={`url(#${gradId})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+        style={{ filter: `drop-shadow(0 0 4px ${color}99)` }} />
+      <circle cx={last[0]} cy={last[1]} r="2.5" fill={color}
+        style={{ filter: `drop-shadow(0 0 5px ${color})` }} />
     </svg>
   );
 }

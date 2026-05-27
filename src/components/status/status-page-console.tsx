@@ -273,7 +273,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     setLogoDarkUrl(data);
   };
 
-  const saveDesign = () => {
+  const saveDesign = async () => {
     setSavingDesign(true);
     setDesignSaveNote(null);
     try {
@@ -295,8 +295,37 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
           },
         },
       });
-      setDesignSaveNote("Design saved.");
+
+      // Persist directly so it's saved immediately (not deferred via useEffect)
+      if (supabase) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { buildExtraThemeForPersist } = await import("@/lib/models/status-page-theme");
+          const { persistWorkspaceInfo } = await import("@/lib/supabase/app-data");
+          await persistWorkspaceInfo(supabase, user.id, {
+            statusPagePublished: customizePublished,
+            statusPageStyle: "premium_dark",
+            brandColor,
+            operationalColor,
+            brandLogoUrl: logoUrl ?? null,
+            brandFaviconUrl: faviconUrl ?? null,
+            statusPageExtraTheme: buildExtraThemeForPersist({
+              logoDarkUrl: logoDarkUrl ?? undefined,
+              degradedColor,
+              partialOutageColor,
+              majorOutageColor,
+              maintenanceColor,
+              notStartedColor,
+            }),
+          });
+        }
+      }
+
+      setDesignSaveNote("Design saved ✓");
       window.setTimeout(() => setDesignSaveNote(null), 3000);
+    } catch (err) {
+      console.error("[saveDesign]", err);
+      setDesignSaveNote("Save failed — check console.");
     } finally {
       setSavingDesign(false);
     }
@@ -483,15 +512,6 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                 className={refreshing ? "animate-spin text-cyan-300" : "text-zinc-300"}
               />
             </button>
-            <Link
-              href={publicPath}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 text-sm font-medium text-emerald-100 shadow-[0_0_24px_-10px_rgba(16,185,129,0.45)] transition hover:border-emerald-400/50 hover:bg-emerald-500/15"
-            >
-              <span>Visit page</span>
-              <ExternalLinkIcon className="shrink-0 text-emerald-200/90" />
-            </Link>
           </div>
         </div>
 
