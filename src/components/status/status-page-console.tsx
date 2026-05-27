@@ -676,178 +676,126 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
           )}
 
           {activeTab === "customize" && (
-            <div className="space-y-6">
-              <p className="text-sm text-zinc-400">
-                Adjusts colors and assets for the premium public layout. Preview updates as you
-                type—use Save to persist to your account.
-              </p>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+            <div className="space-y-5">
+              {/* Publish toggle */}
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm text-zinc-200">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-white/20 bg-zinc-900"
+                  className="h-4 w-4 rounded border-white/20 bg-zinc-900 accent-indigo-500"
                   checked={customizePublished}
                   onChange={(e) => setCustomizePublished(e.target.checked)}
                 />
-                Publish to visitors (same as Settings)
+                Publish to visitors — public URL is live
               </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-xs font-medium text-zinc-500">
-                  Logo
-                  <input
-                    ref={logoFileRef}
-                    type="file"
-                    accept="image/*"
-                    className="mt-1 text-xs text-zinc-400"
-                    onChange={onLogo}
-                  />
-                  {logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={logoUrl}
-                      alt="Logo"
-                      className="mt-2 h-10 w-auto max-w-full rounded object-contain"
-                    />
-                  ) : null}
-                </label>
-                <label className="block text-xs font-medium text-zinc-500">
-                  Logo (dark header)
-                  <input
-                    ref={logoDarkFileRef}
-                    type="file"
-                    accept="image/*"
-                    className="mt-1 text-xs text-zinc-400"
-                    onChange={onLogoDark}
-                  />
-                  {logoDarkUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={logoDarkUrl}
-                      alt="Dark mode logo"
-                      className="mt-2 h-10 w-auto max-w-full rounded object-contain"
-                    />
-                  ) : null}
-                </label>
-                <label className="block text-xs font-medium text-zinc-500">
-                  Favicon
-                  <input
-                    ref={faviconFileRef}
-                    type="file"
-                    accept="image/*"
-                    className="mt-1 text-xs text-zinc-400"
-                    onChange={onFavicon}
-                  />
-                </label>
-                <label className="block text-xs font-medium text-zinc-500">
-                  Brand color
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      type="color"
-                      value={brandColor}
-                      onChange={(e) => setBrandColor(e.target.value)}
-                      className="h-11 w-14 cursor-pointer rounded-lg border border-white/10"
-                    />
-                    <input
-                      value={brandColor}
-                      onChange={(e) => setBrandColor(e.target.value)}
-                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 font-mono text-sm text-zinc-100"
-                    />
-                  </div>
-                </label>
-                <label className="block text-xs font-medium text-zinc-500">
-                  Operational color
-                  <div className="mt-1 flex gap-2">
-                    <input
-                      type="color"
-                      value={operationalColor}
-                      onChange={(e) => setOperationalColor(e.target.value)}
-                      className="h-11 w-14 cursor-pointer rounded-lg border border-white/10"
-                    />
-                    <input
-                      value={operationalColor}
-                      onChange={(e) => setOperationalColor(e.target.value)}
-                      className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/60 px-3 py-2 font-mono text-sm text-zinc-100"
-                    />
-                  </div>
-                </label>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:col-span-2">
-                  Other state colors
-                </p>
-                {(
-                  [
-                    ["Degraded", degradedColor, setDegradedColor] as const,
-                    ["Partial outage", partialOutageColor, setPartialOutageColor] as const,
-                    ["Major outage", majorOutageColor, setMajorOutageColor] as const,
-                    ["Maintenance", maintenanceColor, setMaintenanceColor] as const,
-                    ["Checking / not started", notStartedColor, setNotStartedColor] as const,
-                  ] as const
-                ).map(([label, value, set]) => (
-                  <label key={label} className="block text-xs font-medium text-zinc-500">
-                    {label}
-                    <div className="mt-1 flex gap-2">
-                      <input
-                        type="color"
-                        value={value}
-                        onChange={(e) => set(e.target.value)}
-                        className="h-10 w-12 cursor-pointer rounded-lg border border-white/10"
-                      />
-                      <input
-                        value={value}
-                        onChange={(e) => set(e.target.value)}
-                        className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/60 px-2 py-1.5 font-mono text-xs text-zinc-100"
-                      />
+
+              {/* Branding section */}
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Your brand</p>
+                <div className="grid gap-5 sm:grid-cols-3">
+                  {(
+                    [
+                      { label: "Logo", val: logoUrl, ref: logoFileRef, on: onLogo },
+                      { label: "Logo (dark header)", val: logoDarkUrl, ref: logoDarkFileRef, on: onLogoDark },
+                      { label: "Favicon", val: faviconUrl, ref: faviconFileRef, on: onFavicon },
+                    ] as const
+                  ).map((item) => (
+                    <div key={item.label}>
+                      <p className="mb-2 text-xs font-medium text-zinc-400">{item.label}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-white/15 bg-white/[0.03]">
+                          {item.val
+                            ? <img src={item.val} alt="" className="h-full w-full object-contain" />
+                            : <span className="text-[10px] text-zinc-600">None</span>
+                          }
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => item.ref.current?.click()}
+                          className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:bg-white/10"
+                        >
+                          {item.val ? "Change" : "Upload"}
+                        </button>
+                        <input ref={item.ref} type="file" accept="image/*" className="sr-only" onChange={item.on} />
+                      </div>
                     </div>
-                  </label>
-                ))}
+                  ))}
+                </div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                  Live preview
-                </p>
-                <p className="mb-4 text-xs text-zinc-500">Updates instantly from the controls above.</p>
-                <StatusPageLivePreview
-                  pageTitle={pageTitleForPreview}
-                  slug={publicSlug}
-                  brandColor={brandColor}
-                  operationalColor={operationalColor}
-                  logoUrl={logoUrl}
-                  logoDarkUrl={logoDarkUrl}
-                  extraTheme={{
-                    logoDarkUrl,
-                    degradedColor,
-                    partialOutageColor,
-                    majorOutageColor,
-                    maintenanceColor,
-                    notStartedColor,
-                  }}
-                  faviconUrl={faviconUrl}
-                  serviceName={primaryServiceName}
-                  serviceUrl={primaryServiceUrl}
-                  overallStatus="operational"
-                  overallPublic={overall}
-                  uptimeLabel={uptimeLabel}
-                  publicDescription={workspace.publicDescription}
-                  isUnpublished={!customizePublished}
-                  notices={notices}
-                  previewServices={buildPreviewServiceRows(services, true)}
-                  barHeights={barHeights}
-                />
+
+              {/* Colors section */}
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Status colors</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {(
+                    [
+                      ["Brand color",            brandColor,        (v: string) => setBrandColor(v)       ],
+                      ["Operational",            operationalColor,  (v: string) => setOperationalColor(v) ],
+                      ["Degraded",               degradedColor,     (v: string) => setDegradedColor(v)    ],
+                      ["Partial outage",         partialOutageColor,(v: string) => setPartialOutageColor(v)],
+                      ["Major outage",           majorOutageColor,  (v: string) => setMajorOutageColor(v) ],
+                      ["Maintenance",            maintenanceColor,  (v: string) => setMaintenanceColor(v) ],
+                      ["Checking / not started", notStartedColor,   (v: string) => setNotStartedColor(v)  ],
+                    ] as const
+                  ).map(([lbl, val, set]) => (
+                    <label key={lbl} className="block text-xs font-medium text-zinc-400">
+                      {lbl}
+                      <div className="mt-1.5 flex gap-2">
+                        <input
+                          type="color"
+                          value={val}
+                          onChange={(e) => set(e.target.value)}
+                          className="h-10 w-12 cursor-pointer rounded-lg border border-white/10 bg-zinc-900"
+                        />
+                        <input
+                          value={val}
+                          onChange={(e) => set(e.target.value)}
+                          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/80 px-2.5 py-2 font-mono text-xs text-zinc-100 outline-none focus:border-indigo-500/50"
+                        />
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+
+              {/* Live preview */}
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Live preview</p>
+                <p className="mb-4 text-xs text-zinc-600">Updates as you type. Changes aren't saved until you click Save.</p>
+                <div className="overflow-hidden rounded-xl ring-1 ring-white/10">
+                  <StatusPageLivePreview
+                    pageTitle={pageTitleForPreview}
+                    slug={publicSlug}
+                    brandColor={brandColor}
+                    operationalColor={operationalColor}
+                    logoUrl={logoUrl}
+                    logoDarkUrl={logoDarkUrl}
+                    extraTheme={{ logoDarkUrl, degradedColor, partialOutageColor, majorOutageColor, maintenanceColor, notStartedColor }}
+                    faviconUrl={faviconUrl}
+                    serviceName={primaryServiceName}
+                    serviceUrl={primaryServiceUrl}
+                    overallStatus="operational"
+                    overallPublic={overall}
+                    uptimeLabel={uptimeLabel}
+                    publicDescription={workspace.publicDescription}
+                    isUnpublished={!customizePublished}
+                    notices={notices}
+                    previewServices={buildPreviewServiceRows(services, true)}
+                    barHeights={barHeights}
+                  />
+                </div>
+              </div>
+
+              {/* Save */}
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={saveDesign}
                   disabled={savingDesign}
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-100 px-5 text-sm font-semibold text-zinc-900 hover:bg-white disabled:opacity-50"
+                  className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 px-6 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:from-indigo-400 hover:to-violet-500 disabled:opacity-50"
                 >
                   {savingDesign ? "Saving…" : "Save design"}
                 </button>
-                {designSaveNote ? <span className="text-sm text-emerald-400">{designSaveNote}</span> : null}
-                <Link
-                  href="/settings/status-design"
-                  className="text-sm text-cyan-400/90 underline-offset-2 hover:underline"
-                >
-                  Open full design page
-                </Link>
+                {designSaveNote && <span className="text-sm text-emerald-400">{designSaveNote}</span>}
               </div>
             </div>
           )}
