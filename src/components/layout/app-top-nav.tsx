@@ -4,25 +4,22 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { UserMenu } from "@/components/auth/user-menu";
+import { SlebbLogo } from "@/components/brand/slebb-logo";
 import { loggedInStatusPageHref } from "@/lib/utils/status-slug";
 import { useAppData } from "@/state/app-data-provider";
 
+// Settings & Team accessible via account dropdown, not main nav
 const NAV = [
-  { label: "Overview", href: "/overview" },
-  { label: "Monitors", href: "/services" },
-  { label: "Incidents", href: "/incidents" },
-  { label: "Status Pages", key: "page" as const },
-  { label: "Team", href: "/team" },
-  { label: "Settings", href: "/settings" },
+  { label: "Overview",      href: "/overview" },
+  { label: "Monitors",      href: "/services" },
+  { label: "Incidents",     href: "/incidents" },
+  { label: "Status Pages",  key: "page" as const },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === "/overview") return pathname === "/overview";
-  if (href === "/services") return pathname === "/services" || /^\/services\//.test(pathname);
+  if (href === "/overview")  return pathname === "/overview";
+  if (href === "/services")  return pathname === "/services" || /^\/services\//.test(pathname);
   if (href === "/incidents") return pathname === "/incidents" || pathname.startsWith("/incidents/");
-  if (href === "/team") return pathname === "/team";
-  if (href === "/apps") return pathname === "/apps" || pathname.startsWith("/apps/");
-  if (href === "/settings") return pathname === "/settings" || pathname.startsWith("/settings/");
   return false;
 }
 
@@ -50,15 +47,7 @@ export function AppTopNav() {
       <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between gap-4 px-4 sm:h-16 sm:px-6">
 
         {/* Logo */}
-        <Link href="/services" className="flex shrink-0 items-center gap-2.5">
-          <span className="relative flex h-8 w-8 items-center justify-center rounded-xl shadow-[0_0_18px_-4px_rgba(139,92,246,0.9)]"
-            style={{ background: "linear-gradient(135deg,#4b6ef5 0%,#9b3ff5 55%,#c840f5 100%)" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path d="M17 5.5H9.8C7.7 5.5 6 7.1 6 9.2c0 1.9 1.3 3.2 3.9 3.8l2.4.5c1.7.4 2.4 1 2.4 2 0 1.2-.9 2-2.6 2H5.5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </span>
-          <span className="text-base font-bold tracking-tight text-white">Slebb</span>
-        </Link>
+        <SlebbLogo href="/overview" />
 
         {/* Center nav */}
         <nav className="hidden items-center gap-0.5 md:flex" aria-label="Primary">

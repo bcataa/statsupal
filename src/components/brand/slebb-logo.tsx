@@ -5,29 +5,51 @@ import Link from "next/link";
 type SlebbLogoProps = {
   href?: string;
   showWordmark?: boolean;
+  size?: "sm" | "md";
   className?: string;
 };
 
-export function SlebbLogo({ href = "/", showWordmark = true, className = "" }: SlebbLogoProps) {
+/** Matches the shared reference: rounded square with gradient S + bold wordmark */
+export function SlebbLogo({ href = "/", showWordmark = true, size = "md", className = "" }: SlebbLogoProps) {
+  const iconSize = size === "sm" ? "h-7 w-7 rounded-lg" : "h-9 w-9 rounded-xl";
+  const svgSize = size === "sm" ? 14 : 18;
+  const textClass = size === "sm" ? "text-sm font-bold" : "text-base font-bold";
+
+  const icon = (
+    <span className={`relative inline-flex shrink-0 items-center justify-center ${iconSize}`}
+      style={{
+        background: "linear-gradient(145deg, #5865f2 0%, #8b5cf6 45%, #c026d3 100%)",
+        boxShadow: "0 0 22px -4px rgba(139,92,246,0.85), inset 0 1px 0 rgba(255,255,255,0.15)",
+      }}>
+      {/* Inner border */}
+      <span className="pointer-events-none absolute inset-0 rounded-[inherit] border border-white/20" />
+      {/* S letterform — italic bold, matching reference */}
+      <svg width={svgSize} height={svgSize} viewBox="0 0 20 20" fill="none" aria-hidden>
+        <path
+          d="M14.5 5.2C13.6 4.4 12.4 4 11 4c-2.8 0-4.8 1.6-4.8 3.8 0 1.8 1.1 2.9 3.4 3.4l1.4.3c1.3.3 1.8.8 1.8 1.6 0 1-.8 1.7-2.2 1.7H5.5"
+          stroke="white"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M14.8 15H9.8"
+          stroke="white"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
+  );
+
+  const wordmark = showWordmark ? (
+    <span className={`tracking-tight text-white ${textClass}`}>Slebb</span>
+  ) : null;
+
   const inner = (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
-      <span className="relative inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-cyan-400 shadow-[0_0_20px_-6px_rgba(99,102,241,0.8)]">
-        <span className="absolute inset-0 rounded-xl border border-white/20" />
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path
-            d="M16 4.5h-6.7C6.8 4.5 5 6.3 5 8.7c0 2.2 1.5 3.7 4.5 4.3l2.8.6c1.9.4 2.7 1.1 2.7 2.3 0 1.4-1 2.3-3 2.3H5.8"
-            stroke="white"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-      {showWordmark ? (
-        <span className="text-lg font-bold tracking-tight text-white">
-          Slebb
-        </span>
-      ) : null}
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
+      {icon}
+      {wordmark}
     </span>
   );
 
@@ -35,8 +57,5 @@ export function SlebbLogo({ href = "/", showWordmark = true, className = "" }: S
     <Link href={href} className="inline-flex items-center">
       {inner}
     </Link>
-  ) : (
-    inner
-  );
+  ) : inner;
 }
-
