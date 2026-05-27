@@ -19,6 +19,8 @@ import {
 } from "@/components/status/status-page-preview-helpers";
 import { ServiceEditDialog } from "@/components/services/service-edit-dialog";
 import { DEFAULT_STATUS_PAGE_EXTRA } from "@/lib/models/status-page-theme";
+import { createClient } from "@/lib/supabase/client";
+import { persistWorkspaceInfo } from "@/lib/supabase/app-data";
 import { toSlug } from "@/lib/utils/slug";
 import { resolveWorkspaceStatusSlug } from "@/lib/utils/status-slug";
 import type { Service } from "@/lib/models/monitoring";
@@ -119,6 +121,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     updateService,
     refreshData,
   } = useAppData();
+  const supabase = useMemo(() => createClient(), []);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -299,7 +302,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     }
   };
 
-  const savePageSettings = (e: React.FormEvent) => {
+  const savePageSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSettingsSaved(null);
@@ -311,6 +314,8 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
       setSaving(false);
       return;
     }
+
+    // Update local app state immediately
     updateWorkspaceInfo({
       workspaceName: wn,
       projectName: pn,
@@ -318,6 +323,25 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
       publicDescription: publicDescription.trim(),
       supportEmail: supportEmail.trim(),
     });
+
+    // Persist to Supabase directly so the new slug is in DB before any redirect
+    if (supabase) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await persistWorkspaceInfo(supabase, user.id, {
+            workspaceName: wn,
+            projectName: pn,
+            projectSlug: sl,
+            publicDescription: publicDescription.trim(),
+            supportEmail: supportEmail.trim(),
+          });
+        }
+      } catch (err) {
+        console.error("[savePageSettings] persist failed", err);
+      }
+    }
+
     setSettingsSaved("Saved.");
     if (sl && sl !== projectParam) {
       router.replace(`/dashboard/status/${encodeURIComponent(sl)}?tab=settings`, { scroll: false });

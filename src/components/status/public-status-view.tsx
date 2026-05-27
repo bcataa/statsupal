@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { PublicIncidentHistory } from "@/components/status/public-incident-history";
 import { PublicStatusPremiumView } from "@/components/status/public-status-premium-view";
 import { PublicUptimeSection } from "@/components/status/public-uptime-section";
@@ -141,31 +142,71 @@ function StatusUnpublished({ slugLabel }: { slugLabel: string }) {
 
 function StatusNotFound({ slugLabel }: { slugLabel: string }) {
   return (
-    <main className="px-4 py-16 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold text-zinc-900">Status page not found</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          We couldn&apos;t find a public status page
+    <main className="relative min-h-screen overflow-hidden bg-[#01010a] px-4 py-24 text-white sm:px-6">
+      {/* Falling stars canvas */}
+      <FallingStarsCanvas />
+      <div className="relative z-10 mx-auto w-full max-w-lg rounded-2xl border border-white/10 bg-[#0c0e1a]/80 p-8 text-center shadow-2xl backdrop-blur-sm">
+        <span className="text-4xl" aria-hidden>🔭</span>
+        <h1 className="mt-4 text-2xl font-bold text-white">Status page not found</h1>
+        <p className="mt-3 text-sm leading-7 text-zinc-400">
+          No status page found for{" "}
           {slugLabel ? (
-            <>
-              {" "}
-              for <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-800">{slugLabel}</code>
-            </>
+            <code className="rounded-md bg-white/8 px-2 py-0.5 text-zinc-200">{slugLabel}</code>
           ) : (
-            " for that link"
+            "this link"
           )}
-          . The URL must match your workspace <strong>project slug</strong> (e.g. under Page →
-          Settings or the main{" "}
-          <Link className="text-violet-600 underline" href="/settings">
-            Settings
-          </Link>{" "}
-          page). If you use cloud Supabase, run pending migrations and ensure{" "}
-          <code className="rounded bg-zinc-100 px-1">project_slug</code> in the database matches this
-          segment.
+          .
         </p>
+        <p className="mt-2 text-sm text-zinc-500">
+          The URL slug must match your workspace setting under{" "}
+          <strong className="text-zinc-300">Page → Settings → Public URL slug</strong>.
+        </p>
+        <Link
+          href="/"
+          className="mt-6 inline-flex h-10 items-center rounded-full border border-white/15 px-5 text-sm font-medium text-zinc-300 transition hover:border-white/30 hover:text-white"
+        >
+          ← Back to home
+        </Link>
       </div>
     </main>
   );
+}
+
+function FallingStarsCanvas() {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef(0);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    let w = window.innerWidth; let h = window.innerHeight;
+    c.width = w; c.height = h;
+    window.addEventListener("resize", () => { w = window.innerWidth; h = window.innerHeight; c.width = w; c.height = h; });
+    type S = { x: number; y: number; r: number; a: number; spd: number; drift: number; tw: number; ph: number };
+    const stars: S[] = Array.from({ length: 200 }, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      r: 0.25 + Math.random() * 1.1, a: 0.2 + Math.random() * 0.8,
+      spd: 0.08 + Math.random() * 0.25, drift: (Math.random() - 0.5) * 0.05,
+      tw: 0.4 + Math.random() * 1.4, ph: Math.random() * Math.PI * 2,
+    }));
+    let t = 0;
+    const draw = () => {
+      t += 0.016;
+      ctx.fillStyle = "#01010a"; ctx.fillRect(0, 0, w, h);
+      for (const s of stars) {
+        s.y += s.spd; s.x += s.drift;
+        if (s.y > h + 4) { s.y = -4; s.x = Math.random() * w; }
+        const a = s.a * (0.5 + 0.5 * Math.sin(t * s.tw + s.ph));
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
+      }
+      rafRef.current = requestAnimationFrame(draw);
+    };
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
+  return <canvas ref={ref} aria-hidden className="pointer-events-none absolute inset-0 z-0 h-full w-full" />;
 }
 
 type PublicStatusViewProps = {
