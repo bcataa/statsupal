@@ -41,7 +41,7 @@ export default function LoginPage() {
     if (!supabase) return;
     const checkSession = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) { router.replace("/services"); router.refresh(); }
+      if (user) { router.replace("/overview"); router.refresh(); }
     };
     checkSession();
   }, [router, supabase]);
@@ -69,7 +69,7 @@ export default function LoginPage() {
       setIsSubmitting(false);
       return;
     }
-    if (signInData.user) router.push("/services");
+    if (signInData.user) router.push("/overview");
     router.refresh();
   };
 

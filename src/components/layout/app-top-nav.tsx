@@ -8,16 +8,19 @@ import { loggedInStatusPageHref } from "@/lib/utils/status-slug";
 import { useAppData } from "@/state/app-data-provider";
 
 const NAV = [
+  { label: "Overview", href: "/overview" },
   { label: "Monitors", href: "/services" },
   { label: "Incidents", href: "/incidents" },
   { label: "Status Pages", key: "page" as const },
-  { label: "Apps", href: "/apps" },
+  { label: "Team", href: "/team" },
   { label: "Settings", href: "/settings" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
+  if (href === "/overview") return pathname === "/overview";
   if (href === "/services") return pathname === "/services" || /^\/services\//.test(pathname);
   if (href === "/incidents") return pathname === "/incidents" || pathname.startsWith("/incidents/");
+  if (href === "/team") return pathname === "/team";
   if (href === "/apps") return pathname === "/apps" || pathname.startsWith("/apps/");
   if (href === "/settings") return pathname === "/settings" || pathname.startsWith("/settings/");
   return false;

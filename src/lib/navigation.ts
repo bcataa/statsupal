@@ -12,10 +12,12 @@ export const navigationItems: NavItem[] = [
 ];
 
 const titleMap: Record<string, string> = {
-  "/services": "Monitors",
+  "/overview":  "Overview",
+  "/services":  "Monitors",
   "/incidents": "Issues",
-  "/settings": "Settings",
-  "/apps": "Apps",
+  "/team":      "Team",
+  "/settings":  "Settings",
+  "/apps":      "Apps",
 };
 
 export function getPageTitle(pathname: string): string {
