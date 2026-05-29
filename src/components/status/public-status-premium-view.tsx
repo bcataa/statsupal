@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { SubscribeDrawer } from "@/components/status/subscribe-drawer";
 import { PublicIncidentHistory } from "@/components/status/public-incident-history";
 import { LocalDateTime, LocalTimestampOrText } from "@/components/ui/local-datetime";
 import { getPublicSupportEmail, getPublicSupportMailto } from "@/lib/support/contact-info";
@@ -206,6 +207,7 @@ export function PublicStatusPremiumView({
   const logo   = extraTheme.logoDarkUrl || workspace.brand_logo_url;
   const accent = overallAccentColor(overallStatus, brand, op, extraTheme);
   const desc   = workspace.public_description || "Real-time system status and incident updates.";
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const upLabel =
     uptime.days30 != null ? `${uptime.days30.toFixed(2)}%`
@@ -259,13 +261,14 @@ export function PublicStatusPremiumView({
                 <p className="text-[11px] text-zinc-500">slebb.com/status/{projectSlug}</p>
               </div>
             </div>
-            <button
-              type="button"
-              className="rounded-full border px-4 py-1.5 text-xs font-semibold transition hover:opacity-80"
-              style={{ borderColor: `${brand}66`, background: `${brand}18`, color: "white" }}
-            >
-              Subscribe to updates
-            </button>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            className="rounded-full border px-4 py-1.5 text-xs font-semibold transition hover:opacity-80"
+            style={{ borderColor: `${brand}66`, background: `${brand}18`, color: "white" }}
+          >
+            Get updates
+          </button>
           </div>
 
           {/* Status hero */}
@@ -434,6 +437,13 @@ export function PublicStatusPremiumView({
           </p>
         </footer>
       </div>
+
+      <SubscribeDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        projectSlug={projectSlug}
+        brand={brand}
+      />
     </div>
   );
 }

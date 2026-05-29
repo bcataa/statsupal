@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 import { AiAssistantSettings } from "@/components/settings/ai-assistant-settings";
 import { AutomationsSettings } from "@/components/settings/automations-settings";
+import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { useAppData } from "@/state/app-data-provider";
 
 type SaveState = {
@@ -655,21 +656,47 @@ export default function SettingsPage() {
       <AutomationsSettings />
       <AiAssistantSettings />
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h3 className="text-lg font-semibold text-zinc-900">Notification preferences</h3>
-            <p className="mt-1 text-sm text-zinc-500">
-              Choose what updates your team should receive.
-            </p>
-          </div>
-          {notificationsLastSavedAt ? (
-            <p className="text-xs text-zinc-400">
-              Last saved {formatDateTime(notificationsLastSavedAt)}
-            </p>
-          ) : null}
-        </div>
-        <form className="mt-5 space-y-4" onSubmit={onNotificationSave}>
+      <NotificationsSettings
+        incidentAlerts={incidentAlerts}
+        maintenanceAlerts={maintenanceAlerts}
+        incidentEmailAlerts={incidentEmailAlerts}
+        maintenanceEmailAlerts={maintenanceEmailAlerts}
+        discordWebhookUrl={discordWebhookUrl}
+        alertEmail={alertEmail}
+        supportEmail={supportEmail}
+        discordGuildId={discordGuildId}
+        discordBotConfigured={discordBotConfigured}
+        discordBotChannelId={discordBotChannelId}
+        discordOauthAuthorizeUrl={discordOauthAuthorizeUrl}
+        discordInviteUrl={discordInviteUrl}
+        discordChannelOptions={discordChannelOptions}
+        channelsLoading={channelsLoading}
+        channelListError={channelListError}
+        botConfigLoading={botConfigLoading}
+        discordDisconnecting={discordDisconnecting}
+        notificationSaving={notificationSaving}
+        testingEmail={testingEmail}
+        testingDiscord={testingDiscord}
+        notificationSaveState={notificationSaveState}
+        notificationTestState={notificationTestState}
+        notificationsLastSavedAt={notificationsLastSavedAt}
+        showOauthChannelSelect={showOauthChannelSelect}
+        legacyDiscordChannelField={legacyDiscordChannelField}
+        usesManagedBotToken={usesManagedBotToken}
+        setIncidentAlerts={setIncidentAlerts}
+        setMaintenanceAlerts={setMaintenanceAlerts}
+        setIncidentEmailAlerts={setIncidentEmailAlerts}
+        setMaintenanceEmailAlerts={setMaintenanceEmailAlerts}
+        setDiscordWebhookUrl={setDiscordWebhookUrl}
+        setAlertEmail={setAlertEmail}
+        setSupportEmail={setSupportEmail}
+        setDiscordBotChannelId={setDiscordBotChannelId}
+        onNotificationSave={onNotificationSave}
+        onDisconnectDiscord={() => void onDisconnectDiscord()}
+        onSendTestNotification={(t) => void onSendTestNotification(t)}
+      />
+
+      {/* Old notifications section removed — replaced by NotificationsSettings component above */}
           <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-3">
             <input
               type="checkbox"
@@ -972,17 +999,6 @@ export default function SettingsPage() {
               {testingDiscord ? "Sending Discord..." : "Send test Discord alert"}
             </button>
           </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={notificationSaving || botConfigLoading}
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {notificationSaving ? "Saving changes..." : "Save changes"}
-            </button>
-          </div>
-        </form>
-      </section>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h3 className="text-lg font-semibold text-zinc-900">Custom domain</h3>

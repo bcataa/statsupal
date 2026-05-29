@@ -35,6 +35,7 @@ const TAB_LABELS = [
   { id: "components" as const, label: "Components" },
   { id: "settings" as const, label: "Settings" },
   { id: "customize" as const, label: "Customize" },
+  { id: "notifications" as const, label: "Notifications" },
   { id: "subscribers" as const, label: "Subscribers" },
   { id: "widget" as const, label: "Widget" },
   { id: "metrics" as const, label: "Metrics" },
@@ -851,10 +852,54 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
             </div>
           )}
 
+          {activeTab === "notifications" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                <p className="text-sm font-semibold text-zinc-200">Notification channels</p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Manage how your team gets alerted when this status page has incidents or maintenance.
+                </p>
+                <Link
+                  href="/settings"
+                  className="mt-4 inline-flex h-9 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-xs font-medium text-indigo-300 transition hover:bg-white/10 hover:text-indigo-200"
+                >
+                  Open Notification Settings →
+                </Link>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-zinc-200">Public subscribers</p>
+                  <span className="rounded-full bg-white/8 px-2.5 py-0.5 text-xs font-semibold text-zinc-400">{alertSubscribers.length}</span>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">People who clicked "Get updates" on your public status page.</p>
+                {alertSubscribers.length === 0 ? (
+                  <div className="mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-center text-xs text-zinc-600">
+                    No subscribers yet. When visitors click "Get updates" on your public page, they'll appear here.
+                  </div>
+                ) : (
+                  <ul className="mt-4 divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/8">
+                    {alertSubscribers.map((sub) => (
+                      <li key={sub.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                        <span className="font-mono text-sm text-zinc-200">{sub.email}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {sub.incidentCreated && <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-medium text-rose-300">incidents</span>}
+                          {sub.maintenanceAlerts && <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">maintenance</span>}
+                          <span className={sub.active ? "text-xs text-emerald-400" : "text-xs text-zinc-600"}>
+                            {sub.active ? "Active" : "Inactive"}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === "subscribers" && (
             <div className="space-y-3">
               <p className="text-sm text-zinc-400">
-                Email addresses subscribed to status updates from the app data store.
+                Email addresses subscribed to status updates. You can also manage these in the <button type="button" onClick={() => setTab("notifications")} className="text-indigo-400 underline-offset-2 hover:underline">Notifications</button> tab.
               </p>
               {alertSubscribers.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-white/15 bg-zinc-950/30 p-8 text-center text-sm text-zinc-500">
@@ -869,12 +914,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                       className="flex flex-col gap-1 border-b border-white/5 px-4 py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <span className="font-mono text-sm text-zinc-200">{sub.email}</span>
-                      <span
-                        className={[
-                          "w-fit text-xs",
-                          sub.active ? "text-emerald-400" : "text-zinc-500",
-                        ].join(" ")}
-                      >
+                      <span className={["w-fit text-xs", sub.active ? "text-emerald-400" : "text-zinc-500"].join(" ")}>
                         {sub.active ? "Active" : "Inactive"}
                       </span>
                     </li>
