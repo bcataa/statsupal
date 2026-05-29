@@ -8,7 +8,6 @@ export const navigationItems: NavItem[] = [
   { label: "Issues", href: "/incidents" },
   { label: "Page", href: "/dashboard/status" },
   { label: "Apps", href: "/apps" },
-  { label: "Settings", href: "/settings" },
 ];
 
 const titleMap: Record<string, string> = {
@@ -16,7 +15,6 @@ const titleMap: Record<string, string> = {
   "/services":  "Monitors",
   "/incidents": "Issues",
   "/team":      "Team",
-  "/settings":  "Settings",
   "/apps":      "Apps",
 };
 

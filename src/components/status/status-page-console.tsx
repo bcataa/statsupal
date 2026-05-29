@@ -715,14 +715,15 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
                   {saving ? "Saving…" : "Save settings"}
                 </button>
                 <p className="mt-2 text-xs text-zinc-500">
-                  Same data as the main settings page. Other notification toggles still live under{" "}
-                  <Link
+                  Notification channels are configured in the{" "}
+                  <button
+                    type="button"
+                    onClick={() => setTab("notifications")}
                     className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
-                    href="/settings"
                   >
-                    Settings
-                  </Link>
-                  .
+                    Notifications
+                  </button>{" "}
+                  tab.
                 </p>
               </div>
             </form>

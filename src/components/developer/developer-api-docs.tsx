@@ -122,10 +122,10 @@ else console.log(data.text);`;
       <div className="space-y-3">
         <p className="text-sm">
           <Link
-            href="/settings"
+            href="/apps"
             className="font-medium text-violet-700 underline-offset-2 hover:underline"
           >
-            ← Back to Settings
+            ← Back to Apps &amp; integrations
           </Link>
           <span className="mx-2 text-zinc-300">·</span>
           <Link
@@ -197,8 +197,8 @@ else console.log(data.text);`;
         </div>
         <p className="mt-4 text-sm text-zinc-600">
           Manage keys anytime in{" "}
-          <Link href="/settings" className="font-medium text-violet-700 hover:underline">
-            Settings → Developer API
+          <Link href="/apps" className="font-medium text-violet-700 hover:underline">
+            Apps &amp; integrations
           </Link>
           .
         </p>
@@ -353,8 +353,8 @@ app.listen(PORT, () => console.log("restart agent on", PORT));`}
           AI helps with <strong>wording only</strong> (summaries, draft status posts). It does{" "}
           <strong>not</strong> change whether a service is up or down and does not fix external sites.
           Your host must set server-side environment variables—see{" "}
-          <Link href="/settings" className="font-medium text-violet-800 hover:underline">
-            Settings → AI assistant
+          <Link href="/apps" className="font-medium text-violet-800 hover:underline">
+            Apps &amp; integrations → AI assistant
           </Link>
           .
         </p>

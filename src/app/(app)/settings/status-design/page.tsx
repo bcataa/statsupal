@@ -202,10 +202,10 @@ export default function StatusDesignSettingsPage() {
     <div className="mx-auto w-full max-w-7xl space-y-6 pb-16">
       <div>
         <Link
-          href="/settings"
+          href="/dashboard/status"
           className="text-xs font-semibold uppercase tracking-wide text-cyan-400/90 hover:text-cyan-300"
         >
-          ← Settings
+          ← Status page
         </Link>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-100">Status page customization</h1>
         <p className="mt-2 text-sm text-zinc-500">

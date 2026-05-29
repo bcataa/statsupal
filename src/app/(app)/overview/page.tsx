@@ -249,12 +249,12 @@ export default function OverviewPage() {
             </div>
             <div className="grid grid-cols-2 gap-2 p-4">
               {[
-                { label: "Add monitor",     href: "/services",               icon: "⬡", accent: "#818cf8" },
-                { label: "New incident",    href: "/incidents",              icon: "◉", accent: "#f87171" },
-                { label: "Status page",     href: "/dashboard/status",       icon: "◈", accent: "#34d399" },
-                { label: "Team settings",   href: "/team",                   icon: "◎", accent: "#60a5fa" },
-                { label: "Notifications",   href: "/settings",               icon: "✦", accent: "#fbbf24" },
-                { label: "Customize page",  href: "/settings/status-design", icon: "⬟", accent: "#c084fc" },
+                { label: "Add monitor",     href: "/services",         icon: "⬡", accent: "#818cf8" },
+                { label: "New incident",    href: "/incidents",        icon: "◉", accent: "#f87171" },
+                { label: "Status page",     href: "/dashboard/status", icon: "◈", accent: "#34d399" },
+                { label: "Team",            href: "/team",             icon: "◎", accent: "#60a5fa" },
+                { label: "Notifications",   href: "/dashboard/status", icon: "✦", accent: "#fbbf24" },
+                { label: "Apps & API",      href: "/apps",             icon: "⬟", accent: "#c084fc" },
               ].map((q) => (
                 <Link
                   key={q.href}

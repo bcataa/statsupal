@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** @deprecated — technical docs were folded into in-app settings for a simpler product. */
+/** @deprecated — developer/API tooling now lives under Apps & integrations. */
 export default function DeveloperDocsRedirectPage() {
-  redirect("/settings");
+  redirect("/apps");
 }

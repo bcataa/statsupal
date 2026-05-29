@@ -294,15 +294,15 @@ export function AddMonitorModal() {
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-zinc-500">
               Route and escalation rules for this monitor will land here. For now, configure
-              channel routing under{" "}
+              channel routing in your{" "}
               <Link
                 className="text-indigo-400 underline decoration-indigo-500/40 underline-offset-2 hover:text-indigo-300"
-                href="/settings"
+                href="/dashboard/status"
                 onClick={handleClose}
               >
-                Settings
-              </Link>{" "}
-              → Notifications.
+                Status Page → Notifications
+              </Link>
+              .
             </p>
           </div>
         ) : (
@@ -509,13 +509,13 @@ export function AddMonitorModal() {
                 {alertsRowOpen ? (
                   <p className="mb-1 rounded-lg border border-indigo-500/15 bg-indigo-500/5 px-2.5 py-2.5 text-xs text-zinc-400">
                     Per-recipient rules will be configurable here. Connect email and other channels
-                    in{" "}
+                    in your{" "}
                     <Link
                       className="text-indigo-400 underline-offset-2 hover:underline"
-                      href="/settings"
+                      href="/dashboard/status"
                       onClick={handleClose}
                     >
-                      notification settings
+                      Status Page → Notifications
                     </Link>
                     .
                   </p>

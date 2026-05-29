@@ -139,8 +139,8 @@ export function IncidentCard({
         </p>
         <p className="mt-1 text-[11px] leading-snug text-violet-200/80">
           Suggestions only—does not change monitoring or status. Configure models under{" "}
-          <Link href="/settings" className="font-medium underline-offset-2 hover:underline">
-            Settings
+          <Link href="/apps" className="font-medium underline-offset-2 hover:underline">
+            Apps &amp; integrations
           </Link>
           .
         </p>
@@ -168,10 +168,10 @@ export function IncidentCard({
             {aiErrorCode === "ai_not_configured" ? (
               <p className="mt-2">
                 <Link
-                  href="/settings"
+                  href="/apps"
                   className="font-medium text-rose-950 underline-offset-2 hover:underline"
                 >
-                  Open Settings to configure the AI assistant
+                  Open Apps &amp; integrations to configure the AI assistant
                 </Link>
               </p>
             ) : null}

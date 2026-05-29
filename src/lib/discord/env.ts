@@ -28,11 +28,12 @@ export function getDiscordOAuthConfig(): {
   return { clientId, clientSecret, redirectUri, stateSecret };
 }
 
+/** After Discord OAuth, return the user to the integrations hub (Apps). */
 export function settingsPathAfterDiscordOAuth(): string {
   const redirectUri = process.env.DISCORD_REDIRECT_URI?.trim();
   if (redirectUri) {
     try {
-      return `${new URL(redirectUri).origin}/settings`;
+      return `${new URL(redirectUri).origin}/apps`;
     } catch {
       // fall through
     }
@@ -40,10 +41,10 @@ export function settingsPathAfterDiscordOAuth(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (appUrl) {
     try {
-      return `${new URL(appUrl).origin}/settings`;
+      return `${new URL(appUrl).origin}/apps`;
     } catch {
       // fall through
     }
   }
-  return "/settings";
+  return "/apps";
 }
