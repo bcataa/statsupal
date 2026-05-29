@@ -362,30 +362,38 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
       supportEmail: supportEmail.trim(),
     });
 
-    // Persist to Supabase directly so the new slug is in DB before any redirect
-    if (supabase) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await persistWorkspaceInfo(supabase, user.id, {
-            workspaceName: wn,
-            projectName: pn,
-            projectSlug: sl,
-            publicDescription: publicDescription.trim(),
-            supportEmail: supportEmail.trim(),
-          });
-        }
-      } catch (err) {
-        console.error("[savePageSettings] persist failed", err);
+    // Persist to Supabase directly and SURFACE any failure (don't fake "Saved").
+    if (!supabase) {
+      setSettingsSaved("Supabase is not configured — changes are local only.");
+      setSaving(false);
+      return;
+    }
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error("You are signed out. Please sign in again to save.");
       }
+      await persistWorkspaceInfo(supabase, user.id, {
+        workspaceName: wn,
+        projectName: pn,
+        projectSlug: sl,
+        publicDescription: publicDescription.trim(),
+        supportEmail: supportEmail.trim(),
+      });
+      // Reconcile React state with what's actually in the DB now.
+      await refreshData();
+      setSettingsSaved("Saved ✓");
+      if (sl && sl !== projectParam) {
+        router.replace(`/dashboard/status/${encodeURIComponent(sl)}?tab=settings`, { scroll: false });
+      }
+      window.setTimeout(() => setSettingsSaved(null), 4000);
+    } catch (err) {
+      console.error("[savePageSettings] persist failed", err);
+      const msg = err instanceof Error ? err.message : "Could not save. Please try again.";
+      setSettingsSaved(`Save failed: ${msg}`);
+    } finally {
+      setSaving(false);
     }
-
-    setSettingsSaved("Saved.");
-    if (sl && sl !== projectParam) {
-      router.replace(`/dashboard/status/${encodeURIComponent(sl)}?tab=settings`, { scroll: false });
-    }
-    window.setTimeout(() => setSettingsSaved(null), 4000);
-    setSaving(false);
   };
 
   const projectTitle =

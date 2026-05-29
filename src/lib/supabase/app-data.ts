@@ -421,18 +421,21 @@ export async function ensureWorkspace(
 ): Promise<WorkspaceRow> {
   const db = getDb(client);
   const workspaceTable = await resolveWorkspaceTableName(db, userId);
+  // Use order+limit (not maybeSingle) so a duplicate workspace row never throws
+  // and silently breaks saves; always take the oldest row as canonical.
   const existing = await db
     .from(workspaceTable)
     .select("*")
     .eq("user_id", userId)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
 
   if (existing.error) {
     throw existing.error;
   }
 
-  if (existing.data) {
-    return existing.data as WorkspaceRow;
+  const existingRows = (existing.data ?? []) as WorkspaceRow[];
+  if (existingRows.length > 0) {
+    return existingRows[0];
   }
 
   const created = await db
