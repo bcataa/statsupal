@@ -485,6 +485,38 @@ export async function ensureWorkspace(
   return created.data as WorkspaceRow;
 }
 
+async function resolveWorkspaceRow(
+  client: SupabaseClientLike,
+  userId: string,
+  preferredId?: string,
+): Promise<WorkspaceRow> {
+  const db = getDb(client);
+  const workspaceTable = await resolveWorkspaceTableName(db, userId);
+  const existing = await db
+    .from(workspaceTable)
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (existing.error) {
+    throw existing.error;
+  }
+
+  const rows = (existing.data ?? []) as WorkspaceRow[];
+  if (preferredId) {
+    const match = rows.find((row) => row.id === preferredId);
+    if (match) {
+      return match;
+    }
+  }
+
+  if (rows.length > 0) {
+    return rows[0];
+  }
+
+  return ensureWorkspace(client, userId);
+}
+
 export async function loadUserAppData(client: SupabaseClientLike, userId: string): Promise<{
   workspace: Workspace;
   currentProjectId: string;
@@ -578,6 +610,7 @@ export async function persistWorkspaceInfo(
   client: SupabaseClientLike,
   userId: string,
   payload: {
+    workspaceId?: string;
     workspaceName?: string;
     projectName?: string;
     projectSlug?: string;
@@ -602,11 +635,17 @@ export async function persistWorkspaceInfo(
   },
 ) {
   const db = getDb(client);
-  const workspace = await ensureWorkspace(db, userId);
+  const workspace = await resolveWorkspaceRow(client, userId, payload.workspaceId);
   const workspaceTable = await resolveWorkspaceTableName(db, userId);
-  const nextProjectName = payload.projectName || workspace.project_name;
+  const nextProjectName =
+    payload.projectName !== undefined ? payload.projectName : workspace.project_name;
+  // Only change slug when explicitly provided, or when the project name is being renamed.
   const nextProjectSlug =
-    payload.projectSlug || (nextProjectName ? toSlug(nextProjectName) : workspace.project_slug);
+    payload.projectSlug !== undefined && payload.projectSlug !== ""
+      ? payload.projectSlug
+      : payload.projectName !== undefined
+        ? toSlug(payload.projectName) || workspace.project_slug
+        : workspace.project_slug;
 
   const result = await db
     .from(workspaceTable)
@@ -735,12 +774,16 @@ export async function persistWorkspaceInfo(
     if (retryResult.error) {
       throw retryResult.error;
     }
-
-    return;
+  } else if (result.error) {
+    throw result.error;
   }
 
-  if (result.error) {
-    throw result.error;
+  // RLS or wrong id can yield zero updated rows with no error — detect that.
+  const refreshed = await resolveWorkspaceRow(client, userId, workspace.id);
+  if (refreshed.project_slug !== nextProjectSlug) {
+    throw new Error(
+      `Workspace slug was not saved (expected "${nextProjectSlug}", got "${refreshed.project_slug}").`,
+    );
   }
 }
 

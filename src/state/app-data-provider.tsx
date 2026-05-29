@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -463,10 +464,16 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       ? `${action.payload.companyName} Workspace`
       : state.workspace.name;
     const firstProject = state.workspace.projects[0];
-    const nextProjectName = action.payload.statusPageName || firstProject?.name;
+    // Supabase workspace row is canonical — auth user_metadata slug/name are onboarding
+    // leftovers and must not overwrite values loaded from the DB on every refresh.
+    const nextProjectName = firstProject?.name || action.payload.statusPageName || "";
     const nextProjectSlug =
-      action.payload.statusPageSlug ||
-      (nextProjectName ? toSlug(nextProjectName) : firstProject?.slug || "main-status-page");
+      firstProject?.slug ||
+      (action.payload.statusPageSlug
+        ? action.payload.statusPageSlug
+        : nextProjectName
+          ? toSlug(nextProjectName)
+          : "main-status-page");
     const nextOnboardingState =
       action.payload.onboardingCompleted === true
         ? {
@@ -495,6 +502,10 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
               ...state.workspace.projects.slice(1),
             ]
           : state.workspace.projects,
+        domainSettings: {
+          ...state.workspace.domainSettings,
+          statusPageSlug: nextProjectSlug,
+        },
         statusPage: {
           ...state.workspace.statusPage,
           onboardingWizardStep:
@@ -765,6 +776,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isCreateIncidentModalOpen, setIsCreateIncidentModalOpen] =
     useState(false);
   const supabase = useMemo(() => createClient(), []);
+  const workspaceSyncGenerationRef = useRef(0);
 
   const setCurrentProject = useCallback(
     (projectId: string) =>
@@ -1127,9 +1139,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
 
   useEffect(() => {
+    let cancelled = false;
+    let hydrateInFlight: Promise<void> | null = null;
+
     const hydrateForUser = async () => {
+      if (hydrateInFlight) {
+        return hydrateInFlight;
+      }
+
+      hydrateInFlight = (async () => {
       dispatch({ type: "HYDRATION_START" });
-      console.log("HYDRATION START");
       try {
         if (!supabase) {
           dispatch({
@@ -1162,7 +1181,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
 
         const user = session?.user;
-        console.log("USER:", user?.id ?? null);
 
         if (!user) {
           dispatch({ type: "HYDRATION_NO_USER" });
@@ -1170,34 +1188,27 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         }
 
         const appData = await loadUserAppData(supabase, user.id);
+        if (cancelled) {
+          return;
+        }
+
         const uptimeSummary = await loadSevenDayUptimeSummary(
           supabase,
           user.id,
           appData.services,
           getDefaultTimeZone(),
         );
+        if (cancelled) {
+          return;
+        }
+
         console.info("[AppData] workspace loaded", {
           workspaceId: appData.workspace.id,
           workspaceName: appData.workspace.name,
+          projectSlug: appData.workspace.projects[0]?.slug,
+          services: appData.services.length,
+          incidents: appData.incidents.length,
         });
-        console.log("SERVICES LOADED:", appData.services.length);
-        console.log("INCIDENTS LOADED:", appData.incidents.length);
-        for (const service of appData.services) {
-          console.log("[AppData] row reloaded from Supabase", {
-            type: "service",
-            id: service.id,
-            status: service.status,
-            responseTimeMs: service.responseTimeMs,
-            lastChecked: service.lastChecked,
-          });
-        }
-        for (const incident of appData.incidents) {
-          console.log("[AppData] row reloaded from Supabase", {
-            type: "incident",
-            id: incident.id,
-            status: incident.status,
-          });
-        }
 
         dispatch({
           type: "SET_HYDRATED_DATA",
@@ -1236,10 +1247,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             onboardingCompleted: Boolean(user.user_metadata?.onboarding_completed),
           },
         });
-        console.info("[AppData] hydration success");
       } catch (error) {
+        if (cancelled) {
+          return;
+        }
         const details = getSupabaseErrorDetails(error);
-        console.error("HYDRATION ERROR:", JSON.stringify(details, null, 2));
+        console.error("[AppData] hydration failed", details);
         const uiError = [
           `Could not load your workspace data.`,
           details.message,
@@ -1248,25 +1261,41 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           .filter(Boolean)
           .join(" ");
         dispatch({ type: "SET_DATA_ERROR", payload: { message: uiError } });
-        console.error("[AppData] hydration failure");
       } finally {
-        dispatch({ type: "HYDRATION_FINISH" });
-        console.log("HYDRATION END");
+        if (!cancelled) {
+          dispatch({ type: "HYDRATION_FINISH" });
+        }
+        hydrateInFlight = null;
       }
+      })();
+
+      return hydrateInFlight;
     };
 
     void hydrateForUser();
     if (!supabase) {
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void hydrateForUser();
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "INITIAL_SESSION") {
+        return;
+      }
+      if (event === "SIGNED_OUT") {
+        dispatch({ type: "HYDRATION_NO_USER" });
+        return;
+      }
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        void hydrateForUser();
+      }
     });
 
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, [supabase]);
@@ -1287,12 +1316,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const generation = ++workspaceSyncGenerationRef.current;
+
     const syncWorkspace = async () => {
       try {
+        // Never sync name/slug here — background sync was overwriting saved slugs.
         await persistWorkspaceInfo(supabase, userId, {
-          workspaceName: state.workspace.name,
-          projectName: state.workspace.projects[0]?.name,
-          projectSlug: state.workspace.projects[0]?.slug,
+          workspaceId: state.workspace.id,
           publicDescription: state.workspace.publicDescription,
           incidentAlertsEnabled: state.workspace.notificationSettings.incidentAlertsEnabled,
           maintenanceAlertsEnabled: state.workspace.notificationSettings.maintenanceAlertsEnabled,
@@ -1321,11 +1351,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             notStartedColor: state.workspace.statusPage.design.notStartedColor,
           }),
         });
+        if (generation !== workspaceSyncGenerationRef.current) {
+          return;
+        }
         console.log("[AppData] workspace persisted", {
           workspaceId: state.workspace.id,
-          workspaceName: state.workspace.name,
+          projectSlug: state.workspace.projects[0]?.slug,
         });
       } catch (error) {
+        if (generation !== workspaceSyncGenerationRef.current) {
+          return;
+        }
         console.error("[AppData] workspace persist failed", error);
       }
     };

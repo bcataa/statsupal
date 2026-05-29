@@ -218,6 +218,17 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     setEmbedOrigin(typeof window !== "undefined" ? window.location.origin : "");
   }, []);
 
+  // If the URL slug is stale (bookmark / old redirect), go to the saved workspace slug.
+  useEffect(() => {
+    if (!isHydrated || !publicSlug || !projectParam || projectParam === publicSlug) {
+      return;
+    }
+    router.replace(
+      `/dashboard/status/${encodeURIComponent(publicSlug)}?tab=${activeTab}`,
+      { scroll: false },
+    );
+  }, [activeTab, isHydrated, projectParam, publicSlug, router]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -312,6 +323,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await persistWorkspaceInfo(supabase, user.id, {
+            workspaceId: workspace.id,
             statusPagePublished: customizePublished,
             statusPageStyle: "premium_dark",
             brandColor,
@@ -353,16 +365,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
       return;
     }
 
-    // Update local app state immediately
-    updateWorkspaceInfo({
-      workspaceName: wn,
-      projectName: pn,
-      projectSlug: sl,
-      publicDescription: publicDescription.trim(),
-      supportEmail: supportEmail.trim(),
-    });
-
-    // Persist to Supabase directly and SURFACE any failure (don't fake "Saved").
+    // Persist to Supabase first — do not update local state until DB confirms.
     if (!supabase) {
       setSettingsSaved("Supabase is not configured — changes are local only.");
       setSaving(false);
@@ -374,14 +377,28 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
         throw new Error("You are signed out. Please sign in again to save.");
       }
       await persistWorkspaceInfo(supabase, user.id, {
+        workspaceId: workspace.id,
         workspaceName: wn,
         projectName: pn,
         projectSlug: sl,
         publicDescription: publicDescription.trim(),
         supportEmail: supportEmail.trim(),
       });
-      // Reconcile React state with what's actually in the DB now.
+      await supabase.auth.updateUser({
+        data: {
+          status_page_name: pn,
+          status_page_slug: sl,
+        },
+      });
       await refreshData();
+      updateWorkspaceInfo({
+        workspaceName: wn,
+        projectName: pn,
+        projectSlug: sl,
+        publicDescription: publicDescription.trim(),
+        supportEmail: supportEmail.trim(),
+      });
+      setStatusPageSlug(sl);
       setSettingsSaved("Saved ✓");
       if (sl && sl !== projectParam) {
         router.replace(`/dashboard/status/${encodeURIComponent(sl)}?tab=settings`, { scroll: false });
@@ -465,7 +482,6 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     );
   }
 
-  const showSlugMismatch = projectParam && publicSlug && projectParam !== publicSlug;
   const embedCode =
     embedOrigin && publicSlug
       ? `<iframe title="Status" src="${embedOrigin}/status/${encodeURIComponent(publicSlug)}" width="100%" height="420" style="border:0;border-radius:12px" loading="lazy" />`
@@ -473,13 +489,6 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      {showSlugMismatch ? (
-        <p className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
-          This URL uses a different slug than your workspace (
-          <span className="font-mono text-amber-50">{publicSlug}</span>). The console shows your
-          active workspace. Use the Visit button to open the real public page.
-        </p>
-      ) : null}
       <div
         className="rounded-[1.5rem] border border-white/[0.08] bg-zinc-900/35 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_50px_-24px_rgba(0,0,0,0.75)] sm:p-6 md:p-8"
         style={{ boxShadow: "0 0 80px -30px rgba(124, 58, 237, 0.15), inset 0 1px 0 rgba(255,255,255,0.04)" }}
