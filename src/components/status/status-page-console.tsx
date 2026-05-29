@@ -182,10 +182,19 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
     [publicSlug],
   );
 
+  // Initialise the editable form fields ONCE per workspace/project identity.
+  // Depending on the whole `workspace` object would reset inputs on every
+  // background sync (monitoring ticks, etc.) and wipe what the user is typing.
+  const initialisedKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (!isHydrated) {
       return;
     }
+    const key = `${workspace.id}:${currentProject?.id ?? ""}`;
+    if (initialisedKeyRef.current === key) {
+      return;
+    }
+    initialisedKeyRef.current = key;
     setBrandColor(workspace.statusPage.design.brandColor || DEFAULT_BRAND);
     setOperationalColor(workspace.statusPage.design.operationalColor || DEFAULT_OPS);
     setLogoUrl(workspace.statusPage.design.logoUrl);
