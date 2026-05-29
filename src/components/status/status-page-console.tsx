@@ -18,6 +18,7 @@ import {
   uptimeLabelFromSummary,
 } from "@/components/status/status-page-preview-helpers";
 import { ServiceEditDialog } from "@/components/services/service-edit-dialog";
+import { NotificationsSettings } from "@/components/settings/notifications-settings";
 import { DEFAULT_STATUS_PAGE_EXTRA, buildExtraThemeForPersist } from "@/lib/models/status-page-theme";
 import { createClient } from "@/lib/supabase/client";
 import { persistWorkspaceInfo } from "@/lib/supabase/app-data";
@@ -854,18 +855,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
 
           {activeTab === "notifications" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
-                <p className="text-sm font-semibold text-zinc-200">Notification channels</p>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Manage how your team gets alerted when this status page has incidents or maintenance.
-                </p>
-                <Link
-                  href="/settings"
-                  className="mt-4 inline-flex h-9 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-xs font-medium text-indigo-300 transition hover:bg-white/10 hover:text-indigo-200"
-                >
-                  Open Notification Settings →
-                </Link>
-              </div>
+              <NotificationsSettings />
               <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-zinc-200">Public subscribers</p>

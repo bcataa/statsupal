@@ -656,45 +656,7 @@ export default function SettingsPage() {
       <AutomationsSettings />
       <AiAssistantSettings />
 
-      <NotificationsSettings
-        incidentAlerts={incidentAlerts}
-        maintenanceAlerts={maintenanceAlerts}
-        incidentEmailAlerts={incidentEmailAlerts}
-        maintenanceEmailAlerts={maintenanceEmailAlerts}
-        discordWebhookUrl={discordWebhookUrl}
-        alertEmail={alertEmail}
-        supportEmail={supportEmail}
-        discordGuildId={discordGuildId}
-        discordBotConfigured={discordBotConfigured}
-        discordBotChannelId={discordBotChannelId}
-        discordOauthAuthorizeUrl={discordOauthAuthorizeUrl}
-        discordInviteUrl={discordInviteUrl}
-        discordChannelOptions={discordChannelOptions}
-        channelsLoading={channelsLoading}
-        channelListError={channelListError}
-        botConfigLoading={botConfigLoading}
-        discordDisconnecting={discordDisconnecting}
-        notificationSaving={notificationSaving}
-        testingEmail={testingEmail}
-        testingDiscord={testingDiscord}
-        notificationSaveState={notificationSaveState}
-        notificationTestState={notificationTestState}
-        notificationsLastSavedAt={notificationsLastSavedAt}
-        showOauthChannelSelect={showOauthChannelSelect}
-        legacyDiscordChannelField={legacyDiscordChannelField}
-        usesManagedBotToken={usesManagedBotToken}
-        setIncidentAlerts={setIncidentAlerts}
-        setMaintenanceAlerts={setMaintenanceAlerts}
-        setIncidentEmailAlerts={setIncidentEmailAlerts}
-        setMaintenanceEmailAlerts={setMaintenanceEmailAlerts}
-        setDiscordWebhookUrl={setDiscordWebhookUrl}
-        setAlertEmail={setAlertEmail}
-        setSupportEmail={setSupportEmail}
-        setDiscordBotChannelId={setDiscordBotChannelId}
-        onNotificationSave={onNotificationSave}
-        onDisconnectDiscord={() => void onDisconnectDiscord()}
-        onSendTestNotification={(t) => void onSendTestNotification(t)}
-      />
+      <NotificationsSettings />
 
       {/* Old notifications section removed — replaced by NotificationsSettings component above */}
           <label className="flex items-start gap-3 rounded-xl border border-zinc-200 p-3">
