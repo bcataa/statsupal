@@ -2,6 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
+const STAR_COUNT = 90;
+const TARGET_FPS = 24;
+
 export function FallingStarsCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
@@ -9,7 +12,7 @@ export function FallingStarsCanvas() {
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
-    const ctx = c.getContext("2d");
+    const ctx = c.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     let w = window.innerWidth;
@@ -23,14 +26,14 @@ export function FallingStarsCanvas() {
       c.width = w;
       c.height = h;
     };
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", onResize, { passive: true });
 
     type S = {
       x: number; y: number; r: number; a: number;
       spd: number; drift: number; tw: number; ph: number;
     };
 
-    const stars: S[] = Array.from({ length: 200 }, () => ({
+    const stars: S[] = Array.from({ length: STAR_COUNT }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
       r: 0.25 + Math.random() * 1.1,
@@ -42,8 +45,16 @@ export function FallingStarsCanvas() {
     }));
 
     let t = 0;
-    const draw = () => {
-      t += 0.016;
+    let lastFrame = 0;
+    const frameInterval = 1000 / TARGET_FPS;
+
+    const draw = (now: number) => {
+      rafRef.current = requestAnimationFrame(draw);
+      if (document.hidden) return;
+      if (now - lastFrame < frameInterval) return;
+      lastFrame = now;
+      t += frameInterval / 1000;
+
       ctx.fillStyle = "#01010a";
       ctx.fillRect(0, 0, w, h);
 
@@ -57,8 +68,6 @@ export function FallingStarsCanvas() {
         ctx.fillStyle = `rgba(255,255,255,${a})`;
         ctx.fill();
       }
-
-      rafRef.current = requestAnimationFrame(draw);
     };
 
     rafRef.current = requestAnimationFrame(draw);
@@ -73,7 +82,7 @@ export function FallingStarsCanvas() {
     <canvas
       ref={ref}
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full"
     />
   );
 }

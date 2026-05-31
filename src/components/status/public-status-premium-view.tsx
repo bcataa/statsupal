@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { FallingStarsCanvas } from "@/components/status/falling-stars-canvas";
 import { SubscribeDrawer } from "@/components/status/subscribe-drawer";
 import { PublicIncidentHistory } from "@/components/status/public-incident-history";
-import { LocalDateTime, LocalTimestampOrText } from "@/components/ui/local-datetime";
+import { ServiceStatusCard } from "@/components/status/service-status-card";
+import { LocalDateTime } from "@/components/ui/local-datetime";
 import { getPublicSupportEmail, getPublicSupportMailto } from "@/lib/support/contact-info";
 import type { Incident, Service } from "@/lib/models/monitoring";
 import type { PublicUptimeBars24hResult, PublicUptimeWindows } from "@/lib/status/public-uptime";
@@ -13,7 +15,7 @@ import {
   overallAccentColor,
   serviceStatusAccent,
 } from "@/lib/models/status-page-theme";
-import { formatServiceResponse } from "@/lib/utils/monitoring-display";
+import type { PublicCheckHistoryPoint } from "@/lib/status/public-uptime";
 
 export type PremiumPublicWorkspace = {
   name: string;
@@ -39,6 +41,7 @@ type Props = {
   lastUpdated: string | null;
   uptime: PublicUptimeWindows;
   bars24h: PublicUptimeBars24hResult;
+  historyByServiceId?: Record<string, PublicCheckHistoryPoint[]>;
 };
 
 function headlineFor(status: OverallStatus): string {
@@ -52,101 +55,15 @@ function sublineFor(status: OverallStatus): string {
   return "Every service is running within normal parameters.";
 }
 
-/* ── Falling-stars canvas ─────────────────────────────────────────── */
-function SpaceCanvas({ brand }: { brand: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef(0);
-
-  // brand used only for a very subtle top haze
-  void brand;
-
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-
-    let w = window.innerWidth;
-    let h = window.innerHeight;
-    c.width = w; c.height = h;
-    const onResize = () => { w = window.innerWidth; h = window.innerHeight; c.width = w; c.height = h; };
-    window.addEventListener("resize", onResize);
-
-    type Star = { x: number; y: number; r: number; alpha: number; speed: number; drift: number; twinkle: number; phase: number };
-
-    const COUNT = 280;
-    const make = (): Star => ({
-      x: Math.random() * w, y: Math.random() * h,
-      r: Math.random() < 0.12 ? 1.3 + Math.random() * 1.1 : 0.25 + Math.random() * 0.85,
-      alpha: 0.2 + Math.random() * 0.8,
-      speed: 0.08 + Math.random() * 0.28,
-      drift: (Math.random() - 0.5) * 0.06,
-      twinkle: 0.3 + Math.random() * 1.5,
-      phase: Math.random() * Math.PI * 2,
-    });
-
-    const stars: Star[] = Array.from({ length: COUNT }, make);
-
-    let t = 0;
-    const draw = () => {
-      t += 0.016;
-      ctx.fillStyle = "#01010a";
-      ctx.fillRect(0, 0, w, h);
-
-      for (const s of stars) {
-        s.y += s.speed;
-        s.x += s.drift;
-        if (s.y > h + 4) { s.y = -4; s.x = Math.random() * w; }
-        if (s.x < -4)    s.x = w + 4;
-        if (s.x > w + 4) s.x = -4;
-        const a = s.alpha * (0.5 + 0.5 * Math.sin(t * s.twinkle + s.phase));
-        if (s.r > 1.1) {
-          ctx.strokeStyle = `rgba(255,255,255,${a * 0.28})`; ctx.lineWidth = 0.4;
-          ctx.beginPath(); ctx.moveTo(s.x - s.r * 3.5, s.y); ctx.lineTo(s.x + s.r * 3.5, s.y);
-          ctx.moveTo(s.x, s.y - s.r * 3.5); ctx.lineTo(s.x, s.y + s.r * 3.5); ctx.stroke();
-        }
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
-      }
-
-      const vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.28, w / 2, h / 2, h);
-      vig.addColorStop(0, "rgba(0,0,0,0)"); vig.addColorStop(1, "rgba(0,0,0,0.55)");
-      ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
-
-      rafRef.current = requestAnimationFrame(draw);
-    };
-
-    rafRef.current = requestAnimationFrame(draw);
-    return () => { window.removeEventListener("resize", onResize); cancelAnimationFrame(rafRef.current); };
-  // brand used only as dep key so ESLint stays happy
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <canvas
-      ref={ref}
-      aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 h-full w-full"
-    />
-  );
-}
-
 /* ── Animated status ring ─────────────────────────────────────────── */
 function StatusRing({ status, color }: { status: OverallStatus; color: string }) {
   const ok = status === "all-operational";
   return (
     <div className="relative flex h-20 w-20 items-center justify-center sm:h-24 sm:w-24">
-      {/* Outer pulse ring */}
-      <div
-        className="absolute inset-0 animate-ping rounded-full opacity-20"
-        style={{ background: color }}
-      />
-      {/* Static outer ring */}
       <div
         className="absolute inset-0 rounded-full border-2 opacity-40"
         style={{ borderColor: color }}
       />
-      {/* Inner solid */}
       <div
         className="relative flex h-14 w-14 items-center justify-center rounded-full sm:h-16 sm:w-16"
         style={{
@@ -165,30 +82,6 @@ function StatusRing({ status, color }: { status: OverallStatus; color: string })
   );
 }
 
-/* ── Uptime bar row ───────────────────────────────────────────────── */
-function UptimeBars({ bars, color, hasHourly }: { bars: number[]; color: string; hasHourly: boolean }) {
-  const slice = bars.slice(-60);
-  return (
-    <div className="flex h-8 items-end gap-[2px] overflow-hidden rounded-lg">
-      {(hasHourly ? slice : Array.from({ length: 60 })).map((b, i) => {
-        const val = hasHourly ? (b as number) : 35 + ((i * 7) % 55);
-        const h = hasHourly ? (val < 0 ? 12 : Math.max(20, Math.min(100, val))) : val;
-        return (
-          <div
-            key={i}
-            className="min-w-0 flex-1 rounded-[1px] transition-all duration-300"
-            style={{
-              height: `${h}%`,
-              background: color,
-              opacity: hasHourly && val < 0 ? 0.18 : 0.82,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
 export function PublicStatusPremiumView({
   workspace,
   extraTheme = {},
@@ -199,30 +92,19 @@ export function PublicStatusPremiumView({
   overallStatus,
   lastUpdated,
   uptime,
-  bars24h,
+  historyByServiceId = {},
 }: Props) {
   const brand  = workspace.brand_color      || "#7c3aed";
   const op     = workspace.operational_color || "#10b981";
   const title  = workspace.project_name?.trim() || workspace.name;
   const logo   = extraTheme.logoDarkUrl || workspace.brand_logo_url;
   const accent = overallAccentColor(overallStatus, brand, op, extraTheme);
-  const desc   = workspace.public_description || "Real-time system status and incident updates.";
   const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const upLabel =
-    uptime.days30 != null ? `${uptime.days30.toFixed(2)}%`
-    : uptime.days7 != null ? `${uptime.days7.toFixed(2)}%`
-    : uptime.hours24 != null ? `${uptime.hours24.toFixed(2)}%`
-    : "—";
-
-  const bars      = bars24h.values;
-  const hasHourly = bars.some((b) => b !== -1);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#01010a] text-white">
 
-      {/* ── Full-page animated space background ─── */}
-      <SpaceCanvas brand={brand} />
+      <FallingStarsCanvas />
 
       {/* ── Hero header ─────────────────────────────────────────────── */}
       <div className="relative z-10 overflow-hidden" style={{ minHeight: 320 }}>
@@ -322,78 +204,15 @@ export function PublicStatusPremiumView({
             No published monitors yet — check back soon.
           </div>
         ) : (
-          <div className="space-y-3">
-            {publishedServices.map((svc) => {
-              const color = serviceStatusAccent(svc.status, op, extraTheme);
-              const isOk  = svc.status === "operational";
-              return (
-                <div
-                  key={svc.id}
-                  className="overflow-hidden rounded-2xl border border-white/[0.07] backdrop-blur-md"
-                  style={{ background: `linear-gradient(135deg, ${color}0c 0%, rgba(6,6,18,0.55) 60%)` }}
-                >
-                  {/* Top accent line */}
-                  <div className="h-[1.5px] w-full" style={{ background: `linear-gradient(90deg, ${color}00, ${color}88, ${color}00)` }} />
-
-                  <div className="px-5 py-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        {/* Status dot with glow */}
-                        <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{
-                            background: color,
-                            boxShadow: `0 0 8px 2px ${color}66`,
-                          }}
-                        />
-                        <div>
-                          <p className="font-semibold text-zinc-100">{svc.name}</p>
-                          {svc.description && (
-                            <p className="text-xs text-zinc-500">{svc.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span
-                          className="rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide"
-                          style={{ background: `${color}20`, color }}
-                        >
-                          {svc.status === "operational" ? "Operational" : svc.status === "degraded" ? "Degraded" : svc.status === "down" ? "Down" : "Checking"}
-                        </span>
-                        <span className="hidden text-sm font-semibold tabular-nums sm:block" style={{ color }}>
-                          {upLabel}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Uptime bars */}
-                    <div className="mt-4">
-                      <UptimeBars bars={bars} color={color} hasHourly={hasHourly} />
-                      <div className="mt-1 flex justify-between text-[9px] font-medium uppercase tracking-wider text-zinc-700">
-                        <span>60 checks ago</span>
-                        <span>Now</span>
-                      </div>
-                    </div>
-
-                    {/* Meta row */}
-                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-zinc-500">
-                      <span>
-                        Checked:{" "}
-                        <span className="text-zinc-400">
-                          {svc.lastChecked ? <LocalTimestampOrText value={svc.lastChecked} /> : "—"}
-                        </span>
-                      </span>
-                      <span>
-                        Response:{" "}
-                        <span className="text-zinc-400">
-                          {formatServiceResponse({ status: svc.status, responseTimeMs: svc.responseTimeMs, lastChecked: svc.lastChecked })}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {publishedServices.map((svc) => (
+              <ServiceStatusCard
+                key={svc.id}
+                service={svc}
+                points={historyByServiceId[svc.id] ?? []}
+                accentColor={serviceStatusAccent(svc.status, op, extraTheme)}
+              />
+            ))}
           </div>
         )}
 

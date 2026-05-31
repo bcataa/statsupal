@@ -10,8 +10,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPublicSupportEmail, getPublicSupportMailto } from "@/lib/support/contact-info";
 import type { Incident, Service } from "@/lib/models/monitoring";
 import {
+  loadPublicServiceCheckHistory,
   loadPublicUptimeBars24h,
   loadPublicWorkspaceUptime,
+  type PublicCheckHistoryPoint,
   type PublicUptimeBars24hResult,
   type PublicUptimeWindows,
 } from "@/lib/status/public-uptime";
@@ -39,6 +41,7 @@ type WorkspaceRow = {
 type ServiceRow = {
   id: string;
   name: string;
+  url: string;
   description: string | null;
   status: Service["status"];
   is_published: boolean | null;
@@ -186,6 +189,7 @@ function getDemoPublicStatusData(projectSlug: string): {
   lastUpdated: string;
   uptime: PublicUptimeWindows;
   bars24h: PublicUptimeBars24hResult;
+  historyByServiceId: Record<string, PublicCheckHistoryPoint[]>;
 } {
   const now = new Date();
   const isoNow = now.toISOString();
@@ -278,6 +282,19 @@ function getDemoPublicStatusData(projectSlug: string): {
     }),
   };
 
+  const makeDemoHistory = (baseMs: number, status: Service["status"]) =>
+    Array.from({ length: 40 }, (_, i) => ({
+      status: status === "degraded" && i > 32 ? "degraded" : status,
+      response_time_ms: Math.round(baseMs + Math.sin(i * 0.65) * baseMs * 0.35 + (i % 4) * 12),
+      checked_at: new Date(now.getTime() - (40 - i) * 60_000).toISOString(),
+    }));
+
+  const historyByServiceId = {
+    demo_web: makeDemoHistory(143, "operational"),
+    demo_api: makeDemoHistory(168, "operational"),
+    demo_worker: makeDemoHistory(412, "degraded"),
+  };
+
   return {
     workspace: {
       id: "demo_workspace",
@@ -305,6 +322,7 @@ function getDemoPublicStatusData(projectSlug: string): {
       days30: 99.9,
     },
     bars24h,
+    historyByServiceId,
   };
 }
 
@@ -346,6 +364,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
           lastUpdated={demo.lastUpdated}
           uptime={demo.uptime}
           bars24h={demo.bars24h}
+          historyByServiceId={demo.historyByServiceId}
         />
       );
     }
@@ -381,6 +400,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
           lastUpdated={demo.lastUpdated}
           uptime={demo.uptime}
           bars24h={demo.bars24h}
+          historyByServiceId={demo.historyByServiceId}
         />
       );
     }
@@ -394,7 +414,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   }
   const servicesResult = await admin
     .from("services")
-    .select("id,name,description,status,is_published,last_checked,response_time_ms,created_at")
+    .select("id,name,url,description,status,is_published,last_checked,response_time_ms,created_at")
     .eq("workspace_id", workspace.id)
     .order("created_at", { ascending: false });
 
@@ -433,7 +453,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
     .map((row) => ({
       id: row.id,
       name: row.name,
-      url: "",
+      url: row.url || "",
       description: row.description || undefined,
       status: row.status,
       isPublished: true,
@@ -460,9 +480,10 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
   const lastUpdated = getLastUpdated(publishedServices);
 
   const publishedIds = publishedServices.map((s) => s.id);
-  const [uptime, bars24h] = await Promise.all([
+  const [uptime, bars24h, historyByServiceId] = await Promise.all([
     loadPublicWorkspaceUptime(admin, workspace.id, publishedIds),
     loadPublicUptimeBars24h(admin, publishedIds),
+    loadPublicServiceCheckHistory(admin, publishedIds),
   ]);
 
   if (workspace.status_page_style === "premium_dark") {
@@ -487,6 +508,7 @@ export async function PublicStatusView({ projectParam }: PublicStatusViewProps) 
         lastUpdated={lastUpdated}
         uptime={uptime}
         bars24h={bars24h}
+        historyByServiceId={historyByServiceId}
       />
     );
   }

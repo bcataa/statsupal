@@ -125,3 +125,79 @@ export async function loadPublicUptimeBars24h(
     windowStartMs: windowStart,
   };
 }
+
+export type PublicCheckHistoryPoint = {
+  status: string;
+  response_time_ms: number;
+  checked_at: string;
+};
+
+type HistoryRowWithService = HistoryRow & {
+  service_id: string;
+  response_time_ms: number;
+};
+
+type AdminHistoryLike = {
+  from: (table: string) => {
+    select: (...args: unknown[]) => {
+      in: (...args: unknown[]) => {
+        gte: (...args: unknown[]) => {
+          order: (...args: unknown[]) => {
+            limit: (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>;
+          };
+        };
+      };
+    };
+  };
+};
+
+/** Last N check points per service for public sparkline charts (single query). */
+export async function loadPublicServiceCheckHistory(
+  admin: unknown,
+  serviceIds: string[],
+  maxPerService = 40,
+): Promise<Record<string, PublicCheckHistoryPoint[]>> {
+  const result: Record<string, PublicCheckHistoryPoint[]> = {};
+  for (const id of serviceIds) {
+    result[id] = [];
+  }
+  if (serviceIds.length === 0) {
+    return result;
+  }
+
+  const db = admin as AdminHistoryLike;
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const query = await db
+    .from("service_check_history")
+    .select("service_id,status,response_time_ms,checked_at")
+    .in("service_id", serviceIds)
+    .gte("checked_at", since)
+    .order("checked_at", { ascending: false })
+    .limit(serviceIds.length * maxPerService * 2);
+
+  if (query.error) {
+    return result;
+  }
+
+  const rows = (query.data ?? []) as HistoryRowWithService[];
+  const grouped = new Map<string, PublicCheckHistoryPoint[]>();
+
+  for (const row of rows) {
+    const id = row.service_id;
+    if (!result[id]) continue;
+    const list = grouped.get(id) ?? [];
+    if (list.length >= maxPerService) continue;
+    list.push({
+      status: row.status,
+      response_time_ms: Number(row.response_time_ms ?? 0),
+      checked_at: row.checked_at,
+    });
+    grouped.set(id, list);
+  }
+
+  for (const [id, list] of grouped) {
+    result[id] = list.reverse();
+  }
+
+  return result;
+}

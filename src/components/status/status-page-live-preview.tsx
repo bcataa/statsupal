@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import type { ServiceStatus } from "@/lib/models/monitoring";
-import { formatServiceResponse } from "@/lib/utils/monitoring-display";
 import {
   headlineForOverall,
   type PublicOverallStatus,
 } from "@/components/status/status-page-preview-helpers";
+import { MonitorSparkline } from "@/components/monitors/monitor-sparkline";
+import { barsToSparklinePoints } from "@/components/status/service-status-card";
 import {
   type StatusPageExtraThemeV1,
   overallAccentColor,
@@ -132,37 +133,13 @@ export function StatusPageLivePreview({
           },
         ];
 
-  const targetBars = 56;
   const barHeights =
     barHeightsFromProps && barHeightsFromProps.length > 0
       ? barHeightsFromProps
       : null;
 
-  function glyphFor(s: ServiceStatus) {
-    if (s === "down") {
-      return "!";
-    }
-    if (s === "degraded" || s === "pending") {
-      return "–";
-    }
-    return "✓";
-  }
-
   function rowAccent(s: ServiceStatus): string {
     return serviceStatusAccent(s, operationalColor, themeExtras);
-  }
-
-  function statusTitle(s: ServiceStatus): string {
-    if (s === "down") {
-      return "Down";
-    }
-    if (s === "degraded") {
-      return "Degraded";
-    }
-    if (s === "pending") {
-      return "Checking";
-    }
-    return "Operational";
   }
 
   return (
@@ -274,86 +251,69 @@ export function StatusPageLivePreview({
               preview.
             </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {rows.map((service, index) => {
                 const showUrl = service.url.trim() || "https://…";
-                const linkHref = showUrl.startsWith("http") ? showUrl : `https://${showUrl}`;
                 const barColor = rowAccent(service.status);
+                const sparkPoints = barsToSparklinePoints(barHeights);
+                const statusName =
+                  service.status === "operational"
+                    ? "Operational"
+                    : service.status === "degraded"
+                      ? "Degraded"
+                      : service.status === "down"
+                        ? "Down"
+                        : "Pending";
+                let host = showUrl;
+                try {
+                  host = new URL(showUrl.startsWith("http") ? showUrl : `https://${showUrl}`).host;
+                } catch {
+                  /* keep showUrl */
+                }
                 return (
                   <div
                     key={`${service.name}-${index}`}
-                    className="rounded-xl border border-white/10 bg-zinc-950/50 p-4 sm:p-5"
+                    className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-[#0c0e18]/70 p-4"
                   >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
-                      <div className="flex min-w-0 items-start gap-2">
-                        <span className="mt-0.5 text-base" style={{ color: barColor }}>
-                          {glyphFor(service.status)}
-                        </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <span
+                          className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_7px_currentColor]"
+                          style={{ background: barColor, color: barColor }}
+                          aria-hidden
+                        />
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-zinc-100">{service.name}</p>
-                          <a
-                            href={linkHref}
-                            className="mt-0.5 block min-w-0 break-all text-xs text-cyan-300/85 underline-offset-2 hover:underline"
-                            onClick={(e) => e.preventDefault()}
-                          >
-                            {showUrl}
-                          </a>
+                          <p className="truncate text-sm font-semibold text-zinc-100">{service.name}</p>
+                          <p className="truncate text-[11px] text-zinc-500">{host}</p>
                         </div>
                       </div>
-                      <div className="shrink-0 text-right sm:pl-2">
-                        <p className="text-xs text-zinc-500">{statusTitle(service.status)}</p>
-                        <p
-                          className="text-sm font-semibold tabular-nums"
-                          style={{ color: barColor }}
-                        >
-                          {uptimeLabel}
+                      <span className="shrink-0 text-xs font-semibold" style={{ color: barColor }}>
+                        {statusName}
+                      </span>
+                    </div>
+                    <div className="overflow-hidden rounded-md">
+                      <MonitorSparkline
+                        points={sparkPoints.length ? sparkPoints : [{ status: "operational", response_time_ms: 120 }]}
+                        className="h-11 w-full"
+                        maxBars={40}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                      <div>
+                        <p className="text-xs text-zinc-500">Response time</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-200">
+                          {service.responseTimeMs != null && service.responseTimeMs > 0
+                            ? `${service.responseTimeMs} ms`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-zinc-500">Uptime</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-200">
+                          {uptimeLabel.replace(/ avg uptime \(7d\)/i, "")}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-4 flex h-10 items-end gap-px overflow-hidden rounded-md bg-zinc-900/90 px-0.5 pb-0.5 pt-1.5">
-                      {barHeights
-                        ? barHeights.map((h, i) => {
-                            const dip = !allOk && i % 11 === 0;
-                            return (
-                              <div
-                                key={i}
-                                className="min-w-0 flex-1 rounded-[1px]"
-                                style={{
-                                  height: `${Math.min(1, h) * 100}%`,
-                                  background: barColor,
-                                  opacity: dip ? 0.3 : 0.88,
-                                }}
-                              />
-                            );
-                          })
-                        : Array.from({ length: targetBars }).map((_, i) => {
-                            const dip = !allOk && i % 11 === 0;
-                            return (
-                              <div
-                                key={i}
-                                className="min-w-0 flex-1 rounded-[1px]"
-                                style={{
-                                  height: `${32 + ((i * 5) % 60)}%`,
-                                  background: barColor,
-                                  opacity: dip ? 0.3 : 0.88,
-                                }}
-                              />
-                            );
-                          })}
-                    </div>
-                    <div className="mt-2 flex justify-between text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-                      <span>90 days ago</span>
-                      <span>Today</span>
-                    </div>
-                    {service.lastChecked || service.responseTimeMs != null ? (
-                      <div className="mt-3 text-xs text-zinc-500">
-                        {formatServiceResponse({
-                          status: service.status,
-                          responseTimeMs: service.responseTimeMs ?? 0,
-                          lastChecked: service.lastChecked ?? "",
-                        })}
-                      </div>
-                    ) : null}
                   </div>
                 );
               })}
