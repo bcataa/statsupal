@@ -25,7 +25,9 @@ type DbClient = {
             order: (
               col: string,
               opts: { ascending: boolean },
-            ) => Promise<{ data: unknown; error: unknown }>;
+            ) => {
+              limit: (n: number) => Promise<{ data: unknown; error: unknown }>;
+            } & Promise<{ data: unknown; error: unknown }>;
           };
         };
       };
@@ -108,8 +110,8 @@ export async function loadSevenDayUptimeSummary(
   }
 
   const serviceIds = services.map((s) => s.id);
-  /** Pull enough history to cover the seven displayed local days plus slack (DST, clock skew). */
-  const fetchDays = 45;
+  /** Seven displayed days plus one buffer for timezone boundaries. */
+  const fetchDays = 8;
   const fetchSinceMs = Date.now() - fetchDays * 24 * 60 * 60 * 1000;
   const since = new Date(fetchSinceMs).toISOString();
 
@@ -120,7 +122,8 @@ export async function loadSevenDayUptimeSummary(
       .eq("user_id", userId)
       .in("service_id", serviceIds)
       .gte("checked_at", since)
-      .order("checked_at", { ascending: true });
+      .order("checked_at", { ascending: true })
+      .limit(2500);
 
     if (result.error) {
       throw result.error;

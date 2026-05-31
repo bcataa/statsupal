@@ -196,7 +196,8 @@ type AppDataAction =
         responseTimeMs: number;
         lastChecked: string;
       };
-    };
+    }
+  | { type: "SET_UPTIME_SUMMARY"; payload: UptimeSummary };
 
 type AppDataContextValue = {
   isHydrated: boolean;
@@ -316,6 +317,13 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       incidentEvents: action.payload.incidentEvents,
       alertSubscribers: action.payload.alertSubscribers,
       uptimeSummary: action.payload.uptimeSummary,
+    };
+  }
+
+  if (action.type === "SET_UPTIME_SUMMARY") {
+    return {
+      ...state,
+      uptimeSummary: action.payload,
     };
   }
 
@@ -777,6 +785,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     useState(false);
   const supabase = useMemo(() => createClient(), []);
   const workspaceSyncGenerationRef = useRef(0);
+  const persistReadyRef = useRef(false);
+  const lastFocusReloadRef = useRef(0);
 
   const setCurrentProject = useCallback(
     (projectId: string) =>
@@ -823,12 +833,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       try {
         const appData = await loadUserAppData(supabase, userId);
-        const uptimeSummary = await loadSevenDayUptimeSummary(
-          supabase,
-          userId,
-          appData.services,
-          getDefaultTimeZone(),
-        );
+        const tz = getDefaultTimeZone();
         dispatch({
           type: "SET_HYDRATED_DATA",
           payload: {
@@ -840,13 +845,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             maintenanceWindows: appData.maintenanceWindows,
             incidentEvents: appData.incidentEvents,
             alertSubscribers: appData.alertSubscribers,
-            uptimeSummary,
+            uptimeSummary: buildFallbackUptimeSummary(appData.services, tz),
           },
         });
-        console.log("[app-data] reloaded persisted state from Supabase", {
-          services: appData.services.length,
-          incidents: appData.incidents.length,
-        });
+        void loadSevenDayUptimeSummary(supabase, userId, appData.services, tz)
+          .then((uptimeSummary) => {
+            dispatch({ type: "SET_UPTIME_SUMMARY", payload: uptimeSummary });
+          })
+          .catch(() => {});
       } catch (error) {
         console.error("[app-data] reload from Supabase failed", error);
       }
@@ -1192,23 +1198,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const uptimeSummary = await loadSevenDayUptimeSummary(
-          supabase,
-          user.id,
-          appData.services,
-          getDefaultTimeZone(),
-        );
-        if (cancelled) {
-          return;
-        }
-
-        console.info("[AppData] workspace loaded", {
-          workspaceId: appData.workspace.id,
-          workspaceName: appData.workspace.name,
-          projectSlug: appData.workspace.projects[0]?.slug,
-          services: appData.services.length,
-          incidents: appData.incidents.length,
-        });
+        const tz = getDefaultTimeZone();
 
         dispatch({
           type: "SET_HYDRATED_DATA",
@@ -1221,7 +1211,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             maintenanceWindows: appData.maintenanceWindows,
             incidentEvents: appData.incidentEvents,
             alertSubscribers: appData.alertSubscribers,
-            uptimeSummary,
+            uptimeSummary: buildFallbackUptimeSummary(appData.services, tz),
           },
         });
 
@@ -1247,6 +1237,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             onboardingCompleted: Boolean(user.user_metadata?.onboarding_completed),
           },
         });
+
+        void loadSevenDayUptimeSummary(supabase, user.id, appData.services, tz)
+          .then((uptimeSummary) => {
+            if (cancelled) {
+              return;
+            }
+            dispatch({ type: "SET_UPTIME_SUMMARY", payload: uptimeSummary });
+          })
+          .catch(() => {});
       } catch (error) {
         if (cancelled) {
           return;
@@ -1300,13 +1299,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     };
   }, [supabase]);
 
+  // Delay background DB writes until after the initial hydration pass finishes.
+  useEffect(() => {
+    if (!state.isHydrated) {
+      persistReadyRef.current = false;
+      return;
+    }
+    const id = window.setTimeout(() => {
+      persistReadyRef.current = true;
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [state.isHydrated]);
+
   useEffect(() => {
     if (
       !supabase ||
       !state.authUserId ||
       !state.workspace.id ||
       !state.isHydrated ||
-      state.dataError
+      state.dataError ||
+      !persistReadyRef.current
     ) {
       return;
     }
@@ -1354,10 +1366,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         if (generation !== workspaceSyncGenerationRef.current) {
           return;
         }
-        console.log("[AppData] workspace persisted", {
-          workspaceId: state.workspace.id,
-          projectSlug: state.workspace.projects[0]?.slug,
-        });
       } catch (error) {
         if (generation !== workspaceSyncGenerationRef.current) {
           return;
@@ -1381,7 +1389,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       !state.authUserId ||
       !state.workspace.id ||
       !state.isHydrated ||
-      state.dataError
+      state.dataError ||
+      !persistReadyRef.current
     ) {
       return;
     }
@@ -1396,12 +1405,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       for (const service of state.services) {
         try {
           await persistService(supabase, userId, workspaceId, service);
-          console.log("[AppData] service status persisted", {
-            serviceId: service.id,
-            status: service.status,
-            responseTimeMs: service.responseTimeMs,
-            lastChecked: service.lastChecked,
-          });
         } catch (error) {
           console.error("[AppData] service persist failed", {
             serviceId: service.id,
@@ -1427,7 +1430,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       !state.authUserId ||
       !state.workspace.id ||
       !state.isHydrated ||
-      state.dataError
+      state.dataError ||
+      !persistReadyRef.current
     ) {
       return;
     }
@@ -1467,7 +1471,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       !state.authUserId ||
       !state.workspace.id ||
       !state.isHydrated ||
-      state.dataError
+      state.dataError ||
+      !persistReadyRef.current
     ) {
       return;
     }
@@ -1507,7 +1512,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       !state.authUserId ||
       !state.workspace.id ||
       !state.isHydrated ||
-      state.dataError
+      state.dataError ||
+      !persistReadyRef.current
     ) {
       return;
     }
@@ -1542,7 +1548,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (!supabase || !state.workspace.id || !state.isHydrated || state.dataError) {
+    if (
+      !supabase ||
+      !state.workspace.id ||
+      !state.isHydrated ||
+      state.dataError ||
+      !persistReadyRef.current
+    ) {
       return;
     }
 
@@ -1585,22 +1597,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    void reloadFromSupabase(state.authUserId);
-  }, [reloadFromSupabase, supabase, state.authUserId, state.dataError, state.isHydrated]);
-
-  useEffect(() => {
-    if (!supabase || !state.isHydrated || !state.authUserId || state.dataError) {
-      return;
-    }
-
     const userId = state.authUserId;
     const reloadOnFocus = () => {
+      if (Date.now() - lastFocusReloadRef.current < 30_000) {
+        return;
+      }
+      lastFocusReloadRef.current = Date.now();
       void reloadFromSupabase(userId);
     };
     const reloadOnVisible = () => {
-      if (document.visibilityState === "visible") {
-        void reloadFromSupabase(userId);
+      if (document.visibilityState !== "visible") {
+        return;
       }
+      if (Date.now() - lastFocusReloadRef.current < 30_000) {
+        return;
+      }
+      lastFocusReloadRef.current = Date.now();
+      void reloadFromSupabase(userId);
     };
 
     window.addEventListener("focus", reloadOnFocus);

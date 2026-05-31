@@ -527,7 +527,9 @@ export async function loadUserAppData(client: SupabaseClientLike, userId: string
   alertSubscribers: AlertSubscriber[];
 }> {
   const db = getDb(client);
-  await validateUserScopedTables(db, userId);
+  if (process.env.NODE_ENV === "development") {
+    await validateUserScopedTables(db, userId);
+  }
   const workspaceRow = await ensureWorkspace(db, userId);
 
   const [servicesResult, incidentsResult, maintenanceResult, incidentEventsResult, subscribersResult] =
