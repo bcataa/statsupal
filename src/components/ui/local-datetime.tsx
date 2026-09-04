@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDateTime, formatTimestampOrText } from "@/lib/utils/date-time";
+import { formatDateLocal, formatDateTime, formatTimestampOrText } from "@/lib/utils/date-time";
 
 type LocalDateTimeProps = {
   iso?: string | null;
@@ -32,5 +32,23 @@ export function LocalTimestampOrText({ value }: LocalTimestampOrTextProps) {
     <span suppressHydrationWarning className="tabular-nums">
       {formatTimestampOrText(value)}
     </span>
+  );
+}
+
+type LocalDateProps = {
+  iso?: string | null;
+  placeholder?: string;
+};
+
+/** Calendar date in the viewer's local timezone (no time of day). */
+export function LocalDate({ iso, placeholder = "—" }: LocalDateProps) {
+  if (!iso) {
+    return <span>{placeholder}</span>;
+  }
+
+  return (
+    <time dateTime={iso} suppressHydrationWarning className="tabular-nums">
+      {formatDateLocal(iso)}
+    </time>
   );
 }

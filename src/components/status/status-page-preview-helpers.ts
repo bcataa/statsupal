@@ -1,4 +1,5 @@
 import type { Incident, Service, UptimeDayPoint, UptimeSummary } from "@/lib/models/monitoring";
+import { formatDateLocal } from "@/lib/utils/date-time";
 
 export type PublicOverallStatus = "all-operational" | "partial-outage" | "major-outage";
 
@@ -46,8 +47,9 @@ export function buildRecentNoticeLines(incidents: Incident[]): { id: string; lin
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 8)
     .map((i) => {
-      const d = new Date(i.updatedAt);
-      const line1 = Number.isNaN(d.getTime()) ? "Recent" : d.toLocaleDateString(undefined, { dateStyle: "long" });
+      const line1 = Number.isNaN(new Date(i.updatedAt).getTime())
+        ? "Recent"
+        : formatDateLocal(i.updatedAt);
       return { id: i.id, line1, line2: i.title || "Update" };
     });
 }

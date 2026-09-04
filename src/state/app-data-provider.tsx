@@ -44,7 +44,7 @@ import {
   loadSevenDayUptimeSummary,
 } from "@/lib/supabase/uptime-history";
 import { buildExtraThemeForPersist } from "@/lib/models/status-page-theme";
-import { getDefaultTimeZone } from "@/lib/utils/date-time";
+import { getDefaultTimeZone, SSR_STABLE_TIMEZONE } from "@/lib/utils/date-time";
 import { toSlug } from "@/lib/utils/slug";
 
 type AddServiceInput = {
@@ -339,7 +339,7 @@ function reducer(state: AppDataState, action: AppDataAction): AppDataState {
       maintenanceWindows: [],
       incidentEvents: [],
       alertSubscribers: [],
-      uptimeSummary: buildFallbackUptimeSummary([], getDefaultTimeZone()),
+      uptimeSummary: buildFallbackUptimeSummary([], SSR_STABLE_TIMEZONE),
       workspace: defaultWorkspace,
       currentProjectId: defaultWorkspace.projects[0]?.id ?? "",
     };
@@ -775,7 +775,7 @@ const initialState: AppDataState = {
   maintenanceWindows: [],
   incidentEvents: [],
   alertSubscribers: [],
-  uptimeSummary: buildFallbackUptimeSummary([], getDefaultTimeZone()),
+  uptimeSummary: buildFallbackUptimeSummary([], SSR_STABLE_TIMEZONE),
 };
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -1582,14 +1582,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    const devBrowserFallback =
-      process.env.NEXT_PUBLIC_ENABLE_BROWSER_MONITORING === "true" &&
-      process.env.NODE_ENV !== "production";
+    if (process.env.NODE_ENV !== "production") {
+      const devBrowserFallback =
+        process.env.NEXT_PUBLIC_ENABLE_BROWSER_MONITORING === "true";
 
-    console.log("[monitoring] mode", {
-      source: devBrowserFallback ? "browser-dev-fallback (manual only)" : "server-only",
-      nodeEnv: process.env.NODE_ENV,
-    });
+      console.log("[monitoring] mode", {
+        source: devBrowserFallback ? "browser-dev-fallback (manual only)" : "server-only",
+        nodeEnv: process.env.NODE_ENV,
+      });
+    }
   }, []);
 
   useEffect(() => {

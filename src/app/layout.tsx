@@ -20,6 +20,10 @@ export const metadata: Metadata = {
     template: "%s | Slebb",
   },
   description: "Status monitoring, incidents, and public communication for modern teams.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export const viewport: Viewport = {

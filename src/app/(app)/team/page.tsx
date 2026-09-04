@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { LocalDate } from "@/components/ui/local-datetime";
 import { useAppData } from "@/state/app-data-provider";
 
 /* ─── types ────────────────────────────────────────────────────────── */
@@ -230,7 +231,11 @@ export default function TeamPage() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-zinc-100">{m.email}</p>
                 <p className="text-xs text-zinc-500">
-                  {m.status === "pending" ? "Invite pending" : `Joined ${new Date(m.joinedAt).toLocaleDateString()}`}
+                  {m.status === "pending" ? "Invite pending" : (
+                    <>
+                      Joined <LocalDate iso={m.joinedAt} />
+                    </>
+                  )}
                 </p>
               </div>
               <span

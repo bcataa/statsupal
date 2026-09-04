@@ -90,6 +90,7 @@ export function OnboardingWizard() {
   const [logoUrl, setLogoUrl] = useState<string | undefined>();
   const [faviconUrl, setFaviconUrl] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [publicOrigin, setPublicOrigin] = useState("");
   const logoFileRef = useRef<HTMLInputElement>(null);
   const faviconFileRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +108,10 @@ export function OnboardingWizard() {
     if (persisted >= 1 && persisted <= 5) setStep(persisted);
     else if (persisted >= 6) setStep(5);
   }, [isHydrated, searchParams, workspace.statusPage.onboardingWizardStep]);
+
+  useEffect(() => {
+    setPublicOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -666,7 +671,7 @@ export function OnboardingWizard() {
                 <li>
                   <span className="text-zinc-500">Public link: </span>
                   <span className="break-all text-cyan-300/90">
-                    {typeof window !== "undefined" ? window.location.origin : ""}/status/{slug}
+                    {publicOrigin || "yoursite.com"}/status/{slug}
                   </span>
                 </li>
                 <li>

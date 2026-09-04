@@ -477,7 +477,7 @@ function StatusPageConsoleBody({ projectParam }: StatusPageConsoleProps) {
   if (!isHydrated) {
     return (
       <div className="mx-auto w-full max-w-5xl py-20 text-center text-sm text-zinc-500">
-        Loading your status page…
+        Loading status page console…
       </div>
     );
   }

@@ -1,5 +1,7 @@
+"use client";
+
 import type { Incident, IncidentEvent, IncidentStatus } from "@/lib/models/monitoring";
-import { formatDateTime } from "@/lib/utils/date-time";
+import { LocalDateTime } from "@/components/ui/local-datetime";
 import { StatusBadge } from "@/components/ui/status-badge";
 import Link from "next/link";
 import { useState } from "react";
@@ -120,10 +122,10 @@ export function IncidentCard({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-2 text-xs text-zinc-500 sm:grid-cols-3">
-        <p>Started: {formatDateTime(incident.startedAt)}</p>
-        <p>Updated: {formatDateTime(incident.updatedAt)}</p>
+        <p>Started: <LocalDateTime iso={incident.startedAt} /></p>
+        <p>Updated: <LocalDateTime iso={incident.updatedAt} /></p>
         <p>
-          Resolved: {incident.resolvedAt ? formatDateTime(incident.resolvedAt) : "Not resolved"}
+          Resolved: {incident.resolvedAt ? <LocalDateTime iso={incident.resolvedAt} /> : "Not resolved"}
         </p>
       </div>
 
@@ -287,9 +289,11 @@ export function IncidentCard({
           </p>
           {timelineEvents.length === 0 ? (
             <ul className="mt-2 space-y-2 text-sm text-zinc-300">
-              <li>Started: {formatDateTime(incident.startedAt)}</li>
-              <li>Status updated: {formatDateTime(incident.updatedAt)}</li>
-              {incident.resolvedAt && <li>Resolved: {formatDateTime(incident.resolvedAt)}</li>}
+              <li>Started: <LocalDateTime iso={incident.startedAt} /></li>
+              <li>Status updated: <LocalDateTime iso={incident.updatedAt} /></li>
+              {incident.resolvedAt && (
+                <li>Resolved: <LocalDateTime iso={incident.resolvedAt} /></li>
+              )}
             </ul>
           ) : (
             <ul className="mt-2 space-y-2 text-sm text-zinc-300">
@@ -297,7 +301,7 @@ export function IncidentCard({
                 <li key={event.id}>
                   <span className="font-medium">{event.source}</span> — {event.message}
                   <span className="ml-1 text-xs text-zinc-500">
-                    ({formatDateTime(event.createdAt)})
+                    (<LocalDateTime iso={event.createdAt} />)
                   </span>
                 </li>
               ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Incident } from "@/lib/models/monitoring";
-import { formatDateTime } from "@/lib/utils/date-time";
+import { LocalDateTime } from "@/components/ui/local-datetime";
 import { StatusBadge } from "@/components/ui/status-badge";
 
 type PublicIncidentHistoryProps = {
@@ -113,7 +113,7 @@ export function PublicIncidentHistory({
                         <p className="mt-2 text-sm text-zinc-500">{incident.description}</p>
                       )}
                       <p className="mt-2 text-xs text-zinc-600">
-                        Started: {formatDateTime(incident.startedAt)}
+                        Started: <LocalDateTime iso={incident.startedAt} />
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -160,9 +160,7 @@ export function PublicIncidentHistory({
                       )}
                       <p className="mt-2 text-xs text-zinc-600">
                         Resolved:{" "}
-                        {incident.resolvedAt
-                          ? formatDateTime(incident.resolvedAt)
-                          : formatDateTime(incident.updatedAt)}
+                        <LocalDateTime iso={incident.resolvedAt ?? incident.updatedAt} />
                       </p>
                     </div>
                     <div className="flex items-center gap-2">

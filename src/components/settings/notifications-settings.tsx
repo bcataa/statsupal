@@ -2,7 +2,7 @@
 
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppData } from "@/state/app-data-provider";
-import { formatDateTime } from "@/lib/utils/date-time";
+import { LocalDateTime } from "@/components/ui/local-datetime";
 
 type Feedback = { tone: "success" | "error"; message: string } | null;
 
@@ -249,7 +249,11 @@ export function NotificationsSettings() {
           <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-zinc-300">Notifications</h3>
           <p className="mt-0.5 text-xs text-zinc-500">Configure how your team and status-page subscribers get alerted.</p>
         </div>
-        {notificationsLastSavedAt && <p className="text-xs text-zinc-600">Last saved {formatDateTime(notificationsLastSavedAt)}</p>}
+        {notificationsLastSavedAt && (
+          <p className="text-xs text-zinc-600">
+            Last saved <LocalDateTime iso={notificationsLastSavedAt} />
+          </p>
+        )}
       </div>
 
       <form onSubmit={onNotificationSave}>

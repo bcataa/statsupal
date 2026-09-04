@@ -76,20 +76,28 @@ export default function OverviewPage() {
   const overallColor  = statusColor(overallStatus);
   const overallLabel  = down > 0 ? "Systems degraded" : degraded > 0 ? "Partial degradation" : "All systems operational";
 
-  const recentActivity = useMemo(() => [
-    ...incidents.slice(0, 6).map((i) => ({
-      dot: i.status === "resolved" ? "#34d399" : i.severity === "critical" ? "#f87171" : "#fbbf24",
-      text: `${i.status === "resolved" ? "✓ Resolved" : "⚠ Incident"}: ${i.title}`,
-      time: timeAgo(i.updatedAt),
-      key: i.id,
-    })),
-    ...services.slice(0, 4).map((s) => ({
-      dot: statusColor(s.status),
-      text: `${s.name} — ${s.status} (${s.responseTimeMs > 0 ? s.responseTimeMs + " ms" : "pending"})`,
-      time: s.lastChecked ? timeAgo(s.lastChecked) : "—",
-      key: s.id + "_svc",
-    })),
-  ].sort(() => Math.random() - 0.5).slice(0, 8), [incidents, services]);
+  const recentActivity = useMemo(() => {
+    const items = [
+      ...incidents.slice(0, 6).map((i) => ({
+        dot: i.status === "resolved" ? "#34d399" : i.severity === "critical" ? "#f87171" : "#fbbf24",
+        text: `${i.status === "resolved" ? "✓ Resolved" : "⚠ Incident"}: ${i.title}`,
+        time: timeAgo(i.updatedAt),
+        sortKey: i.updatedAt,
+        key: i.id,
+      })),
+      ...services.slice(0, 4).map((s) => ({
+        dot: statusColor(s.status),
+        text: `${s.name} — ${s.status} (${s.responseTimeMs > 0 ? s.responseTimeMs + " ms" : "pending"})`,
+        time: s.lastChecked ? timeAgo(s.lastChecked) : "—",
+        sortKey: s.lastChecked || s.id,
+        key: s.id + "_svc",
+      })),
+    ];
+    return items
+      .sort((a, b) => b.sortKey.localeCompare(a.sortKey))
+      .slice(0, 8)
+      .map(({ sortKey: _sortKey, ...rest }) => rest);
+  }, [incidents, services]);
 
   if (!isHydrated) {
     return (

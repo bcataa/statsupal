@@ -328,7 +328,9 @@ export function StatusPageLivePreview({
               <ul className="mt-3 divide-y divide-white/10">
                 {notices.map((n) => (
                   <li key={n.id} className="py-3 first:pt-0">
-                    <p className="text-xs text-zinc-500">{n.line1}</p>
+                    <p className="text-xs text-zinc-500" suppressHydrationWarning>
+                      {n.line1}
+                    </p>
                     <p className="mt-0.5 text-sm text-zinc-200">{n.line2}</p>
                   </li>
                 ))}

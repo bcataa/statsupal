@@ -4,6 +4,9 @@
  * (browser on the client, host default on the server).
  */
 
+/** Fixed timezone for SSR fallbacks so server and client agree before hydration. */
+export const SSR_STABLE_TIMEZONE = "UTC";
+
 /** IANA timezone for the current runtime (browser or server). */
 export function getDefaultTimeZone(): string {
   try {
